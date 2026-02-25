@@ -1,0 +1,9 @@
+// src/users/enums/role.enum.ts
+export enum Role {
+  PLATFORM_ADMIN = 'PLATFORM_ADMIN',
+  BUSINESS_OWNER = 'BUSINESS_OWNER',
+  BUSINESS_ADMIN = 'BUSINESS_ADMIN',
+  ACCOUNTANT = 'ACCOUNTANT',
+  TEAM_MEMBER = 'TEAM_MEMBER',
+  CLIENT = 'CLIENT',
+}
