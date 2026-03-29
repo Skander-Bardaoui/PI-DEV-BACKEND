@@ -82,4 +82,32 @@ export class MessagesController {
   findAllByTask(@Param('taskId') taskId: string, @Request() req) {
     return this.messagesService.findAllByTask(taskId, req.user.id);
   }
+
+  @Get('chat-color/:taskId')
+  async getChatColor(@Param('taskId') taskId: string, @Request() req) {
+    const color = await this.messagesService.getChatColorPreference(
+      taskId,
+      req.user.id,
+    );
+    return { color };
+  }
+
+  @Post('chat-color/:taskId')
+  async setChatColor(
+    @Param('taskId') taskId: string,
+    @Body('color') color: string,
+    @Request() req,
+  ) {
+    if (!color || !/^#[0-9A-F]{6}$/i.test(color)) {
+      throw new BadRequestException('Invalid color format. Use #RRGGBB');
+    }
+
+    const preference = await this.messagesService.setChatColorPreference(
+      taskId,
+      req.user.id,
+      color,
+    );
+
+    return { message: 'Chat color updated', color: preference.color };
+  }
 }
