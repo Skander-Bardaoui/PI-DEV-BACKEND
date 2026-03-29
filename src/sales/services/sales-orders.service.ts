@@ -20,6 +20,8 @@ import { SalesMailService } from './sales-mail.service';
 import { ClientPortalService } from './client-portal.service';
 import { CreateSalesOrderDto } from '../dto/create-sales-order.dto';
 import { UpdateSalesOrderDto } from '../dto/update-sales-order.dto';
+import { StockMovementsService } from '../../stock/services/stock-movements/stock-movements.service';
+import { StockMovementType } from '../../stock/enums/stock-movement-type.enum';
 
 const TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
   [SalesOrderStatus.CONFIRMED]: [SalesOrderStatus.IN_PROGRESS, SalesOrderStatus.CANCELLED],
@@ -55,6 +57,8 @@ export class SalesOrdersService {
 
     @Inject(forwardRef(() => ClientPortalService))
     private readonly portalService: ClientPortalService,
+
+    private readonly stockMovementsService: StockMovementsService,
 
     private readonly dataSource: DataSource,
   ) {}
@@ -201,6 +205,25 @@ export class SalesOrdersService {
 
       order.status = SalesOrderStatus.IN_PROGRESS;
       await manager.save(SalesOrder, order);
+
+      // Create stock movements for each item with productId
+      for (const item of order.items) {
+        if (item.productId) {
+          try {
+            await this.stockMovementsService.createManual(businessId, {
+              product_id: item.productId,
+              type: StockMovementType.SORTIE_VENTE,
+              quantity: Number(item.quantity),
+              source_type: 'SALES_ORDER',
+              source_id: order.id,
+              note: `Sortie vente - Commande ${order.orderNumber}`,
+            });
+          } catch (error) {
+            console.error(`Failed to create stock movement for product ${item.productId}:`, error);
+            // Continue with other items even if one fails
+          }
+        }
+      }
 
       return this.findOne(businessId, id);
     });

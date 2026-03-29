@@ -72,7 +72,6 @@ export class StockMovementsService {
       quantityChange = -Math.abs(quantityChange);
     } else if (
       dto.type === StockMovementType.ENTREE_ACHAT ||
-      dto.type === StockMovementType.ENTREE_RETOUR_CLIENT ||
       dto.type === StockMovementType.AJUSTEMENT_POSITIF ||
       dto.type === StockMovementType.IN
     ) {

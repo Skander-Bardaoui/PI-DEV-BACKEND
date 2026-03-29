@@ -41,12 +41,14 @@ import { SalesMatchingController } from './controllers/sales-matching.controller
 import { Client } from '../clients/entities/client.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { BusinessesModule } from '../businesses/businesses.module';
+import { StockModule } from '../stock/stock.module';
 
 @Module({
   imports: [
     ConfigModule,
     ScheduleModule.forRoot(),
     BusinessesModule, // Import BusinessesModule to get BusinessAccessGuard dependencies
+    StockModule, // Import StockModule to get StockMovementsService
     TypeOrmModule.forFeature([
       Quote,
       QuoteItem,
