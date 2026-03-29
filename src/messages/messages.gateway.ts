@@ -65,4 +65,19 @@ export class MessagesGateway {
       return { event: 'error', data: errorMessage };
     }
   }
+
+  @SubscribeMessage('userTyping')
+  handleUserTyping(
+    @MessageBody() data: { taskId: string; userId: string; userName: string; isTyping: boolean },
+    @ConnectedSocket() client: Socket,
+  ) {
+    // Broadcast to all clients in the task room except the sender
+    client.to(`task-${data.taskId}`).emit('userTyping', {
+      userId: data.userId,
+      userName: data.userName,
+      isTyping: data.isTyping,
+    });
+    
+    return { event: 'typingBroadcasted', data: true };
+  }
 }

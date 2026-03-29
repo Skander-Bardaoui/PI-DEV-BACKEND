@@ -913,3 +913,169 @@ Pour toute question ou problème :
 **Version :** 1.0.0  
 **Dernière mise à jour :** Mars 2026  
 **Auteurs :** Équipe PI-DEV
+
+
+---
+
+## Indicateur de saisie (Typing Indicator)
+
+### Vue d'ensemble
+
+L'indicateur de saisie affiche en temps réel quand un utilisateur est en train d'écrire un message. Cette fonctionnalité améliore l'expérience utilisateur en donnant un feedback visuel immédiat.
+
+### Fonctionnement
+
+#### Backend - WebSocket Event
+
+**Événement : `userTyping`**
+
+```typescript
+// messages.gateway.ts
+@SubscribeMessage('userTyping')
+handleUserTyping(
+  @MessageBody() data: { 
+    taskId: string; 
+    userId: string; 
+    userName: string; 
+    isTyping: boolean 
+  },
+  @ConnectedSocket() client: Socket,
+) {
+  // Broadcast à tous sauf l'émetteur
+  client.to(`task-${data.taskId}`).emit('userTyping', {
+    userId: data.userId,
+    userName: data.userName,
+    isTyping: data.isTyping,
+  });
+}
+```
+
+#### Frontend - Implémentation
+
+**1. État et références**
+```typescript
+const [typingUsers, setTypingUsers] = useState<{ userId: string; userName: string }[]>([]);
+const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+```
+
+**2. Écoute de l'événement**
+```typescript
+socket.on('userTyping', (data: { userId: string; userName: string; isTyping: boolean }) => {
+  if (data.userId !== currentUserId) {
+    setTypingUsers((prev) => {
+      if (data.isTyping) {
+        if (!prev.find(u => u.userId === data.userId)) {
+          return [...prev, { userId: data.userId, userName: data.userName }];
+        }
+        return prev;
+      } else {
+        return prev.filter(u => u.userId !== data.userId);
+      }
+    });
+  }
+});
+```
+
+
+**3. Émission avec debounce**
+```typescript
+const emitTypingEvent = (isTyping: boolean) => {
+  if (!socket) return;
+
+  // Annuler le timeout précédent
+  if (typingTimeoutRef.current) {
+    clearTimeout(typingTimeoutRef.current);
+  }
+
+  // Émettre l'événement typing
+  socket.emit('userTyping', {
+    taskId,
+    userId: currentUserId,
+    userName: userName,
+    isTyping: true,
+  });
+
+  // Arrêter après 2 secondes d'inactivité
+  typingTimeoutRef.current = setTimeout(() => {
+    socket.emit('userTyping', {
+      taskId,
+      userId: currentUserId,
+      userName: userName,
+      isTyping: false,
+    });
+  }, 2000);
+};
+```
+
+**4. Affichage visuel**
+```tsx
+{typingUsers.length > 0 && (
+  <div className="px-4 py-2 border-t border-gray-100">
+    <div className="flex items-center gap-2 text-sm text-gray-500">
+      <div className="flex gap-1">
+        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+      </div>
+      <span>
+        {typingUsers.length === 1
+          ? `${typingUsers[0].userName} est en train d'écrire...`
+          : typingUsers.length === 2
+          ? `${typingUsers[0].userName} et ${typingUsers[1].userName} sont en train d'écrire...`
+          : `${typingUsers.length} personnes sont en train d'écrire...`}
+      </span>
+    </div>
+  </div>
+)}
+```
+
+### Caractéristiques
+
+1. **Debounce de 2 secondes**
+   - Évite de spammer le serveur
+   - Arrête automatiquement l'indicateur après 2s d'inactivité
+
+2. **Gestion multiple**
+   - Affiche "Alice est en train d'écrire..."
+   - Affiche "Alice et Bob sont en train d'écrire..."
+   - Affiche "3 personnes sont en train d'écrire..."
+
+3. **Animation**
+   - 3 points animés avec effet bounce
+   - Délai d'animation décalé pour effet fluide
+
+4. **Nettoyage automatique**
+   - Arrête l'indicateur lors de l'envoi du message
+   - Nettoie le timeout au démontage du composant
+
+### Optimisations
+
+- **Broadcast ciblé** : Seuls les utilisateurs dans la même discussion reçoivent l'événement
+- **Exclusion de l'émetteur** : L'utilisateur ne voit pas son propre indicateur
+- **Timeout automatique** : Évite les indicateurs bloqués si l'utilisateur quitte sans envoyer
+
+### Exemple d'utilisation
+
+```typescript
+// Quand l'utilisateur tape
+const handleMessageChange = (e) => {
+  setNewMessage(e.target.value);
+  emitTypingEvent(true);  // Émet l'événement avec debounce
+};
+
+// Quand l'utilisateur envoie
+const handleSendMessage = async () => {
+  // Arrêter l'indicateur
+  if (socket && typingTimeoutRef.current) {
+    clearTimeout(typingTimeoutRef.current);
+    socket.emit('userTyping', {
+      taskId,
+      userId: currentUserId,
+      userName: '',
+      isTyping: false,
+    });
+  }
+  
+  // Envoyer le message...
+};
+```
