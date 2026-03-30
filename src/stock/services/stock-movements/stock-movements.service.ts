@@ -91,6 +91,7 @@ export class StockMovementsService {
       quantity_after: quantityAfter,
       reference_type: dto.source_type || 'MANUAL',
       reference_id: dto.source_id,
+      warehouse_id: dto.warehouse_id || null,
       note: dto.note,
     });
 

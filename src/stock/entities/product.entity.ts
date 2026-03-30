@@ -61,6 +61,13 @@ export class Product {
   @ManyToOne(() => Supplier, { nullable: true, onDelete: 'SET NULL', eager: false })
   @JoinColumn({ name: 'default_supplier_id' })
   default_supplier: Supplier | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  warehouse_id: string | null;
+
+  @ManyToOne('Warehouse', 'products', { nullable: true, onDelete: 'SET NULL', eager: false })
+  @JoinColumn({ name: 'warehouse_id' })
+  warehouse: any;
  
   @Column({ type: 'varchar', length: 20, default: 'pcs' })
   unit: string;
