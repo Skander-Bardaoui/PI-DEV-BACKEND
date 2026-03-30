@@ -1,6 +1,6 @@
 ﻿import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { ChatColorPreference } from './entities/chat-color-preference.entity';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -28,6 +28,22 @@ export class MessagesService {
       }
     }
 
+    if (createMessageDto.parentMessageId) {
+      const parentMessage = await this.messageRepository.findOne({
+        where: { id: createMessageDto.parentMessageId },
+      });
+
+      if (!parentMessage) {
+        throw new Error('Parent message not found');
+      }
+
+      await this.messageRepository.increment(
+        { id: createMessageDto.parentMessageId },
+        'replyCount',
+        1,
+      );
+    }
+
     const message = this.messageRepository.create({
       taskId: createMessageDto.taskId,
       content: createMessageDto.content,
@@ -37,6 +53,7 @@ export class MessagesService {
       fileSize: createMessageDto.fileSize,
       mentions: mentions,
       messageColor: createMessageDto.messageColor,
+      parentMessageId: createMessageDto.parentMessageId,
       senderId: userId,
     });
 
@@ -55,9 +72,24 @@ export class MessagesService {
 
   async findAllByTask(taskId: string): Promise<Message[]> {
     return this.messageRepository.find({
-      where: { taskId },
+      where: { taskId, parentMessageId: IsNull() },
       relations: ['sender'],
       order: { createdAt: 'ASC' },
+    });
+  }
+
+  async findThreadReplies(parentMessageId: string): Promise<Message[]> {
+    return this.messageRepository.find({
+      where: { parentMessageId },
+      relations: ['sender'],
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async findMessageById(messageId: string): Promise<Message | null> {
+    return this.messageRepository.findOne({
+      where: { id: messageId },
+      relations: ['sender'],
     });
   }
 

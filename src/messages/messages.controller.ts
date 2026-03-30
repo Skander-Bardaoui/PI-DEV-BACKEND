@@ -70,10 +70,27 @@ export class MessagesController {
       req.user.id,
     );
 
-    // Broadcast via socket
-    this.messagesGateway.server
-      .to(`task-${createMessageDto.taskId}`)
-      .emit('newMessage', message);
+    // If this is a reply, emit newReply event
+    if (createMessageDto.parentMessageId) {
+      const parentMessage = await this.messagesService.findMessageById(
+        createMessageDto.parentMessageId,
+      );
+      
+      if (parentMessage) {
+        this.messagesGateway.server
+          .to(`task-${createMessageDto.taskId}`)
+          .emit('newReply', {
+            reply: message,
+            parentMessageId: createMessageDto.parentMessageId,
+            newReplyCount: parentMessage.replyCount + 1,
+          });
+      }
+    } else {
+      // Broadcast regular message via socket
+      this.messagesGateway.server
+        .to(`task-${createMessageDto.taskId}`)
+        .emit('newMessage', message);
+    }
 
     return message;
   }
@@ -81,6 +98,21 @@ export class MessagesController {
   @Get('task/:taskId')
   findAllByTask(@Param('taskId') taskId: string, @Request() req) {
     return this.messagesService.findAllByTask(taskId);
+  }
+
+  @Get('thread/:parentMessageId')
+  async getThread(@Param('parentMessageId') parentMessageId: string, @Request() req) {
+    const parentMessage = await this.messagesService.findMessageById(parentMessageId);
+    if (!parentMessage) {
+      throw new BadRequestException('Parent message not found');
+    }
+
+    const replies = await this.messagesService.findThreadReplies(parentMessageId);
+    
+    return {
+      parentMessage,
+      replies,
+    };
   }
 
   @Get('chat-color/:taskId')
