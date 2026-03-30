@@ -10,11 +10,17 @@ import {
   Query,
   ParseUUIDPipe,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  BadGatewayException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { ProductsService } from '../services/products.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
+import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorators';
 import { Role } from '../../users/enums/role.enum';
@@ -86,6 +92,44 @@ export class ProductsController {
   async findAlerts(@Param('businessId', ParseUUIDPipe) businessId: string) {
     const products = await this.productsService.findAlerts(businessId);
     return products.map(p => this.transformToFrontend(p));
+  }
+
+  @Post('scan-image')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @UseInterceptors(FileInterceptor('image', {
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.match(/^image\/(jpeg|png|webp)$/)) {
+        return cb(new BadRequestException('Only JPEG, PNG, and WEBP images are allowed'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  async scanImage(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ScanProductImageResponseDto> {
+    if (!file) {
+      throw new BadRequestException('No image file provided');
+    }
+
+    try {
+      return await this.productsService.scanProductImage(file.buffer, file.mimetype);
+    } catch (error: any) {
+      console.error('Error scanning product image:', error);
+      
+      // Check if it's a quota/rate limit error
+      if (error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
+        throw new BadGatewayException('Image scanning service has exceeded quota. Please try again later.');
+      }
+      
+      // Check if it's an authentication error
+      if (error?.message?.includes('API key') || error?.status === 401 || error?.status === 403) {
+        throw new BadGatewayException('Image scanning service is not configured. Please contact your administrator.');
+      }
+      
+      throw new BadGatewayException('Failed to analyze image. Please try again.');
+    }
   }
 
   @Get(':id')
