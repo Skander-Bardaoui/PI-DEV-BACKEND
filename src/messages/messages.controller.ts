@@ -80,7 +80,7 @@ export class MessagesController {
 
   @Get('task/:taskId')
   findAllByTask(@Param('taskId') taskId: string, @Request() req) {
-    return this.messagesService.findAllByTask(taskId, req.user.id);
+    return this.messagesService.findAllByTask(taskId);
   }
 
   @Get('chat-color/:taskId')

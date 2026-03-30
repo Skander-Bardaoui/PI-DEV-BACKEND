@@ -1,14 +1,9 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { ChatColorPreference } from './entities/chat-color-preference.entity';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { TasksService } from '../tasks/tasks.service';
 
 @Injectable()
 export class MessagesService {
@@ -17,17 +12,9 @@ export class MessagesService {
     private messageRepository: Repository<Message>,
     @InjectRepository(ChatColorPreference)
     private chatColorPreferenceRepository: Repository<ChatColorPreference>,
-    private tasksService: TasksService,
   ) {}
 
-  async create(
-    createMessageDto: CreateMessageDto,
-    userId: string,
-  ): Promise<Message> {
-    // Verify task exists and user has access
-    await this.tasksService.findOne(createMessageDto.taskId, userId);
-
-    // Ensure mentions is always an array (not a string)
+  async create(createMessageDto: CreateMessageDto, userId: string): Promise<Message> {
     let mentions: string[] | undefined = undefined;
     if (createMessageDto.mentions) {
       if (typeof createMessageDto.mentions === 'string') {
@@ -54,8 +41,6 @@ export class MessagesService {
     });
 
     const saved = await this.messageRepository.save(message);
-
-    // Load sender info
     const messageWithSender = await this.messageRepository.findOne({
       where: { id: saved.id },
       relations: ['sender'],
@@ -68,10 +53,7 @@ export class MessagesService {
     return messageWithSender;
   }
 
-  async findAllByTask(taskId: string, userId: string): Promise<Message[]> {
-    // Verify task exists and user has access
-    await this.tasksService.findOne(taskId, userId);
-
+  async findAllByTask(taskId: string): Promise<Message[]> {
     return this.messageRepository.find({
       where: { taskId },
       relations: ['sender'],
@@ -79,25 +61,14 @@ export class MessagesService {
     });
   }
 
-  async getChatColorPreference(
-    taskId: string,
-    userId: string,
-  ): Promise<string> {
+  async getChatColorPreference(taskId: string, userId: string): Promise<string> {
     const preference = await this.chatColorPreferenceRepository.findOne({
       where: { taskId, userId },
     });
-
-    return preference?.color || '#4F46E5'; // Couleur par défaut
+    return preference?.color || '#4F46E5';
   }
 
-  async setChatColorPreference(
-    taskId: string,
-    userId: string,
-    color: string,
-  ): Promise<ChatColorPreference> {
-    // Vérifier que l'utilisateur a accès à la tâche
-    await this.tasksService.findOne(taskId, userId);
-
+  async setChatColorPreference(taskId: string, userId: string, color: string): Promise<ChatColorPreference> {
     let preference = await this.chatColorPreferenceRepository.findOne({
       where: { taskId, userId },
     });

@@ -80,4 +80,32 @@ export class MessagesGateway {
     
     return { event: 'typingBroadcasted', data: true };
   }
+
+  // Emit task moved event to all clients in the business
+  emitTaskMoved(businessId: string, data: {
+    taskId: string;
+    newStatus: string;
+    newOrder: number;
+    movedBy: string;
+  }) {
+    this.server.to(`business-${businessId}`).emit('taskMoved', data);
+  }
+
+  @SubscribeMessage('joinBusiness')
+  handleJoinBusiness(
+    @MessageBody() businessId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.join(`business-${businessId}`);
+    return { event: 'joinedBusiness', data: businessId };
+  }
+
+  @SubscribeMessage('leaveBusiness')
+  handleLeaveBusiness(
+    @MessageBody() businessId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.leave(`business-${businessId}`);
+    return { event: 'leftBusiness', data: businessId };
+  }
 }

@@ -56,6 +56,7 @@ import { Task } from './tasks/entities/task.entity';
 
 // Messages Entities
 import { Message } from './messages/entities/message.entity';
+import { ChatColorPreference } from './messages/entities/chat-color-preference.entity';
 
 // Purchases Entities
 import { Supplier } from './Purchases/entities/supplier.entity';
@@ -132,6 +133,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
           // Messages
           Message,
+          ChatColorPreference,
         ],
       }),
       inject: [ConfigService],
