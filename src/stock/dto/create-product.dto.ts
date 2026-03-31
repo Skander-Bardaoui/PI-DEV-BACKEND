@@ -46,6 +46,10 @@ export class CreateProductDto {
   default_supplier_id?: string;
 
   @IsOptional()
+  @IsUUID()
+  warehouse_id?: string;
+
+  @IsOptional()
   @IsString()
   unit?: string;
 
