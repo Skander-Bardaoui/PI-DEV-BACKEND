@@ -142,9 +142,12 @@ export class TasksService {
     userId: string,
   ): Promise<Task> {
     const task = await this.findOne(id, userId);
-    const { status: newStatus, order: newOrder } = moveTaskDto;
+    const { status: newStatus, order: newOrder, priority: newPriority } = moveTaskDto;
     const oldStatus = task.status;
     const oldOrder = task.order;
+
+    console.log('MoveTask DTO received:', { newStatus, newOrder, newPriority });
+    console.log('Current task priority:', task.priority);
 
     // Use transaction to ensure atomicity
     const updatedTask = await this.dataSource.transaction(async (manager) => {
@@ -204,7 +207,15 @@ export class TasksService {
         task.order = newOrder;
       }
 
-      return await taskRepo.save(task);
+      // Update priority if provided
+      if (newPriority !== undefined && newPriority !== null) {
+        console.log('Updating priority to:', newPriority);
+        task.priority = newPriority;
+      }
+
+      const savedTask = await taskRepo.save(task);
+      console.log('Task saved with priority:', savedTask.priority);
+      return savedTask;
     });
 
     // Emit WebSocket event

@@ -1,5 +1,5 @@
-import { IsEnum, IsInt, Min } from 'class-validator';
-import { TaskStatus } from '../entities/task.entity';
+import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import { TaskStatus, TaskPriority } from '../entities/task.entity';
 
 export class MoveTaskDto {
   @IsEnum(TaskStatus)
@@ -8,4 +8,8 @@ export class MoveTaskDto {
   @IsInt()
   @Min(0)
   order: number;
+
+  @IsOptional()
+  @IsEnum(TaskPriority)
+  priority?: TaskPriority;
 }
