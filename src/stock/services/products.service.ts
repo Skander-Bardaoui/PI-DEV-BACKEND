@@ -2,7 +2,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, Like, In } from 'typeorm';
+import { Repository, LessThan, Like, In, SelectQueryBuilder } from 'typeorm';
 import Groq from 'groq-sdk';
 import PDFDocument from 'pdfkit';
 import * as bwipjs from 'bwip-js';
@@ -11,6 +11,7 @@ import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
 import { GenerateSkuDto } from '../dto/generate-sku.dto';
+import { QueryProductsDto, ProductSortBy } from '../dto/query-products.dto';
 import { generateInternalBarcode } from '../utils/barcode.util';
 import { Business } from '../../businesses/entities/business.entity';
 
@@ -31,16 +32,92 @@ export class ProductsService {
     }
   }
 
-  async findAll(businessId: string, isActive?: boolean): Promise<Product[]> {
-    const where: any = { business_id: businessId };
-    if (isActive !== undefined) {
-      where.is_active = isActive;
+  async findAll(businessId: string, query: QueryProductsDto = {}): Promise<Product[]> {
+    const qb: SelectQueryBuilder<Product> = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.warehouse', 'warehouse')
+      .where('product.business_id = :businessId', { businessId });
+
+    // Search filter
+    if (query.search) {
+      qb.andWhere(
+        '(LOWER(product.name) LIKE LOWER(:search) OR LOWER(product.sku) LIKE LOWER(:search) OR LOWER(product.barcode) LIKE LOWER(:search))',
+        { search: `%${query.search}%` },
+      );
     }
-    return this.productRepo.find({
-      where,
-      relations: ['category', 'default_supplier'],
-      order: { name: 'ASC' },
-    });
+
+    // Category filter
+    if (query.category_id) {
+      qb.andWhere('product.category_id = :categoryId', { categoryId: query.category_id });
+    }
+
+    // Warehouse filter
+    if (query.warehouse_id) {
+      qb.andWhere('product.warehouse_id = :warehouseId', { warehouseId: query.warehouse_id });
+    }
+
+    // Active status filter
+    if (query.is_active !== undefined) {
+      qb.andWhere('product.is_active = :isActive', { isActive: query.is_active });
+    }
+
+    // Stockable filter
+    if (query.is_stockable !== undefined) {
+      qb.andWhere('product.track_inventory = :trackInventory', { trackInventory: query.is_stockable });
+    }
+
+    // Low stock filter
+    if (query.low_stock) {
+      qb.andWhere('product.track_inventory = :trackInventory', { trackInventory: true })
+        .andWhere('product.quantity <= product.min_quantity');
+    }
+
+    // Out of stock filter
+    if (query.out_of_stock) {
+      qb.andWhere('product.quantity = :zero', { zero: 0 });
+    }
+
+    // Barcode filter
+    if (query.has_barcode !== undefined) {
+      if (query.has_barcode) {
+        qb.andWhere('product.barcode IS NOT NULL');
+      } else {
+        qb.andWhere('product.barcode IS NULL');
+      }
+    }
+
+    // Price range filters
+    if (query.price_min !== undefined) {
+      qb.andWhere('product.price >= :priceMin', { priceMin: query.price_min });
+    }
+
+    if (query.price_max !== undefined) {
+      qb.andWhere('product.price <= :priceMax', { priceMax: query.price_max });
+    }
+
+    // Sorting
+    const sortBy = query.sort_by || ProductSortBy.NAME;
+    const sortOrder = query.sort_order || 'ASC';
+
+    switch (sortBy) {
+      case ProductSortBy.NAME:
+        qb.orderBy('product.name', sortOrder);
+        break;
+      case ProductSortBy.PRICE:
+        qb.orderBy('product.price', sortOrder);
+        break;
+      case ProductSortBy.QUANTITY:
+        qb.orderBy('product.quantity', sortOrder);
+        break;
+      case ProductSortBy.CREATED_AT:
+        qb.orderBy('product.created_at', sortOrder);
+        break;
+      default:
+        qb.orderBy('product.name', 'ASC');
+    }
+
+    return qb.getMany();
   }
 
   async findOne(businessId: string, id: string): Promise<Product> {

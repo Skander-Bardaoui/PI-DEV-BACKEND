@@ -24,6 +24,7 @@ import { UpdateProductDto } from '../dto/update-product.dto';
 import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
 import { GenerateSkuDto, GenerateSkuResponseDto } from '../dto/generate-sku.dto';
 import { BulkLabelsDto } from '../dto/bulk-labels.dto';
+import { QueryProductsDto } from '../dto/query-products.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorators';
 import { Role } from '../../users/enums/role.enum';
@@ -84,10 +85,9 @@ export class ProductsController {
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   async findAll(
     @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Query('is_active') isActive?: string,
+    @Query() query: QueryProductsDto,
   ) {
-    const isActiveBool = isActive === 'true' ? true : isActive === 'false' ? false : undefined;
-    const products = await this.productsService.findAll(businessId, isActiveBool);
+    const products = await this.productsService.findAll(businessId, query);
     return products.map(p => this.transformToFrontend(p));
   }
 
