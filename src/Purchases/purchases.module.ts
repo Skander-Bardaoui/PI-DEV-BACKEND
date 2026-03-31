@@ -19,6 +19,8 @@ import { Supplier }            from './entities/supplier.entity';
 import { SupplierPortalToken } from './entities/supplier-portal-token.entity';
 import { PurchaseAlert }       from './entities/purchase-alert.entity';
 import { Business }            from '../businesses/entities/business.entity';
+import { StockMovement }       from '../stock/entities/stock-movement.entity';
+import { Product }             from '../stock/entities/product.entity';
 // import { Product }             from '../products/entities/product.entity'; // Module pas encore implémenté
  
 // Controllers — SupplierPaymentsController RETIRÉ (dans PaymentsModule)
@@ -50,6 +52,7 @@ import { SupplierAiInsightsService } from './services/supplier-ai-insights.servi
  
 // FIX : import du module payments avec forwardRef des DEUX côtés
 import { PaymentsModule } from '../payments/payments.module';
+import { StockModule } from '../stock/stock.module';
 import { SupplierScoringController } from './controllers/supplier-scoring.controller';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
@@ -65,10 +68,12 @@ import { OcrService } from './services/ocr.service';
       GoodsReceipt, GoodsReceiptItem, PurchaseInvoice,
       SupplierPOItem, SupplierPO, Supplier,
       SupplierPortalToken, PurchaseAlert, Business, Tenant, User,
+      StockMovement, Product,
       // Product, // Module pas encore implémenté
       // SupplierPayment retiré — dans PaymentsModule
     ]),
     forwardRef(() => PaymentsModule), // ← FIX : forwardRef des deux côtés
+    StockModule, // Import StockModule to get StockMovementsService
     HttpModule,
     ScheduleModule.forRoot(),
     MulterModule.register({ dest: './uploads' }),

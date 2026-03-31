@@ -22,6 +22,8 @@ import { CreateSalesOrderDto } from '../dto/create-sales-order.dto';
 import { UpdateSalesOrderDto } from '../dto/update-sales-order.dto';
 import { StockMovementsService } from '../../stock/services/stock-movements/stock-movements.service';
 import { StockMovementType } from '../../stock/enums/stock-movement-type.enum';
+import { StockMovement } from '../../stock/entities/stock-movement.entity';
+import { Product } from '../../stock/entities/product.entity';
 
 const TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
   [SalesOrderStatus.CONFIRMED]: [SalesOrderStatus.IN_PROGRESS, SalesOrderStatus.CANCELLED],
@@ -51,6 +53,12 @@ export class SalesOrdersService {
 
     @InjectRepository(DeliveryNoteItem)
     private readonly deliveryNoteItemRepo: Repository<DeliveryNoteItem>,
+
+    @InjectRepository(StockMovement)
+    private readonly stockMovementRepo: Repository<StockMovement>,
+
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
 
     @Inject(forwardRef(() => SalesMailService))
     private readonly mailService: SalesMailService,
@@ -92,10 +100,31 @@ export class SalesOrdersService {
       );
       await manager.save(SalesOrderItem, lines);
 
-      return manager.findOne(SalesOrder, {
+      const result = await manager.findOne(SalesOrder, {
         where: { id: saved.id },
         relations: ['items', 'client'],
-      }) as Promise<SalesOrder>;
+      }) as SalesOrder;
+
+      // Create stock movements for each item with productId when order is confirmed
+      for (const item of lines) {
+        if (item.productId) {
+          try {
+            await this.stockMovementsService.createManual(businessId, {
+              product_id: item.productId,
+              type: StockMovementType.SORTIE_VENTE,
+              quantity: Number(item.quantity),
+              source_type: 'SALES_ORDER',
+              source_id: saved.id,
+              note: `Sortie vente - Commande ${orderNumber}`,
+            });
+          } catch (error) {
+            console.error(`Failed to create stock movement for product ${item.productId}:`, error);
+            // Continue with other items even if one fails
+          }
+        }
+      }
+
+      return result;
     });
   }
 
@@ -146,6 +175,9 @@ export class SalesOrdersService {
         order.notes = dto.notes;
 
       if (dto.items?.length) {
+        // Reverse stock movements for old items
+        await this.reverseStockMovements(businessId, id, manager);
+
         await manager.delete(SalesOrderItem, { salesOrderId: id });
 
         const { subtotal, taxAmount, netAmount, items } = this.calcTotals(dto.items);
@@ -163,6 +195,24 @@ export class SalesOrdersService {
           }),
         );
         await manager.save(SalesOrderItem, lines);
+
+        // Create new stock movements for updated items
+        for (const item of lines) {
+          if (item.productId) {
+            try {
+              await this.stockMovementsService.createManual(businessId, {
+                product_id: item.productId,
+                type: StockMovementType.SORTIE_VENTE,
+                quantity: Number(item.quantity),
+                source_type: 'SALES_ORDER',
+                source_id: id,
+                note: `Sortie vente - Commande ${order.orderNumber}`,
+              });
+            } catch (error) {
+              console.error(`Failed to create stock movement for product ${item.productId}:`, error);
+            }
+          }
+        }
       } else {
         await manager.save(SalesOrder, order);
       }
@@ -206,25 +256,6 @@ export class SalesOrdersService {
       order.status = SalesOrderStatus.IN_PROGRESS;
       await manager.save(SalesOrder, order);
 
-      // Create stock movements for each item with productId
-      for (const item of order.items) {
-        if (item.productId) {
-          try {
-            await this.stockMovementsService.createManual(businessId, {
-              product_id: item.productId,
-              type: StockMovementType.SORTIE_VENTE,
-              quantity: Number(item.quantity),
-              source_type: 'SALES_ORDER',
-              source_id: order.id,
-              note: `Sortie vente - Commande ${order.orderNumber}`,
-            });
-          } catch (error) {
-            console.error(`Failed to create stock movement for product ${item.productId}:`, error);
-            // Continue with other items even if one fails
-          }
-        }
-      }
-
       return this.findOne(businessId, id);
     });
   }
@@ -260,9 +291,50 @@ export class SalesOrdersService {
         );
       }
 
+      // Reverse stock movements before deleting
+      await this.reverseStockMovements(businessId, id, manager);
+
       await manager.delete(SalesOrderItem, { salesOrderId: id });
       await manager.delete(SalesOrder, { id, businessId });
     });
+  }
+
+  /**
+   * Helper method to reverse stock movements for a sales order
+   */
+  private async reverseStockMovements(
+    businessId: string,
+    salesOrderId: string,
+    manager: any,
+  ): Promise<void> {
+    // Find all stock movements for this sales order
+    const movements = await manager.find(StockMovement, {
+      where: {
+        business_id: businessId,
+        reference_type: 'SALES_ORDER',
+        reference_id: salesOrderId,
+      },
+    });
+
+    // Reverse each movement by updating product quantities
+    for (const movement of movements) {
+      try {
+        const product = await manager.findOne(Product, {
+          where: { id: movement.product_id },
+        });
+
+        if (product) {
+          // Reverse the quantity change (subtract the movement quantity)
+          product.quantity = Number(product.quantity) - Number(movement.quantity);
+          await manager.save(Product, product);
+        }
+
+        // Delete the movement record
+        await manager.remove(StockMovement, movement);
+      } catch (error) {
+        console.error(`Failed to reverse stock movement ${movement.id}:`, error);
+      }
+    }
   }
 
   private async transition(
