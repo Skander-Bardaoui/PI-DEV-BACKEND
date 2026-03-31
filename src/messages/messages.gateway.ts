@@ -65,4 +65,47 @@ export class MessagesGateway {
       return { event: 'error', data: errorMessage };
     }
   }
+
+  @SubscribeMessage('userTyping')
+  handleUserTyping(
+    @MessageBody() data: { taskId: string; userId: string; userName: string; isTyping: boolean },
+    @ConnectedSocket() client: Socket,
+  ) {
+    // Broadcast to all clients in the task room except the sender
+    client.to(`task-${data.taskId}`).emit('userTyping', {
+      userId: data.userId,
+      userName: data.userName,
+      isTyping: data.isTyping,
+    });
+    
+    return { event: 'typingBroadcasted', data: true };
+  }
+
+  // Emit task moved event to all clients in the business
+  emitTaskMoved(businessId: string, data: {
+    taskId: string;
+    newStatus: string;
+    newOrder: number;
+    movedBy: string;
+  }) {
+    this.server.to(`business-${businessId}`).emit('taskMoved', data);
+  }
+
+  @SubscribeMessage('joinBusiness')
+  handleJoinBusiness(
+    @MessageBody() businessId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.join(`business-${businessId}`);
+    return { event: 'joinedBusiness', data: businessId };
+  }
+
+  @SubscribeMessage('leaveBusiness')
+  handleLeaveBusiness(
+    @MessageBody() businessId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.leave(`business-${businessId}`);
+    return { event: 'leftBusiness', data: businessId };
+  }
 }

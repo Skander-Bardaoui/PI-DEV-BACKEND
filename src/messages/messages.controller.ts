@@ -70,16 +70,76 @@ export class MessagesController {
       req.user.id,
     );
 
-    // Broadcast via socket
-    this.messagesGateway.server
-      .to(`task-${createMessageDto.taskId}`)
-      .emit('newMessage', message);
+    // If this is a reply, emit newReply event
+    if (createMessageDto.parentMessageId) {
+      const parentMessage = await this.messagesService.findMessageById(
+        createMessageDto.parentMessageId,
+      );
+      
+      if (parentMessage) {
+        this.messagesGateway.server
+          .to(`task-${createMessageDto.taskId}`)
+          .emit('newReply', {
+            reply: message,
+            parentMessageId: createMessageDto.parentMessageId,
+            newReplyCount: parentMessage.replyCount + 1,
+          });
+      }
+    } else {
+      // Broadcast regular message via socket
+      this.messagesGateway.server
+        .to(`task-${createMessageDto.taskId}`)
+        .emit('newMessage', message);
+    }
 
     return message;
   }
 
   @Get('task/:taskId')
   findAllByTask(@Param('taskId') taskId: string, @Request() req) {
-    return this.messagesService.findAllByTask(taskId, req.user.id);
+    return this.messagesService.findAllByTask(taskId);
+  }
+
+  @Get('thread/:parentMessageId')
+  async getThread(@Param('parentMessageId') parentMessageId: string, @Request() req) {
+    const parentMessage = await this.messagesService.findMessageById(parentMessageId);
+    if (!parentMessage) {
+      throw new BadRequestException('Parent message not found');
+    }
+
+    const replies = await this.messagesService.findThreadReplies(parentMessageId);
+    
+    return {
+      parentMessage,
+      replies,
+    };
+  }
+
+  @Get('chat-color/:taskId')
+  async getChatColor(@Param('taskId') taskId: string, @Request() req) {
+    const color = await this.messagesService.getChatColorPreference(
+      taskId,
+      req.user.id,
+    );
+    return { color };
+  }
+
+  @Post('chat-color/:taskId')
+  async setChatColor(
+    @Param('taskId') taskId: string,
+    @Body('color') color: string,
+    @Request() req,
+  ) {
+    if (!color || !/^#[0-9A-F]{6}$/i.test(color)) {
+      throw new BadRequestException('Invalid color format. Use #RRGGBB');
+    }
+
+    const preference = await this.messagesService.setChatColorPreference(
+      taskId,
+      req.user.id,
+      color,
+    );
+
+    return { message: 'Chat color updated', color: preference.color };
   }
 }

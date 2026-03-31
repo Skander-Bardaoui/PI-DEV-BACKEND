@@ -324,6 +324,10 @@ async register(registerDto: RegisterDto, res: Response) {
       user.password_hash = await bcrypt.hash(dto.password, 12);
     }
 
+    if (dto.messageColor !== undefined) {
+      user.messageColor = dto.messageColor;
+    }
+
     return this.usersService.updateUser(userId, user);
   }
 
