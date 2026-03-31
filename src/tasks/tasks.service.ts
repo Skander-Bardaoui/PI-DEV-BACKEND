@@ -14,6 +14,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { DetectPriorityDto } from './dto/detect-priority.dto';
+import { ImproveDescriptionDto } from './dto/improve-description.dto';
 import { BusinessMembersService } from '../businesses/services/business-members.service';
 import { MessagesGateway } from '../messages/messages.gateway';
 import { ConfigService } from '@nestjs/config';
@@ -284,6 +285,65 @@ export class TasksService {
       console.error('Error detecting priority:', error);
       // Return default priority on error
       return { priority: TaskPriority.MEDIUM };
+    }
+  }
+
+  async improveDescription(improveDescriptionDto: ImproveDescriptionDto): Promise<{ improved: string }> {
+    const { title, description } = improveDescriptionDto;
+    const groqApiKey = this.configService.get<string>('GROQ_API_KEY_NOUHA');
+
+    if (!groqApiKey) {
+      throw new BadRequestException('GROQ_API_KEY_NOUHA is not configured');
+    }
+
+    try {
+      const userMessage = title 
+        ? `Task Title: ${title}\n\nCurrent Description: ${description}`
+        : `Current Description: ${description}`;
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a project management assistant. Improve or complete the given task description. Make it clear, professional and actionable. Keep it concise (max 3 sentences). Return ONLY the improved description, nothing else. Keep the same language as the input.',
+            },
+            {
+              role: 'user',
+              content: userMessage,
+            },
+          ],
+          max_tokens: 200,
+          temperature: 0.7,
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Groq API error:', errorText);
+        throw new BadRequestException('Failed to improve description');
+      }
+
+      const data = await response.json();
+      const improvedDescription = data.choices[0]?.message?.content?.trim();
+
+      if (!improvedDescription) {
+        console.warn('No improved description received');
+        return { improved: description }; // Return original if no improvement
+      }
+
+      return { improved: improvedDescription };
+    } catch (error) {
+      console.error('Error improving description:', error);
+      // Return original description on error
+      return { improved: description };
     }
   }
 }
