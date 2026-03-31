@@ -19,6 +19,9 @@ import { StockModule } from './stock/stock.module';
 // Tasks Module
 import { TasksModule } from './tasks/tasks.module';
 
+// Subtasks Module
+import { SubtasksModule } from './subtasks/subtasks.module';
+
 // Messages Module
 import { MessagesModule } from './messages/messages.module';
 
@@ -55,8 +58,12 @@ import { Warehouse } from './stock/entities/warehouse.entity';
 // Tasks Entities
 import { Task } from './tasks/entities/task.entity';
 
+// Subtasks Entities
+import { Subtask } from './subtasks/entities/subtask.entity';
+
 // Messages Entities
 import { Message } from './messages/entities/message.entity';
+import { ChatColorPreference } from './messages/entities/chat-color-preference.entity';
 
 // Purchases Entities
 import { Supplier } from './Purchases/entities/supplier.entity';
@@ -132,8 +139,12 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           // Tasks
           Task,
 
+          // Subtasks
+          Subtask,
+
           // Messages
           Message,
+          ChatColorPreference,
         ],
       }),
       inject: [ConfigService],
@@ -159,6 +170,9 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
     // Tasks
     TasksModule,
+
+    // Subtasks
+    SubtasksModule,
 
     // Messages
     MessagesModule,

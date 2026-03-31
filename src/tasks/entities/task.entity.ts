@@ -50,6 +50,9 @@ export class Task {
   })
   status: TaskStatus;
 
+  @Column({ type: 'integer', default: 0 })
+  order: number;
+
   @ManyToMany(() => User)
   @JoinTable({
     name: 'task_assignees',
