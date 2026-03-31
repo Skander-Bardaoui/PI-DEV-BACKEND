@@ -14,6 +14,7 @@ import {
   UploadedFile,
   BadRequestException,
   BadGatewayException,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
@@ -21,9 +22,12 @@ import { ProductsService } from '../services/products.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
+import { GenerateSkuDto, GenerateSkuResponseDto } from '../dto/generate-sku.dto';
+import { BulkLabelsDto } from '../dto/bulk-labels.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorators';
 import { Role } from '../../users/enums/role.enum';
+import type { Response } from 'express';
 
 @Controller('businesses/:businessId/products')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -132,6 +136,16 @@ export class ProductsController {
     }
   }
 
+  @Post('generate-sku')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  async generateSku(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Body() dto: GenerateSkuDto,
+  ): Promise<GenerateSkuResponseDto> {
+    const sku = await this.productsService.generateSku(businessId, dto);
+    return { sku };
+  }
+
   @Get(':id')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   async findOne(
@@ -172,5 +186,52 @@ export class ProductsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.productsService.remove(businessId, id);
+  }
+
+  @Post(':id/generate-barcode')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  async generateBarcode(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const product = await this.productsService.generateBarcode(businessId, id);
+    return this.transformToFrontend(product);
+  }
+
+  @Get(':id/label')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  async getLabel(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const product = await this.productsService.findOne(businessId, id);
+    const pdfBuffer = await this.productsService.generateLabel(businessId, id);
+    
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="label-${product.sku}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    
+    res.send(pdfBuffer);
+  }
+
+  @Post('labels/bulk')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  async getBulkLabels(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Body() dto: BulkLabelsDto,
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.productsService.generateBulkLabels(businessId, dto.product_ids);
+    
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename="labels-bulk.pdf"',
+      'Content-Length': pdfBuffer.length,
+    });
+    
+    res.send(pdfBuffer);
   }
 }
