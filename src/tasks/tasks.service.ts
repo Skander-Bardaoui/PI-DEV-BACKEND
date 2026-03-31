@@ -8,13 +8,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, DataSource } from 'typeorm';
-import { Task, TaskStatus } from './entities/task.entity';
+import { Task, TaskStatus, TaskPriority } from './entities/task.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
+import { DetectPriorityDto } from './dto/detect-priority.dto';
 import { BusinessMembersService } from '../businesses/services/business-members.service';
 import { MessagesGateway } from '../messages/messages.gateway';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class TasksService {
@@ -27,6 +29,7 @@ export class TasksService {
     private dataSource: DataSource,
     @Inject(forwardRef(() => MessagesGateway))
     private messagesGateway: MessagesGateway,
+    private configService: ConfigService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<Task> {
@@ -227,5 +230,60 @@ export class TasksService {
     });
 
     return updatedTask;
+  }
+
+  async detectPriority(detectPriorityDto: DetectPriorityDto): Promise<{ priority: TaskPriority }> {
+    const { title, description } = detectPriorityDto;
+    const groqApiKey = this.configService.get<string>('GROQ_API_KEY_NOUHA');
+
+    if (!groqApiKey) {
+      throw new BadRequestException('GROQ_API_KEY_NOUHA is not configured');
+    }
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a task priority classifier. Classify the task as LOW, MEDIUM or HIGH based on the title and description. Return ONLY one word: LOW, MEDIUM or HIGH. No explanation, no punctuation, just the priority level.',
+            },
+            {
+              role: 'user',
+              content: `Title: ${title}\nDescription: ${description || 'No description provided'}`,
+            },
+          ],
+          max_tokens: 10,
+          temperature: 0,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Groq API error:', errorText);
+        throw new BadRequestException('Failed to detect priority');
+      }
+
+      const data = await response.json();
+      const detectedPriority = data.choices[0]?.message?.content?.trim().toUpperCase();
+
+      // Validate the response
+      if (!['LOW', 'MEDIUM', 'HIGH'].includes(detectedPriority)) {
+        console.warn('Invalid priority detected:', detectedPriority);
+        return { priority: TaskPriority.MEDIUM }; // Default fallback
+      }
+
+      return { priority: detectedPriority as TaskPriority };
+    } catch (error) {
+      console.error('Error detecting priority:', error);
+      // Return default priority on error
+      return { priority: TaskPriority.MEDIUM };
+    }
   }
 }
