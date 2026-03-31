@@ -53,6 +53,7 @@ import { Payment } from './payments/entities/payment.entity';
 import { Product } from './stock/entities/product.entity';
 import { ProductCategory } from './stock/entities/product-category.entity';
 import { StockMovement } from './stock/entities/stock-movement.entity';
+import { Warehouse } from './stock/entities/warehouse.entity';
 
 // Tasks Entities
 import { Task } from './tasks/entities/task.entity';
@@ -133,6 +134,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           Product,
           ProductCategory,
           StockMovement,
+          Warehouse,
 
           // Tasks
           Task,

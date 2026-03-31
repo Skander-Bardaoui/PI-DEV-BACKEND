@@ -72,7 +72,6 @@ export class StockMovementsService {
       quantityChange = -Math.abs(quantityChange);
     } else if (
       dto.type === StockMovementType.ENTREE_ACHAT ||
-      dto.type === StockMovementType.ENTREE_RETOUR_CLIENT ||
       dto.type === StockMovementType.AJUSTEMENT_POSITIF ||
       dto.type === StockMovementType.IN
     ) {
@@ -92,6 +91,7 @@ export class StockMovementsService {
       quantity_after: quantityAfter,
       reference_type: dto.source_type || 'MANUAL',
       reference_id: dto.source_id,
+      warehouse_id: dto.warehouse_id || null,
       note: dto.note,
     });
 

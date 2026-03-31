@@ -1,10 +1,11 @@
 // src/stock/services/product-categories.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder, IsNull } from 'typeorm';
 import { ProductCategory } from '../entities/product-category.entity';
 import { CreateProductCategoryDto } from '../dto/create-product-category.dto';
 import { UpdateProductCategoryDto } from '../dto/update-product-category.dto';
+import { QueryCategoriesDto, CategorySortBy } from '../dto/query-categories.dto';
 
 @Injectable()
 export class ProductCategoriesService {
@@ -13,12 +14,58 @@ export class ProductCategoriesService {
     private readonly categoryRepo: Repository<ProductCategory>,
   ) {}
 
-  async findAll(businessId: string, isActive?: boolean): Promise<ProductCategory[]> {
-    const where: any = { business_id: businessId };
-    if (isActive !== undefined) {
-      where.is_active = isActive;
+  async findAll(businessId: string, query: QueryCategoriesDto = {}): Promise<ProductCategory[]> {
+    const qb: SelectQueryBuilder<ProductCategory> = this.categoryRepo
+      .createQueryBuilder('category')
+      .where('category.business_id = :businessId', { businessId });
+
+    // Search filter
+    if (query.search) {
+      qb.andWhere(
+        '(LOWER(category.name) LIKE LOWER(:search) OR LOWER(category.code) LIKE LOWER(:search))',
+        { search: `%${query.search}%` },
+      );
     }
-    return this.categoryRepo.find({ where, order: { name: 'ASC' } });
+
+    // Active status filter
+    if (query.is_active !== undefined) {
+      qb.andWhere('category.is_active = :isActive', { isActive: query.is_active });
+    }
+
+    // Parent category filter
+    if (query.parent_id) {
+      qb.andWhere('category.parent_id = :parentId', { parentId: query.parent_id });
+    }
+
+    // Root only filter
+    if (query.root_only) {
+      qb.andWhere('category.parent_id IS NULL');
+    }
+
+    // Has products filter
+    if (query.has_products) {
+      qb.innerJoin('category.products', 'product');
+    }
+
+    // Sorting
+    const sortBy = query.sort_by || CategorySortBy.SORT_ORDER;
+    const sortOrder = query.sort_order || 'ASC';
+
+    switch (sortBy) {
+      case CategorySortBy.NAME:
+        qb.orderBy('category.name', sortOrder);
+        break;
+      case CategorySortBy.SORT_ORDER:
+        qb.orderBy('category.sort_order', sortOrder);
+        break;
+      case CategorySortBy.CREATED_AT:
+        qb.orderBy('category.created_at', sortOrder);
+        break;
+      default:
+        qb.orderBy('category.sort_order', 'ASC');
+    }
+
+    return qb.getMany();
   }
 
   async findOne(businessId: string, id: string): Promise<ProductCategory> {

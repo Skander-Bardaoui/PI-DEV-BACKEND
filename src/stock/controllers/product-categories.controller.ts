@@ -15,6 +15,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ProductCategoriesService } from '../services/product-categories.service';
 import { CreateProductCategoryDto } from '../dto/create-product-category.dto';
 import { UpdateProductCategoryDto } from '../dto/update-product-category.dto';
+import { QueryCategoriesDto } from '../dto/query-categories.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorators';
 import { Role } from '../../users/enums/role.enum';
@@ -28,10 +29,9 @@ export class ProductCategoriesController {
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   findAll(
     @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Query('is_active') isActive?: string,
+    @Query() query: QueryCategoriesDto,
   ) {
-    const isActiveBool = isActive === 'true' ? true : isActive === 'false' ? false : undefined;
-    return this.categoriesService.findAll(businessId, isActiveBool);
+    return this.categoriesService.findAll(businessId, query);
   }
 
   @Get(':id')
