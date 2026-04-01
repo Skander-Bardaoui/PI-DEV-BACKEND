@@ -82,6 +82,21 @@ export class InvoicesController {
     return this.service.sendByEmail(businessId, id, body.email, body.subject, body.body);
   }
 
+  @Post(':id/generate-email-draft')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  async generateEmailDraft(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { language?: 'fr' | 'ar'; isReminder?: boolean },
+  ) {
+    return this.service.generateEmailDraft(
+      businessId,
+      id,
+      body.language || 'fr',
+      body.isReminder || false,
+    );
+  }
+
   @Post(':id/send-reminder')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
   async sendPaymentReminder(

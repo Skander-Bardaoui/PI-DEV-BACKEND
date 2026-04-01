@@ -64,6 +64,13 @@ export class StockMovement {
  
   @Column({ type: 'varchar', length: 100, nullable: true })
   location: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  warehouse_id: string | null;
+
+  @ManyToOne('Warehouse', 'stock_movements', { nullable: true, onDelete: 'SET NULL', eager: false })
+  @JoinColumn({ name: 'warehouse_id' })
+  warehouse: any;
  
   // FIX : snake_case
   @CreateDateColumn({ type: 'timestamptz' })
