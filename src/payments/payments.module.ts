@@ -18,6 +18,10 @@ import { TransactionsController } from './controllers/transactions.controller';
 import { TransactionsService } from './services/transactions.service';
 import { TransfersController } from './controllers/transfers.controller';
 import { TransfersService } from './services/transfers.service';
+import { PaymentScheduleService } from './services/payment-schedule.service';
+import { PaymentSchedulesController } from './controllers/payment-schedules.controller';
+import { PaymentScheduleInstallment } from './entities/payment-schedule-installment';
+import { PaymentSchedule } from './entities/payment-schedule';
 
 @Module({
   imports: [
@@ -27,7 +31,9 @@ import { TransfersService } from './services/transfers.service';
       SupplierPayment,
       Transaction,
       Invoice,
-      PurchaseInvoice
+      PurchaseInvoice,
+      PaymentSchedule,
+      PaymentScheduleInstallment
     ]),
     forwardRef(() => PurchasesModule),
   ],
@@ -37,6 +43,7 @@ import { TransfersService } from './services/transfers.service';
     SupplierPaymentsController,
     TransactionsController,
     TransfersController,
+    PaymentSchedulesController,
   ],
   providers: [
     AccountsService,
@@ -44,11 +51,13 @@ import { TransfersService } from './services/transfers.service';
     SupplierPaymentsService,
     TransactionsService,
     TransfersService,
+    PaymentScheduleService,
   ],
   exports: [
     AccountsService,
     PaymentsService,
     SupplierPaymentsService,
+    PaymentScheduleService,
     TypeOrmModule,
   ],
 })
