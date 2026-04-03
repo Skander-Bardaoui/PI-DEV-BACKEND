@@ -113,7 +113,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           PurchaseInvoice,
           GoodsReceipt,
           GoodsReceiptItem,
-           SupplierPortalToken,
+          // SupplierPortalToken, // Temporairement retiré pour éviter les erreurs de synchronisation
           // Sales
           Quote,
           QuoteItem,

@@ -11,7 +11,6 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard }        from '@nestjs/passport';
 import { Roles } from '../../auth/decorators/roles.decorators';
@@ -19,6 +18,7 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { CreateSupplierDto } from '../../Purchases/dto/create-supplier.dto';
 import { QuerySuppliersDto, UpdateSupplierDto } from '../../Purchases/dto/update-supplier.dto';
 import { SuppliersService } from '../../Purchases/services/suppliers.service';
+import { SupplierRecommendationService } from '../../Purchases/services/supplier-recommendation.service';
 import { Role } from '../../users/enums/role.enum';
 
 
@@ -26,7 +26,10 @@ import { Role } from '../../users/enums/role.enum';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class SuppliersController {
 
-  constructor(private readonly service: SuppliersService) {}
+  constructor(
+    private readonly service: SuppliersService,
+    private readonly recommendationService: SupplierRecommendationService,
+  ) {}
 
   // POST /businesses/:businessId/suppliers
   @Post()
@@ -35,8 +38,6 @@ export class SuppliersController {
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: CreateSupplierDto,
-    @Param() params: any,
-    // request.user injecté via @CurrentUser — ici on utilise le décorateur maison
   ) {
     return this.service.create(businessId, dto);
   }
@@ -92,4 +93,25 @@ findAll(
   ) {
     return this.service.restore(businessId, id);
   }
+
+  // GET /businesses/:businessId/suppliers/recommendations
+  @Get('recommendations/ai')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  async getRecommendations(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Query('product') product?: string,
+    @Query('category') category?: string,
+  ) {
+    const recommendations = await this.recommendationService.recommendSuppliers(
+      businessId,
+      product,
+      category,
+    );
+    
+    // Calculer la compétitivité des prix
+    const withPriceComparison = await this.recommendationService.calculatePriceCompetitiveness(recommendations);
+    
+    return withPriceComparison;
+  }
 }
+
