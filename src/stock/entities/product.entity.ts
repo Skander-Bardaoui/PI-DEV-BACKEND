@@ -9,6 +9,14 @@ import { SupplierPOItem }   from 'src/Purchases/entities/supplier-po-item.entity
 import { GoodsReceiptItem } from 'src/Purchases/entities/goods-receipt-item.entity';
 import { Business }         from 'src/businesses/entities/business.entity';
 import { Supplier }         from 'src/Purchases/entities/supplier.entity';
+
+// ==================== Alaa change for service type ====================
+export enum ProductType {
+  PHYSICAL = 'PHYSICAL',
+  SERVICE = 'SERVICE',
+  DIGITAL = 'DIGITAL',
+}
+// ====================================================================
  
 @Entity('products')
 @Index(['business_id', 'is_active'])
@@ -92,8 +100,15 @@ export class Product {
   @Column({ type: 'boolean', default: true })
   track_inventory: boolean;
  
-  @Column({ type: 'varchar', length: 20, default: 'product' })
-  type: string;
+  // ==================== OLD VERSION - product type only ====================
+  // @Column({ type: 'varchar', length: 20, default: 'product' })
+  // type: string;
+  // ========================================================================
+ 
+  // ==================== Alaa change for service type ====================
+  @Column({ type: 'varchar', length: 20, default: 'PHYSICAL' })
+  type: ProductType;
+  // ====================================================================
  
   // FIX : snake_case
   @Column({ type: 'boolean', default: true })

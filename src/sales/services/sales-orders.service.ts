@@ -23,7 +23,7 @@ import { UpdateSalesOrderDto } from '../dto/update-sales-order.dto';
 import { StockMovementsService } from '../../stock/services/stock-movements/stock-movements.service';
 import { StockMovementType } from '../../stock/enums/stock-movement-type.enum';
 import { StockMovement } from '../../stock/entities/stock-movement.entity';
-import { Product } from '../../stock/entities/product.entity';
+import { Product, ProductType } from '../../stock/entities/product.entity';
 
 const TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
   [SalesOrderStatus.CONFIRMED]: [SalesOrderStatus.IN_PROGRESS, SalesOrderStatus.CANCELLED],
@@ -109,6 +109,16 @@ export class SalesOrdersService {
       for (const item of lines) {
         if (item.productId) {
           try {
+            // ==================== Alaa change for service type ====================
+            // Services and digital products do not affect stock — skip movement creation
+            const product = await this.productRepo.findOne({
+              where: { id: item.productId },
+            });
+            if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
+              continue;
+            }
+            // ====================================================================
+
             await this.stockMovementsService.createManual(businessId, {
               product_id: item.productId,
               type: StockMovementType.SORTIE_VENTE,
@@ -200,6 +210,16 @@ export class SalesOrdersService {
         for (const item of lines) {
           if (item.productId) {
             try {
+              // ==================== Alaa change for service type ====================
+              // Services and digital products do not affect stock — skip movement creation
+              const product = await this.productRepo.findOne({
+                where: { id: item.productId },
+              });
+              if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
+                continue;
+              }
+              // ====================================================================
+
               await this.stockMovementsService.createManual(businessId, {
                 product_id: item.productId,
                 type: StockMovementType.SORTIE_VENTE,

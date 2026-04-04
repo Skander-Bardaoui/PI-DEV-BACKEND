@@ -1,5 +1,6 @@
 import { IsOptional, IsString, IsBoolean, IsUUID, IsNumber, IsEnum } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ProductType } from '../entities/product.entity';
 
 export enum ProductSortBy {
   NAME = 'name',
@@ -68,4 +69,10 @@ export class QueryProductsDto {
   @IsOptional()
   @IsEnum(SortOrder)
   sort_order?: SortOrder;
+
+  // ==================== Alaa change for service type ====================
+  @IsOptional()
+  @IsEnum(ProductType)
+  type?: ProductType;
+  // ====================================================================
 }

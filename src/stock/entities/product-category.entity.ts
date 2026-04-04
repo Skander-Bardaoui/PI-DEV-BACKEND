@@ -45,6 +45,11 @@ export class ProductCategory {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
  
+  // ==================== Alaa change for service type ====================
+  @Column({ type: 'varchar', length: 20, default: 'PRODUCT' })
+  category_type: string; // 'PRODUCT' or 'SERVICE'
+  // ====================================================================
+ 
   // FIX : snake_case
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;

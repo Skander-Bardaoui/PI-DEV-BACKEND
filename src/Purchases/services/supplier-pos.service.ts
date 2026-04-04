@@ -19,7 +19,7 @@ import { UpdateSupplierPODto } from '../dto/update-supplier-po.dto';
 import { StockMovementsService } from '../../stock/services/stock-movements/stock-movements.service';
 import { StockMovementType } from '../../stock/enums/stock-movement-type.enum';
 import { StockMovement } from '../../stock/entities/stock-movement.entity';
-import { Product } from '../../stock/entities/product.entity';
+import { Product, ProductType } from '../../stock/entities/product.entity';
 
 const TRANSITIONS: Record<POStatus, POStatus[]> = {
   [POStatus.DRAFT]:              [POStatus.SENT, POStatus.CANCELLED],
@@ -279,6 +279,17 @@ async send(businessId: string, id: string) {
         this.logger.debug(`PO item ${item.id} has no product_id, skipping stock movement`);
         continue;
       }
+
+      // ==================== Alaa change for service type ====================
+      // Services and digital products do not affect stock — skip movement creation
+      const product = await this.productRepo.findOne({
+        where: { id: item.product_id },
+      });
+      if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
+        this.logger.debug(`Product ${item.product_id} is a service or digital product, skipping stock movement`);
+        continue;
+      }
+      // ====================================================================
 
       const receivedQty = Number(item.quantity_received);
       if (receivedQty <= 0) continue;

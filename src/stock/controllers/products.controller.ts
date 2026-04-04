@@ -81,8 +81,11 @@ export class ProductsController {
     };
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Get()
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   async findAll(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Query() query: QueryProductsDto,
@@ -136,8 +139,11 @@ export class ProductsController {
     }
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Post('generate-sku')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   async generateSku(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: GenerateSkuDto,
@@ -156,8 +162,11 @@ export class ProductsController {
     return this.transformToFrontend(product);
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Post()
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   async create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: any,
@@ -167,8 +176,11 @@ export class ProductsController {
     return this.transformToFrontend(product);
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Put(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   async update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -179,8 +191,11 @@ export class ProductsController {
     return this.transformToFrontend(product);
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Delete(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   remove(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,

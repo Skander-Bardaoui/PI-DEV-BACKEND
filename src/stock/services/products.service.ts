@@ -6,7 +6,7 @@ import { Repository, LessThan, Like, In, SelectQueryBuilder } from 'typeorm';
 import Groq from 'groq-sdk';
 import PDFDocument from 'pdfkit';
 import * as bwipjs from 'bwip-js';
-import { Product } from '../entities/product.entity';
+import { Product, ProductType } from '../entities/product.entity';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
@@ -96,6 +96,13 @@ export class ProductsService {
       qb.andWhere('product.price <= :priceMax', { priceMax: query.price_max });
     }
 
+    // ==================== Alaa change for service type ====================
+    // Type filter
+    if (query.type) {
+      qb.andWhere('product.type = :type', { type: query.type });
+    }
+    // ====================================================================
+
     // Sorting
     const sortBy = query.sort_by || ProductSortBy.NAME;
     const sortOrder = query.sort_order || 'ASC';
@@ -146,6 +153,16 @@ export class ProductsService {
   }
 
   async create(businessId: string, dto: CreateProductDto): Promise<Product> {
+    // ==================== Alaa change for service type ====================
+    // Force inventory tracking off for SERVICE and DIGITAL products
+    if (dto.type === ProductType.SERVICE || dto.type === ProductType.DIGITAL) {
+      dto.track_inventory = false;
+      dto.quantity = 0;
+      dto.min_quantity = 0;
+      dto.warehouse_id = undefined;
+    }
+    // ====================================================================
+
     const product = this.productRepo.create({
       ...dto,
       business_id: businessId,
@@ -159,6 +176,17 @@ export class ProductsService {
     dto: UpdateProductDto,
   ): Promise<Product> {
     const product = await this.findOne(businessId, id);
+
+    // ==================== Alaa change for service type ====================
+    // Force inventory tracking off for SERVICE and DIGITAL products
+    if (dto.type === ProductType.SERVICE || dto.type === ProductType.DIGITAL) {
+      dto.track_inventory = false;
+      dto.quantity = 0;
+      dto.min_quantity = 0;
+      dto.warehouse_id = undefined;
+    }
+    // ====================================================================
+
     Object.assign(product, dto);
     return this.productRepo.save(product);
   }
@@ -245,6 +273,48 @@ Return the JSON now:`;
   }
 
   async generateSku(businessId: string, dto: GenerateSkuDto): Promise<string> {
+    // ==================== Alaa change for service type ====================
+    // Service SKU format: SRV-{CATEGORYCODE}-{NAMECODE}-{0001}
+    if (dto.type === 'SERVICE') {
+      // Extract category code (first 4 letters uppercased)
+      let categoryCode = 'GEN';
+      if (dto.category_name) {
+        categoryCode = dto.category_name
+          .substring(0, 4)
+          .toUpperCase()
+          .replace(/[^A-Z]/g, '');
+        if (categoryCode.length === 0) categoryCode = 'GEN';
+      }
+
+      // Extract name code (first 6 letters uppercased, alphanumeric only)
+      let nameCode = 'SERV';
+      if (dto.name) {
+        nameCode = dto.name
+          .replace(/[^A-Za-z0-9]/g, '')
+          .substring(0, 6)
+          .toUpperCase();
+        if (nameCode.length === 0) nameCode = 'SERV';
+      }
+
+      // Count existing service SKUs (starting with SRV-)
+      const existingCount = await this.productRepo.count({
+        where: {
+          business_id: businessId,
+          sku: Like('SRV-%'),
+        },
+      });
+
+      const suffix = String(existingCount + 1).padStart(4, '0');
+
+      // Build service SKU: SRV-{CATEGORYCODE}-{NAMECODE}-{0001}
+      return `SRV-${categoryCode}-${nameCode}-${suffix}`;
+    }
+    // ====================================================================
+
+    // ==================== OLD VERSION - product SKU only ====================
+    // Physical product SKU format: {CATEGORY}-{BRAND_OR_NAME}-{ATTRIBUTE}-{0001}
+    // ========================================================================
+
     // Extract category prefix (first 4 letters uppercased)
     let categoryPrefix = 'GEN';
     if (dto.category_name) {
