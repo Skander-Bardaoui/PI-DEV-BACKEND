@@ -15,6 +15,11 @@ const EXAMPLE_QUESTIONS = [
   "Combien ai-je dépensé ce mois-ci ?",
   "Quels sont mes meilleurs fournisseurs ?",
   "Ai-je des litiges en cours ?",
+  "Combien de commandes sont en attente ?",
+  "Quels paiements ai-je effectués récemment ?",
+  "Quel fournisseur livre le plus rapidement ?",
+  "Combien de fournisseurs actifs ai-je ?",
+  "Quelle est ma facture la plus élevée ?",
 ];
 
 export interface ChatMessage {
@@ -270,23 +275,23 @@ export class PurchaseAiAssistantService {
       : '';
 
     const prompt = `Tu es un assistant IA spécialisé dans la gestion des achats et des fournisseurs.
-L'utilisateur te pose une question sur ses données d'achats.
 
 QUESTION: ${question}
 
-DONNÉES DISPONIBLES:
-${JSON.stringify(data, null, 2)}
+DONNÉES: ${JSON.stringify(data, null, 2)}
 ${conversationContext}
 
-INSTRUCTIONS:
-1. Réponds de manière claire, concise et professionnelle en français
-2. Utilise les données fournies pour donner une réponse précise avec des chiffres
-3. Si les données sont insuffisantes, dis-le clairement
-4. Propose 2-3 suggestions de questions de suivi pertinentes
-5. Sois conversationnel et amical
+INSTRUCTIONS STRICTES:
+1. Réponds en JSON valide UNIQUEMENT
+2. Réponse ULTRA-COURTE (max 100 caractères)
+3. Pas de sauts de ligne, pas de caractères spéciaux
+4. Utilise les chiffres des données fournies
+5. Format exact requis ci-dessous
 
-RÉPONDS EN JSON:
-{"answer":"Réponse détaillée avec chiffres","suggestions":["Question 1","Question 2","Question 3"],"confidence":0-100}`;
+EXEMPLE DE RÉPONSE VALIDE:
+{"answer":"Vous avez 5 factures en retard pour un total de 1250 TND","suggestions":["Voir les details","Quels fournisseurs?"],"confidence":90}
+
+RÉPONDS MAINTENANT (JSON uniquement):`;
 
     const response = await fetch(`${this.apiUrl}?key=${this.apiKey}`, {
       method: 'POST',
@@ -294,8 +299,10 @@ RÉPONDS EN JSON:
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
+          temperature: 0.5,
+          maxOutputTokens: 256,
+          topP: 0.9,
+          topK: 20,
         },
       }),
     });
@@ -312,13 +319,95 @@ RÉPONDS EN JSON:
 
     if (!aiText) throw new Error('Réponse IA vide');
 
-    const result = parseGeminiJson(aiText);
+    // Nettoyage agressif avant parsing
+    let cleanedText = aiText
+      .replace(/```json\n?/gi, '')
+      .replace(/```\n?/g, '')
+      .trim();
 
-    return {
-      answer: result.answer || 'Je n\'ai pas pu générer une réponse.',
-      data,
-      suggestions: result.suggestions || [],
-      confidence: result.confidence || 50,
+    // Extraire uniquement le JSON entre accolades
+    const jsonMatch = cleanedText.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/);
+    if (jsonMatch) {
+      cleanedText = jsonMatch[0];
+    }
+
+    // Remplacer les sauts de ligne dans les valeurs par des espaces
+    cleanedText = cleanedText.replace(/"answer"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/g, (match, content) => {
+      const cleaned = content
+        .replace(/\\n/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return `"answer":"${cleaned}"`;
+    });
+
+    // Fonction pour extraire la réponse même si le JSON est incomplet
+    const extractPartialAnswer = (text: string): string => {
+      // Chercher "answer":"..." même si incomplet
+      const patterns = [
+        /"answer"\s*:\s*"([^"]*)"/,           // Cas normal
+        /"answer"\s*:\s*"([^"]*)/,            // Guillemet non fermé
+        /"answer"\s*:\s*([^,}]*)/,            // Sans guillemets
+      ];
+      
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+          return match[1].trim();
+        }
+      }
+      return '';
     };
+
+    // Vérifier si le JSON est complet
+    const isComplete = cleanedText.endsWith('}') && 
+                       (cleanedText.match(/\{/g) || []).length === (cleanedText.match(/\}/g) || []).length;
+
+    if (!isComplete) {
+      this.logger.warn('JSON incomplet détecté, extraction de la réponse partielle');
+      
+      const partialAnswer = extractPartialAnswer(cleanedText);
+      if (partialAnswer) {
+        return {
+          answer: partialAnswer,
+          data,
+          suggestions: ['Reformuler plus simplement', 'Poser une autre question'],
+          confidence: 50,
+        };
+      }
+    }
+
+    try {
+      const result = JSON.parse(cleanedText);
+      return {
+        answer: result.answer || 'Je n\'ai pas pu générer une réponse.',
+        data,
+        suggestions: Array.isArray(result.suggestions) ? result.suggestions.slice(0, 3) : [],
+        confidence: typeof result.confidence === 'number' ? result.confidence : 50,
+      };
+    } catch (parseError) {
+      this.logger.error(`Erreur parsing JSON: ${(parseError as Error).message}`);
+      this.logger.debug(`JSON reçu: ${cleanedText.substring(0, 200)}`);
+      
+      // Fallback robuste: extraire manuellement
+      const answer = extractPartialAnswer(cleanedText);
+      
+      if (answer) {
+        return {
+          answer,
+          data,
+          suggestions: ['Reformuler la question', 'Voir les statistiques'],
+          confidence: 40,
+        };
+      }
+      
+      // Dernier recours
+      return {
+        answer: 'Désolé, je n\'ai pas pu traiter votre question. Veuillez la reformuler plus simplement.',
+        data,
+        suggestions: ['Combien ai-je dépensé ce mois ?', 'Quels sont mes fournisseurs actifs ?'],
+        confidence: 0,
+      };
+    }
   }
 }
