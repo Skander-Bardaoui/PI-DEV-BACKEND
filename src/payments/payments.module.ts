@@ -21,6 +21,8 @@ import { TransfersService }           from './services/transfers.service';
 import { PaymentScheduleService }     from './services/payment-schedule.service';
 import { PaymentSchedulesController } from './controllers/payment-schedules.controller';
 import { PaymentScheduleInstallment } from './entities/payment-schedule-installment';
+import { ForecastService } from './services/forecast.service';
+import { ForecastController } from './controllers/forecast.controller';
 import { PaymentSchedule }            from './entities/payment-schedule';
 import { SalaryService }              from './services/salary.service';
 import { SalaryController }           from './controllers/salary.controller';
@@ -53,6 +55,7 @@ import { SalaryProposal }             from './entities/salary-proposal.entity';
     TransfersController,
     PaymentSchedulesController,
     SalaryController,
+    ForecastController,
   ],
   providers: [
     AccountsService,
@@ -62,6 +65,7 @@ import { SalaryProposal }             from './entities/salary-proposal.entity';
     TransfersService,
     PaymentScheduleService,
     SalaryService,
+    ForecastService,
   ],
   exports: [
     AccountsService,
