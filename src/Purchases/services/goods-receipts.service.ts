@@ -130,7 +130,7 @@
       await this.supplierPOsService.findOne(businessId, poId);
       return this.grRepo.find({
         where:     { supplier_po_id: poId, business_id: businessId },
-        relations: ['items'],
+        relations: ['items', 'items.supplier_po_item'],
         order:     { created_at: 'DESC' },
       });
     }

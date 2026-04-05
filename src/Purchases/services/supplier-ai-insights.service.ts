@@ -130,7 +130,13 @@ ${strongCriteria.length > 0   ? `\n💪 POINTS FORTS: ${strongCriteria.map(c => 
 🚚 Livraisons: ${score.stats.delivery_rate_pct}% taux (${score.stats.total_items_received}/${score.stats.total_items_ordered} unités)
 ⏱️ Ponctualité: ${score.stats.on_time_rate_pct}% (${score.stats.on_time_deliveries}/${score.stats.total_deliveries} à temps)${hasDelays ? ' ⚠️ RETARDS RÉCURRENTS' : ''}
 ⚖️ Litiges: ${score.stats.dispute_rate_pct}% (${score.stats.disputed_invoices}/${score.stats.total_invoices} factures)${hasDisputes ? ' 🚨 TAUX ÉLEVÉ' : ''}
-💰 Paiements: ${score.stats.payment_rate_pct}% payé | ${score.stats.total_paid.toFixed(3)}/${score.stats.total_invoiced.toFixed(3)} TND | délai moy: ${score.stats.avg_payment_days}j${paymentHealthy ? ' ✅' : ''}
+💰 Vos paiements au fournisseur: ${score.stats.payment_rate_pct}% payé | ${score.stats.total_paid.toFixed(3)}/${score.stats.total_invoiced.toFixed(3)} TND | votre délai moy de paiement: ${score.stats.avg_payment_days}j${paymentHealthy ? ' ✅ VOUS PAYEZ BIEN' : ' ⚠️ VOS RETARDS DE PAIEMENT'}
+
+IMPORTANT: Dans ce module ACHATS, c'est VOUS (l'entreprise) qui devez PAYER le fournisseur.
+- Un délai de paiement court = VOUS payez rapidement (bon pour la relation)
+- Un délai de paiement long = VOUS payez en retard (mauvais pour la relation)
+- Un taux de paiement élevé = VOUS avez bien payé vos factures (bon)
+- Des retards de paiement = VOUS êtes en retard pour payer (à améliorer de VOTRE côté)
 
 ═══ INSTRUCTIONS D'ANALYSE ═══
 Produis une analyse PRÉCISE basée sur les chiffres réels. Pas de généralités.
