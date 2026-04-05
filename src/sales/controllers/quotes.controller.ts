@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { QuotesService } from '../services/quotes.service';
+import { QuotePortalService } from '../services/quote-portal.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorators';
 import { Role } from '../../users/enums/role.enum';
@@ -23,7 +24,10 @@ import { UpdateQuoteDto } from '../dto/update-quote.dto';
 @Controller('businesses/:businessId/quotes')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class QuotesController {
-  constructor(private readonly service: QuotesService) {}
+  constructor(
+    private readonly service: QuotesService,
+    private readonly portalService: QuotePortalService,
+  ) {}
 
   @Post()
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
@@ -65,11 +69,12 @@ export class QuotesController {
 
   @Post(':id/send')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
-  send(
+  async send(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.service.send(businessId, id);
+    await this.portalService.sendQuoteEmail(businessId, id);
+    return { message: 'Devis envoyé au client avec succès' };
   }
 
   @Post(':id/accept')

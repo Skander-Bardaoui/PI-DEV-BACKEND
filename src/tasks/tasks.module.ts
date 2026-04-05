@@ -1,5 +1,6 @@
 import { Module, forwardRef, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { Task } from './entities/task.entity';
@@ -10,6 +11,7 @@ import { MessagesModule } from '../messages/messages.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Task, User]),
+    ConfigModule,
     BusinessesModule,
     forwardRef(() => MessagesModule),
   ],
