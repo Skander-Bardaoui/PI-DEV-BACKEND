@@ -75,7 +75,6 @@ import { PurchasesModule } from './Purchases/purchases.module';
 import { SupplierPOsController } from './Purchases/controllers/supplier-pos.controller';
 import { SuppliersController } from './Purchases/controllers/suppliers.controller';
 import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.entity';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -93,7 +92,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
         synchronize: true,
-        autoLoadEntities: true, 
+        autoLoadEntities: true,
         entities: [
           // Core
           User,
