@@ -7,7 +7,6 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { BusinessesModule } from './businesses/businesses.module';
-import { ClientsModule } from './clients/clients.module';
 
 // Sales & Finance Modules
 import { SalesModule } from './sales/sales.module';
@@ -33,7 +32,7 @@ import { Tenant } from './tenants/entities/tenant.entity';
 import { Business } from './businesses/entities/business.entity';
 import { BusinessSettings } from './businesses/entities/business-settings.entity';
 import { TaxRate } from './businesses/entities/tax-rate.entity';
-import { Client } from './clients/entities/client.entity';
+import { Client } from './sales/entities/client.entity';
 import { Quote } from './sales/entities/quote.entity';
 import { QuoteItem } from './sales/entities/quote-item.entity';
 import { SalesOrder } from './sales/entities/sales-order.entity';
@@ -155,7 +154,6 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
     AuthModule,
     TenantsModule,
     BusinessesModule,
-    ClientsModule,
 
     // Sales & Finance
     SalesModule,

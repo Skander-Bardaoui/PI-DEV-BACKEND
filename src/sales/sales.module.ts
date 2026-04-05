@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { JwtModule } from '@nestjs/jwt';
 import { Quote } from './entities/quote.entity';
 import { QuoteItem } from './entities/quote-item.entity';
 import { SalesOrder } from './entities/sales-order.entity';
@@ -14,6 +15,7 @@ import { Invoice } from './entities/invoice.entity';
 import { InvoiceItem } from './entities/invoice-item.entity';
 import { RecurringInvoice } from './entities/recurring-invoice.entity';
 import { ClientPortalToken } from './entities/client-portal-token.entity';
+import { QuotePortalToken } from './entities/quote-portal-token.entity';
 import { QuotesService } from './services/quotes.service';
 import { SalesOrdersService } from './services/sales-orders.service';
 import { DeliveryNotesService } from './services/delivery-notes.service';
@@ -27,8 +29,11 @@ import { InvoiceCronService } from './services/invoice-cron.service';
 import { RecurringInvoicesService } from './services/recurring-invoices.service';
 import { RecurringInvoiceCronService } from './services/recurring-invoice-cron.service';
 import { ClientPortalService } from './services/client-portal.service';
+import { QuotePortalService } from './services/quote-portal.service';
 import { SalesDashboardService } from './services/sales-dashboard.service';
 import { SalesMatchingService } from './services/sales-matching.service';
+import { ClientOnboardingService } from './services/client-onboarding.service';
+import { ClientsService } from './services/clients.service';
 import { QuotesController } from './controllers/quotes.controller';
 import { SalesOrdersController } from './controllers/sales-orders.controller';
 import { DeliveryNotesController } from './controllers/delivery-notes.controller';
@@ -36,9 +41,15 @@ import { InvoicesController } from './controllers/invoices.controller';
 import { SalesOcrController } from './controllers/sales-ocr.controller';
 import { RecurringInvoicesController } from './controllers/recurring-invoices.controller';
 import { ClientPortalController } from './controllers/client-portal.controller';
+import { QuotePortalController } from './controllers/quote-portal.controller';
 import { SalesDashboardController } from './controllers/sales-dashboard.controller';
 import { SalesMatchingController } from './controllers/sales-matching.controller';
-import { Client } from '../clients/entities/client.entity';
+import { SalesClientsController } from './controllers/clients.controller';
+import {
+  ClientOnboardingController,
+  ClientOnboardingPublicController,
+} from './controllers/client-onboarding.controller';
+import { Client } from './entities/client.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { BusinessesModule } from '../businesses/businesses.module';
 import { StockModule } from '../stock/stock.module';
@@ -51,6 +62,10 @@ import { Product } from '../stock/entities/product.entity';
     ScheduleModule.forRoot(),
     BusinessesModule, // Import BusinessesModule to get BusinessAccessGuard dependencies
     StockModule, // Import StockModule to get StockMovementsService
+    JwtModule.register({
+      secret: process.env.JWT_CLIENT_ONBOARDING_SECRET || 'client_onboarding_secret_change_me',
+      signOptions: { expiresIn: '7d' },
+    }),
     TypeOrmModule.forFeature([
       Quote,
       QuoteItem,
@@ -64,6 +79,7 @@ import { Product } from '../stock/entities/product.entity';
       InvoiceItem,
       RecurringInvoice,
       ClientPortalToken,
+      QuotePortalToken,
       Client,
       Business,
       StockMovement,
@@ -84,8 +100,11 @@ import { Product } from '../stock/entities/product.entity';
     RecurringInvoicesService,
     RecurringInvoiceCronService,
     ClientPortalService,
+    QuotePortalService,
     SalesDashboardService,
     SalesMatchingService,
+    ClientsService,
+    ClientOnboardingService,
   ],
   controllers: [
     QuotesController,
@@ -95,8 +114,12 @@ import { Product } from '../stock/entities/product.entity';
     SalesOcrController,
     RecurringInvoicesController,
     ClientPortalController,
+    QuotePortalController,
     SalesDashboardController,
     SalesMatchingController,
+    SalesClientsController,
+    ClientOnboardingController,
+    ClientOnboardingPublicController,
   ],
   exports: [
     QuotesService,
@@ -109,6 +132,7 @@ import { Product } from '../stock/entities/product.entity';
     SalesDashboardAiService,
     RecurringInvoicesService,
     ClientPortalService,
+    QuotePortalService,
   ],
 })
 export class SalesModule {}

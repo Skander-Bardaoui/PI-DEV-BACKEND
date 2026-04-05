@@ -122,18 +122,11 @@ export class SupplierOnboardingService {
 <body style="margin: 0; padding: 0; background-color: #F3F4F6;">
   <div class="container" style="max-width: 600px; margin: 0 auto; padding: 20px;">
     
-    <!-- Logo / Branding -->
-    <div style="text-align: center; margin-bottom: 24px;">
-      <div style="display: inline-block; background: #ffffff; padding: 12px 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="margin: 0; color: #1F2937; font-size: 20px; font-weight: 800;">📧 Invitation Fournisseur</h2>
-      </div>
-    </div>
-
     <!-- Header -->
     <div style="background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); padding: 32px; border-radius: 16px 16px 0 0; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);">
       <div style="text-align: center;">
-        <div style="width: 56px; height: 56px; background: rgba(255,255,255,0.2); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-          <span style="font-size: 28px;">✨</span>
+        <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.95); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; padding: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+          <img src="cid:logo@novaentra" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" />
         </div>
         <h1 style="color: #ffffff; margin: 0 0 8px 0; font-size: 24px; font-weight: 800;">${businessName}</h1>
         <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 15px; font-weight: 500;">vous invite à rejoindre sa plateforme</p>
@@ -268,6 +261,13 @@ export class SupplierOnboardingService {
         replyTo: businessEmail,
         subject: `Invitation fournisseur — ${businessName} vous invite`,
         html,
+        attachments: [
+          {
+            filename: 'logo.png',
+            path: './public/logo.png',
+            cid: 'logo@novaentra',
+          },
+        ],
       });
       this.logger.log(`Invitation fournisseur envoyée à ${email} pour business ${businessId} (from: ${businessEmail})`);
     } catch (err: any) {
