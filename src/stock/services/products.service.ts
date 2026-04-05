@@ -10,6 +10,9 @@ import { Product, ProductType } from '../entities/product.entity';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
+// ==================== Alaa change for service type ====================
+import { ScanServiceDescriptionResponseDto } from '../dto/scan-service-description.dto';
+// ====================================================================
 import { GenerateSkuDto } from '../dto/generate-sku.dto';
 import { QueryProductsDto, ProductSortBy } from '../dto/query-products.dto';
 import { generateInternalBarcode } from '../utils/barcode.util';
@@ -271,6 +274,64 @@ Return the JSON now:`;
       confidence_note: parsedResult.confidence_note || 'Analysis completed',
     };
   }
+
+  // ==================== Alaa change for service type ====================
+  async scanServiceDescription(
+    description: string,
+  ): Promise<ScanServiceDescriptionResponseDto> {
+    if (!this.groq) {
+      throw new Error('Groq API key not configured. Please add GROQ_API_KEY to your .env file.');
+    }
+
+    const prompt = `You are helping a business owner create a service entry in their management platform. The user will describe their service in natural language, possibly informal or incomplete. Extract structured information and return ONLY a raw JSON object with these exact fields:
+- name: a clean professional service name (string or null)
+- description: a clear professional description of the service (string or null, max 200 chars)
+- suggested_category_name: the most fitting service category name like "Consulting", "Maintenance", "Repair", "Training", "Delivery", "Installation", "Support", "Design", "Cleaning", "Transport" — pick the closest match or suggest a new one (string or null)
+- price_ht: the price if mentioned, as a number without currency (number or null)
+- duration_note: if the user mentioned duration like "2 hours" or "half day", capture it as a short string to add to description (string or null)
+- confidence_note: one sentence about what was clear and what was assumed (string, required)
+
+Rules:
+- Return ONLY the raw JSON object, no markdown, no explanation, no code blocks
+- Be conservative: only extract what you are confident about
+- For name: make it professional and capitalize properly
+- For suggested_category_name: always suggest something, even if you have to guess from context
+
+User description: ${description}
+
+Return the JSON now:`;
+
+    const result = await this.groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1000,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    });
+
+    let responseText = result.choices[0].message.content?.trim() ?? '';
+
+    // Remove markdown code blocks if present
+    responseText = responseText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/, '')
+      .replace(/```\s*$/, '');
+
+    const parsedResult = JSON.parse(responseText);
+
+    return {
+      name: parsedResult.name || null,
+      description: parsedResult.description || null,
+      suggested_category_name: parsedResult.suggested_category_name || null,
+      price_ht: parsedResult.price_ht || null,
+      duration_note: parsedResult.duration_note || null,
+      confidence_note: parsedResult.confidence_note || 'Analysis completed',
+    };
+  }
+  // ====================================================================
 
   async generateSku(businessId: string, dto: GenerateSkuDto): Promise<string> {
     // ==================== Alaa change for service type ====================
