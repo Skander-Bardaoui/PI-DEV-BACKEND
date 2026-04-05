@@ -26,7 +26,7 @@ import { SalaryService }              from './services/salary.service';
 import { SalaryController }           from './controllers/salary.controller';
 import { BusinessMember }             from 'src/businesses/entities/business-member.entity';
 import { EmailModule }                from 'src/email/email.module';
-import { SalaryProposal }             from './entities/salary-proposal.entity'; // ← NEW
+import { SalaryProposal }             from './entities/salary-proposal.entity'; 
 
 @Module({
   imports: [
@@ -40,7 +40,7 @@ import { SalaryProposal }             from './entities/salary-proposal.entity'; 
       PaymentSchedule,
       PaymentScheduleInstallment,
       BusinessMember,
-      SalaryProposal, // ← NEW
+      SalaryProposal,
     ]),
     forwardRef(() => PurchasesModule),
     EmailModule,
@@ -68,6 +68,7 @@ import { SalaryProposal }             from './entities/salary-proposal.entity'; 
     PaymentsService,
     SupplierPaymentsService,
     PaymentScheduleService,
+    SalaryService,
     TypeOrmModule,
   ],
 })

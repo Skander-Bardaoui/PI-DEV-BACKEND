@@ -1,4 +1,3 @@
-// src/payments/entities/salary-proposal.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -12,6 +11,7 @@ export enum SalaryProposalStatus {
   ACCEPTED  = 'ACCEPTED',
   REJECTED  = 'REJECTED',
   COUNTERED = 'COUNTERED',
+  PAID      = 'PAID',
 }
 
 @Entity('salary_proposals')
@@ -62,12 +62,20 @@ export class SalaryProposal {
   })
   status: SalaryProposalStatus;
 
-  // Unique token embedded in the email link — no auth needed
   @Column({ unique: true })
   token: string;
 
   @Column({ type: 'timestamp', nullable: true })
   responded_at: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  account_id: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  paid_at: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  transaction_id: string | null;
 
   @CreateDateColumn()
   created_at: Date;
