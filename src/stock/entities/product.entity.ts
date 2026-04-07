@@ -58,6 +58,14 @@ export class Product {
   // FIX : snake_case
   @Column({ type: 'decimal', precision: 15, scale: 3, default: 0 })
   min_quantity: number;
+
+  // ==================== Alaa change for product reservations ====================
+  @Column({ type: 'decimal', precision: 15, scale: 3, default: 0 })
+  reserved_quantity: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  reserved_supplier_id: string | null;
+  // ====================================================================
  
   @Column({ type: 'uuid', nullable: true })
   category_id: string | null;
