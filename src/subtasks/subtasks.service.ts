@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +8,8 @@ import { Subtask } from './entities/subtask.entity';
 import { CreateSubtaskDto } from './dto/create-subtask.dto';
 import { UpdateSubtaskDto } from './dto/update-subtask.dto';
 import { GenerateSubtasksDto } from './dto/generate-subtasks.dto';
+import { ActivitiesService } from '../activities/activities.service';
+import { ActivityType } from '../activities/entities/activity.entity';
 
 @Injectable()
 export class SubtasksService {
@@ -16,6 +18,8 @@ export class SubtasksService {
     private subtaskRepository: Repository<Subtask>,
     private configService: ConfigService,
     private httpService: HttpService,
+    @Inject(forwardRef(() => ActivitiesService))
+    private activitiesService: ActivitiesService,
   ) {}
 
   async findByTask(taskId: string): Promise<Subtask[]> {
@@ -50,17 +54,115 @@ export class SubtasksService {
     return this.subtaskRepository.save(subtask);
   }
 
-  async markCompleteByTeamMember(id: string): Promise<Subtask> {
-    const subtask = await this.subtaskRepository.findOne({ where: { id } });
+  async markCompleteByTeamMember(id: string, userId: string, businessId: string): Promise<Subtask> {
+    console.log('✅ markCompleteByTeamMember called:', { id, userId, businessId });
+    
+    const subtask = await this.subtaskRepository.findOne({ 
+      where: { id },
+      relations: ['task'],
+    });
+    
     if (!subtask) {
       throw new NotFoundException(`Subtask with ID ${id} not found`);
     }
+
+    console.log('📝 Subtask found:', subtask.title);
+    console.log('📅 Task due date:', subtask.task?.dueDate);
+    console.log('📊 Task status:', subtask.task?.status);
+
+    // Check if overdue or on time
+    const isOverdue = this.isTaskOverdue(subtask.task);
+    const isOnTime = this.isTaskOnTime(subtask.task);
+    console.log('⏰ Is overdue:', isOverdue);
+    console.log('✅ Is on time:', isOnTime);
 
     // Marque comme complété ET compte pour la progression
     subtask.isCompleted = true;
     subtask.isCompletedByTeamMember = true;
     
-    return this.subtaskRepository.save(subtask);
+    const savedSubtask = await this.subtaskRepository.save(subtask);
+    console.log('💾 Subtask saved');
+
+    // Enregistrer l'activité
+    try {
+      console.log('📝 Creating activity...');
+      let activityType = ActivityType.SUBTASK_COMPLETED;
+      let description = `Completed subtask: ${subtask.title}`;
+      
+      if (isOverdue) {
+        activityType = ActivityType.SUBTASK_COMPLETED_OVERDUE;
+        description = `Completed subtask OVERDUE: ${subtask.title}`;
+      } else if (isOnTime) {
+        activityType = ActivityType.SUBTASK_COMPLETED_ON_TIME;
+        description = `Completed subtask ON TIME: ${subtask.title}`;
+      }
+      
+      await this.activitiesService.createActivity({
+        type: activityType,
+        businessId,
+        userId,
+        taskId: subtask.taskId,
+        subtaskId: subtask.id,
+        description,
+        isOverdue,
+        isOnTime,
+      });
+      
+      const statusLog = isOverdue ? '⚠️ MARKED AS OVERDUE' : isOnTime ? '✅ MARKED AS ON TIME' : '';
+      console.log('✅ Activity created successfully', statusLog);
+    } catch (error) {
+      console.error('❌ Failed to create activity:', error);
+      // Ne pas bloquer l'opération si l'activité échoue
+    }
+    
+    return savedSubtask;
+  }
+
+  private isTaskOverdue(task: any): boolean {
+    if (!task) return false;
+
+    // Check if task is BLOCKED
+    if (task.status === 'BLOCKED') {
+      console.log('🚫 Task is BLOCKED - marking as overdue');
+      return true;
+    }
+
+    // Check if task has due date and it's past
+    if (task.dueDate) {
+      const dueDate = new Date(task.dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+      
+      if (dueDate < today) {
+        console.log('📅 Due date passed - marking as overdue');
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private isTaskOnTime(task: any): boolean {
+    if (!task) return false;
+
+    // Not on time if task is BLOCKED
+    if (task.status === 'BLOCKED') {
+      return false;
+    }
+
+    // Check if task has due date and completion is before or on due date
+    if (task.dueDate) {
+      const dueDate = new Date(task.dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+      
+      if (today <= dueDate) {
+        console.log('✅ Completed before/on due date - marking as on time');
+        return true;
+      }
+    }
+
+    return false;
   }
 
   async remove(id: string): Promise<void> {

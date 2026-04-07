@@ -25,6 +25,12 @@ import { SubtasksModule } from './subtasks/subtasks.module';
 // Messages Module
 import { MessagesModule } from './messages/messages.module';
 
+// Activities Module
+import { ActivitiesModule } from './activities/activities.module';
+
+// Statistics Module
+import { StatisticsModule } from './statistics/statistics.module';
+
 // Core Entities
 import { User } from './users/entities/user.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
@@ -64,6 +70,9 @@ import { Subtask } from './subtasks/entities/subtask.entity';
 // Messages Entities
 import { Message } from './messages/entities/message.entity';
 import { ChatColorPreference } from './messages/entities/chat-color-preference.entity';
+
+// Activities Entities
+import { Activity } from './activities/entities/activity.entity';
 
 // Purchases Entities
 import { Supplier } from './Purchases/entities/supplier.entity';
@@ -145,6 +154,9 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           // Messages
           Message,
           ChatColorPreference,
+
+          // Activities
+          Activity,
         ],
       }),
       inject: [ConfigService],
@@ -176,6 +188,12 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
     // Messages
     MessagesModule,
+
+    // Activities
+    ActivitiesModule,
+
+    // Statistics
+    StatisticsModule,
   ],
   controllers: [],
   providers: [],
