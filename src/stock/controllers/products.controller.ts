@@ -22,6 +22,9 @@ import { ProductsService } from '../services/products.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
+// ==================== Alaa change for service type ====================
+import { ScanServiceDescriptionResponseDto } from '../dto/scan-service-description.dto';
+// ====================================================================
 import { GenerateSkuDto, GenerateSkuResponseDto } from '../dto/generate-sku.dto';
 import { BulkLabelsDto } from '../dto/bulk-labels.dto';
 import { QueryProductsDto } from '../dto/query-products.dto';
@@ -81,8 +84,11 @@ export class ProductsController {
     };
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Get()
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   async findAll(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Query() query: QueryProductsDto,
@@ -136,8 +142,11 @@ export class ProductsController {
     }
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Post('generate-sku')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   async generateSku(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: GenerateSkuDto,
@@ -145,6 +154,47 @@ export class ProductsController {
     const sku = await this.productsService.generateSku(businessId, dto);
     return { sku };
   }
+
+  // ==================== Alaa change for service type ====================
+  @Post('scan-service-description')
+  @UseGuards(AuthGuard('jwt'))
+  async scanServiceDescription(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Body() body: { description: string },
+  ): Promise<ScanServiceDescriptionResponseDto> {
+    const { description } = body;
+    
+    if (!description || typeof description !== 'string') {
+      throw new BadRequestException('Description is required and must be a string');
+    }
+    
+    if (description.length < 10) {
+      throw new BadRequestException('Description must be at least 10 characters');
+    }
+    
+    if (description.length > 1000) {
+      throw new BadRequestException('Description must not exceed 1000 characters');
+    }
+
+    try {
+      return await this.productsService.scanServiceDescription(description);
+    } catch (error: any) {
+      console.error('Error scanning service description:', error);
+      
+      // Check if it's a quota/rate limit error
+      if (error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
+        throw new BadGatewayException('AI service has exceeded quota. Please try again later.');
+      }
+      
+      // Check if it's an authentication error
+      if (error?.message?.includes('API key') || error?.status === 401 || error?.status === 403) {
+        throw new BadGatewayException('AI service is not configured. Please contact your administrator.');
+      }
+      
+      throw new BadGatewayException('Failed to analyze description. Please try again.');
+    }
+  }
+  // ====================================================================
 
   @Get(':id')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
@@ -156,8 +206,11 @@ export class ProductsController {
     return this.transformToFrontend(product);
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Post()
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   async create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: any,
@@ -167,8 +220,11 @@ export class ProductsController {
     return this.transformToFrontend(product);
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Put(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   async update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -179,8 +235,11 @@ export class ProductsController {
     return this.transformToFrontend(product);
   }
 
+  // ==================== Alaa change for service type ====================
+  // Roles guard removed temporarily — privileges will be added in a later phase
   @Delete(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @UseGuards(AuthGuard('jwt'))
+  // ====================================================================
   remove(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,

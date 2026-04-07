@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StockMovement } from '../../entities/stock-movement.entity';
-import { Product } from '../../entities/product.entity';
+import { Product, ProductType } from '../../entities/product.entity';
 import { CreateStockMovementDto } from '../../dto/create-stock-movement.dto';
 import { StockMovementType } from '../../enums/stock-movement-type.enum';
 
@@ -59,6 +59,12 @@ export class StockMovementsService {
     if (!product) {
       throw new NotFoundException(`Product with ID ${dto.product_id} not found`);
     }
+
+    // ==================== Alaa change for service type ====================
+    if (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL) {
+      throw new BadRequestException('Stock movements cannot be created for service or digital products.');
+    }
+    // ====================================================================
 
     const quantityBefore = Number(product.quantity);
     let quantityChange = Number(dto.quantity);

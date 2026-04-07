@@ -6,10 +6,13 @@ import { Repository, LessThan, Like, In, SelectQueryBuilder } from 'typeorm';
 import Groq from 'groq-sdk';
 import PDFDocument from 'pdfkit';
 import * as bwipjs from 'bwip-js';
-import { Product } from '../entities/product.entity';
+import { Product, ProductType } from '../entities/product.entity';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
+// ==================== Alaa change for service type ====================
+import { ScanServiceDescriptionResponseDto } from '../dto/scan-service-description.dto';
+// ====================================================================
 import { GenerateSkuDto } from '../dto/generate-sku.dto';
 import { QueryProductsDto, ProductSortBy } from '../dto/query-products.dto';
 import { generateInternalBarcode } from '../utils/barcode.util';
@@ -96,6 +99,13 @@ export class ProductsService {
       qb.andWhere('product.price <= :priceMax', { priceMax: query.price_max });
     }
 
+    // ==================== Alaa change for service type ====================
+    // Type filter
+    if (query.type) {
+      qb.andWhere('product.type = :type', { type: query.type });
+    }
+    // ====================================================================
+
     // Sorting
     const sortBy = query.sort_by || ProductSortBy.NAME;
     const sortOrder = query.sort_order || 'ASC';
@@ -146,6 +156,16 @@ export class ProductsService {
   }
 
   async create(businessId: string, dto: CreateProductDto): Promise<Product> {
+    // ==================== Alaa change for service type ====================
+    // Force inventory tracking off for SERVICE and DIGITAL products
+    if (dto.type === ProductType.SERVICE || dto.type === ProductType.DIGITAL) {
+      dto.track_inventory = false;
+      dto.quantity = 0;
+      dto.min_quantity = 0;
+      dto.warehouse_id = undefined;
+    }
+    // ====================================================================
+
     const product = this.productRepo.create({
       ...dto,
       business_id: businessId,
@@ -159,6 +179,17 @@ export class ProductsService {
     dto: UpdateProductDto,
   ): Promise<Product> {
     const product = await this.findOne(businessId, id);
+
+    // ==================== Alaa change for service type ====================
+    // Force inventory tracking off for SERVICE and DIGITAL products
+    if (dto.type === ProductType.SERVICE || dto.type === ProductType.DIGITAL) {
+      dto.track_inventory = false;
+      dto.quantity = 0;
+      dto.min_quantity = 0;
+      dto.warehouse_id = undefined;
+    }
+    // ====================================================================
+
     Object.assign(product, dto);
     return this.productRepo.save(product);
   }
@@ -244,7 +275,107 @@ Return the JSON now:`;
     };
   }
 
+  // ==================== Alaa change for service type ====================
+  async scanServiceDescription(
+    description: string,
+  ): Promise<ScanServiceDescriptionResponseDto> {
+    if (!this.groq) {
+      throw new Error('Groq API key not configured. Please add GROQ_API_KEY to your .env file.');
+    }
+
+    const prompt = `You are helping a business owner create a service entry in their management platform. The user will describe their service in natural language, possibly informal or incomplete. Extract structured information and return ONLY a raw JSON object with these exact fields:
+- name: a clean professional service name (string or null)
+- description: a clear professional description of the service (string or null, max 200 chars)
+- suggested_category_name: the most fitting service category name like "Consulting", "Maintenance", "Repair", "Training", "Delivery", "Installation", "Support", "Design", "Cleaning", "Transport" — pick the closest match or suggest a new one (string or null)
+- price_ht: the price if mentioned, as a number without currency (number or null)
+- duration_note: if the user mentioned duration like "2 hours" or "half day", capture it as a short string to add to description (string or null)
+- confidence_note: one sentence about what was clear and what was assumed (string, required)
+
+Rules:
+- Return ONLY the raw JSON object, no markdown, no explanation, no code blocks
+- Be conservative: only extract what you are confident about
+- For name: make it professional and capitalize properly
+- For suggested_category_name: always suggest something, even if you have to guess from context
+
+User description: ${description}
+
+Return the JSON now:`;
+
+    const result = await this.groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1000,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    });
+
+    let responseText = result.choices[0].message.content?.trim() ?? '';
+
+    // Remove markdown code blocks if present
+    responseText = responseText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/, '')
+      .replace(/```\s*$/, '');
+
+    const parsedResult = JSON.parse(responseText);
+
+    return {
+      name: parsedResult.name || null,
+      description: parsedResult.description || null,
+      suggested_category_name: parsedResult.suggested_category_name || null,
+      price_ht: parsedResult.price_ht || null,
+      duration_note: parsedResult.duration_note || null,
+      confidence_note: parsedResult.confidence_note || 'Analysis completed',
+    };
+  }
+  // ====================================================================
+
   async generateSku(businessId: string, dto: GenerateSkuDto): Promise<string> {
+    // ==================== Alaa change for service type ====================
+    // Service SKU format: SRV-{CATEGORYCODE}-{NAMECODE}-{0001}
+    if (dto.type === 'SERVICE') {
+      // Extract category code (first 4 letters uppercased)
+      let categoryCode = 'GEN';
+      if (dto.category_name) {
+        categoryCode = dto.category_name
+          .substring(0, 4)
+          .toUpperCase()
+          .replace(/[^A-Z]/g, '');
+        if (categoryCode.length === 0) categoryCode = 'GEN';
+      }
+
+      // Extract name code (first 6 letters uppercased, alphanumeric only)
+      let nameCode = 'SERV';
+      if (dto.name) {
+        nameCode = dto.name
+          .replace(/[^A-Za-z0-9]/g, '')
+          .substring(0, 6)
+          .toUpperCase();
+        if (nameCode.length === 0) nameCode = 'SERV';
+      }
+
+      // Count existing service SKUs (starting with SRV-)
+      const existingCount = await this.productRepo.count({
+        where: {
+          business_id: businessId,
+          sku: Like('SRV-%'),
+        },
+      });
+
+      const suffix = String(existingCount + 1).padStart(4, '0');
+
+      // Build service SKU: SRV-{CATEGORYCODE}-{NAMECODE}-{0001}
+      return `SRV-${categoryCode}-${nameCode}-${suffix}`;
+    }
+    // ====================================================================
+
+    // ==================== OLD VERSION - product SKU only ====================
+    // Physical product SKU format: {CATEGORY}-{BRAND_OR_NAME}-{ATTRIBUTE}-{0001}
+    // ========================================================================
+
     // Extract category prefix (first 4 letters uppercased)
     let categoryPrefix = 'GEN';
     if (dto.category_name) {

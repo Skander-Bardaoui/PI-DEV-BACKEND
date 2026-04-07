@@ -47,6 +47,13 @@ export class ProductCategoriesService {
       qb.innerJoin('category.products', 'product');
     }
 
+    // ==================== Alaa change for service type ====================
+    // Category type filter
+    if (query.category_type) {
+      qb.andWhere('category.category_type = :categoryType', { categoryType: query.category_type });
+    }
+    // ====================================================================
+
     // Sorting
     const sortBy = query.sort_by || CategorySortBy.SORT_ORDER;
     const sortOrder = query.sort_order || 'ASC';
@@ -79,10 +86,13 @@ export class ProductCategoriesService {
   }
 
   async create(businessId: string, dto: CreateProductCategoryDto): Promise<ProductCategory> {
+    // ==================== Alaa change for service type ====================
     const category = this.categoryRepo.create({
       ...dto,
       business_id: businessId,
+      category_type: dto.category_type || 'PRODUCT', // Default to PRODUCT if not specified
     });
+    // ====================================================================
     return this.categoryRepo.save(category);
   }
 

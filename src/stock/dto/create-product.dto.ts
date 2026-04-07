@@ -5,7 +5,9 @@ import {
   IsBoolean,
   IsUUID,
   Min,
+  IsEnum,
 } from 'class-validator';
+import { ProductType } from '../entities/product.entity';
 
 export class CreateProductDto {
   @IsString()
@@ -70,9 +72,11 @@ export class CreateProductDto {
   @IsBoolean()
   track_inventory?: boolean;
 
+  // ==================== Alaa change for service type ====================
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsEnum(ProductType)
+  type?: ProductType;
+  // ====================================================================
 
   @IsOptional()
   @IsBoolean()

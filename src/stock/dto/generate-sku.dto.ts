@@ -20,6 +20,12 @@ export class GenerateSkuDto {
   @IsOptional()
   @IsString()
   extra_attribute?: string | null;
+
+  // ==================== Alaa change for service type ====================
+  @IsOptional()
+  @IsString()
+  type?: 'PHYSICAL' | 'SERVICE' | 'DIGITAL';
+  // ====================================================================
 }
 
 export class GenerateSkuResponseDto {
