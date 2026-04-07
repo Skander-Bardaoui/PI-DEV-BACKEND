@@ -18,6 +18,8 @@ import { ImproveDescriptionDto } from './dto/improve-description.dto';
 import { BusinessMembersService } from '../businesses/services/business-members.service';
 import { MessagesGateway } from '../messages/messages.gateway';
 import { ConfigService } from '@nestjs/config';
+import { ActivitiesService } from '../activities/activities.service';
+import { ActivityType } from '../activities/entities/activity.entity';
 
 @Injectable()
 export class TasksService {
@@ -31,6 +33,8 @@ export class TasksService {
     @Inject(forwardRef(() => MessagesGateway))
     private messagesGateway: MessagesGateway,
     private configService: ConfigService,
+    @Inject(forwardRef(() => ActivitiesService))
+    private activitiesService: ActivitiesService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<Task> {
@@ -153,6 +157,9 @@ export class TasksService {
     console.log('MoveTask DTO received:', { newStatus, newOrder, newPriority });
     console.log('Current task priority:', task.priority);
 
+    // Check if task is being moved to BLOCKED status
+    const isMovingToBlocked = oldStatus !== TaskStatus.BLOCKED && newStatus === TaskStatus.BLOCKED;
+
     // Use transaction to ensure atomicity
     const updatedTask = await this.dataSource.transaction(async (manager) => {
       const taskRepo = manager.getRepository(Task);
@@ -221,6 +228,24 @@ export class TasksService {
       console.log('Task saved with priority:', savedTask.priority);
       return savedTask;
     });
+
+    // Log activity if task moved to BLOCKED
+    if (isMovingToBlocked) {
+      try {
+        console.log('🚫 Task moved to BLOCKED - creating activity');
+        await this.activitiesService.createActivity({
+          type: ActivityType.TASK_BLOCKED,
+          businessId: task.businessId,
+          userId,
+          taskId: task.id,
+          description: `Task moved to BLOCKED: ${task.title}`,
+          isOverdue: true,
+        });
+        console.log('✅ BLOCKED activity created');
+      } catch (error) {
+        console.error('❌ Failed to create BLOCKED activity:', error);
+      }
+    }
 
     // Emit WebSocket event
     this.messagesGateway.emitTaskMoved(task.businessId, {
