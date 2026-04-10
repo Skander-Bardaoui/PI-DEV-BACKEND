@@ -418,11 +418,10 @@ export class QuotesService {
         await manager.save(SalesOrderItem, orderItems);
         console.log('Saved order items:', orderItems.length);
 
-        // Update quote
-        quote.status = QuoteStatus.CONVERTED;
+        // Update quote - keep status as ACCEPTED, just link to order
         quote.convertedToPoId = savedOrder.id;
         await manager.save(Quote, quote);
-        console.log('Updated quote status to CONVERTED');
+        console.log('Updated quote with order link, status remains ACCEPTED');
 
         return manager.findOne(SalesOrder, {
           where: { id: savedOrder.id },

@@ -47,6 +47,7 @@ export class SalesDashboardController {
       dueDate: string;
       isReminder: boolean;
       language?: 'fr' | 'ar';
+      businessName?: string;
     },
   ) {
     return this.emailAiService.generateEmailDraft(params);

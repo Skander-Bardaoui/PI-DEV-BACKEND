@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -35,6 +36,8 @@ const TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
 
 @Injectable()
 export class SalesOrdersService {
+  private readonly logger = new Logger(SalesOrdersService.name);
+
   constructor(
     @InjectRepository(SalesOrder)
     private readonly orderRepo: Repository<SalesOrder>,
@@ -276,6 +279,25 @@ export class SalesOrdersService {
       order.status = SalesOrderStatus.IN_PROGRESS;
       await manager.save(SalesOrder, order);
 
+      // Create stock movements for each item with productId
+      for (const item of order.items) {
+        if (item.productId) {
+          try {
+            await this.stockMovementsService.createManual(businessId, {
+              product_id: item.productId,
+              type: StockMovementType.SORTIE_VENTE,
+              quantity: Number(item.quantity),
+              source_type: 'SALES_ORDER',
+              source_id: order.id,
+              note: `Sortie vente - Commande ${order.orderNumber}`,
+            });
+          } catch (error) {
+            console.error(`Failed to create stock movement for product ${item.productId}:`, error);
+            // Continue with other items even if one fails
+          }
+        }
+      }
+
       return this.findOne(businessId, id);
     });
   }
@@ -467,9 +489,20 @@ export class SalesOrdersService {
   private getLogoBase64(): string {
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+      this.logger.log(`Tentative de chargement du logo depuis: ${logoPath}`);
+      
+      if (!fs.existsSync(logoPath)) {
+        this.logger.warn(`Logo non trouvé à: ${logoPath}`);
+        return '';
+      }
+      
       const logoBuffer = fs.readFileSync(logoPath);
-      return `data:image/png;base64,${logoBuffer.toString('base64')}`;
-    } catch {
+      const base64Logo = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+      this.logger.log(`Logo chargé avec succès, taille: ${logoBuffer.length} bytes`);
+      return base64Logo;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Erreur lors du chargement du logo: ${errorMessage}`);
       return '';
     }
   }
@@ -574,7 +607,6 @@ export class SalesOrdersService {
     const nodemailer = require('nodemailer');
     const frontendUrl = 'http://localhost:5173';
     const portalUrl = `${frontendUrl}/client-portal?token=${portalToken}`;
-    const logoBase64 = this.getLogoBase64();
 
     const businessName = order.business?.name || 'Votre Entreprise';
     const businessEmail = order.business?.email || 'novaentra2026@gmail.com';
@@ -627,11 +659,8 @@ export class SalesOrdersService {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="vertical-align:middle;">
-                    ${logoBase64
-                      ? `<img src="${logoBase64}" alt="${businessName}" height="44"
-                          style="display:block;height:44px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);" />`
-                      : `<p style="margin:0;font-size:20px;font-weight:800;color:#ffffff;">${businessName}</p>`
-                    }
+                    <img src="cid:company-logo" alt="${businessName}" height="44"
+                          style="display:block;height:44px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);" />
                     <p style="margin:6px 0 0;font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);">${businessName}</p>
                   </td>
                   <td style="text-align:right;vertical-align:middle;">
@@ -825,11 +854,20 @@ export class SalesOrdersService {
       },
     });
 
+    const attachments: any[] = [
+      {
+        filename: 'logo.png',
+        path: path.join(process.cwd(), 'public', 'logo.png'),
+        cid: 'company-logo',
+      },
+    ];
+
     await transporter.sendMail({
       from: `"${businessName}" <novaentra2026@gmail.com>`,
       to: recipientEmail,
       subject: `🧾 Commande ${order.orderNumber} — Confirmation requise`,
       html,
+      attachments,
     });
   }
 }

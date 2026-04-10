@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Business } from '../../businesses/entities/business.entity';
-import { Client } from '../../clients/entities/client.entity';
+import { Client } from '../entities/client.entity';
 
 export enum RecurringFrequency {
   DAILY = 'DAILY',

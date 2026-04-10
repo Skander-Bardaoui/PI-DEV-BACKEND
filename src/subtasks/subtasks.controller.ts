@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { SubtasksService } from './subtasks.service';
 import { CreateSubtaskDto } from './dto/create-subtask.dto';
@@ -69,8 +70,12 @@ export class SubtasksController {
 
   // Endpoint spécifique pour TEAM_MEMBER - marque comme complété ET compte pour la progression
   @Post(':id/mark-complete')
-  async markCompleteByTeamMember(@Param('id') id: string) {
-    return this.subtasksService.markCompleteByTeamMember(id);
+  async markCompleteByTeamMember(
+    @Param('id') id: string,
+    @Body() body: { businessId: string },
+    @Request() req,
+  ) {
+    return this.subtasksService.markCompleteByTeamMember(id, req.user.id, body.businessId);
   }
 
   // Seuls BUSINESS_OWNER et BUSINESS_ADMIN peuvent supprimer
