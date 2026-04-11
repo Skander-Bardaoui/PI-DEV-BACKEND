@@ -63,7 +63,7 @@ export class WarehousesController {
   }
 
   @Post()
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: CreateWarehouseDto,
@@ -72,7 +72,7 @@ export class WarehousesController {
   }
 
   @Put(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -82,7 +82,7 @@ export class WarehousesController {
   }
 
   @Delete(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   remove(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,

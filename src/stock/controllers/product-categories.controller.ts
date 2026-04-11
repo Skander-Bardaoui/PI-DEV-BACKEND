@@ -34,6 +34,15 @@ export class ProductCategoriesController {
     return this.categoriesService.findAll(businessId, query);
   }
 
+  // Archive routes must come BEFORE :id route to avoid UUID parsing issues
+  @Get('archived')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  async getArchived(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+  ) {
+    return this.categoriesService.findArchived(businessId);
+  }
+
   @Get(':id')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   findOne(
@@ -44,7 +53,7 @@ export class ProductCategoriesController {
   }
 
   @Post()
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: CreateProductCategoryDto,
@@ -53,7 +62,7 @@ export class ProductCategoriesController {
   }
 
   @Put(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -63,11 +72,20 @@ export class ProductCategoriesController {
   }
 
   @Delete(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   remove(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.categoriesService.remove(businessId, id);
+  }
+
+  @Post(':id/restore')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  async restore(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.categoriesService.restore(businessId, id);
   }
 }

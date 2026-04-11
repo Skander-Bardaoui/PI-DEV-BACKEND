@@ -5,6 +5,7 @@ import { ProductCategory } from './entities/product-category.entity';
 import { StockMovement } from './entities/stock-movement.entity';
 import { Warehouse } from './entities/warehouse.entity';
 import { Business } from '../businesses/entities/business.entity';
+import { CommonModule } from '../common/common.module';
 import { StockMovementsService } from './services/stock-movements/stock-movements.service';
 import { ProductCategoriesService } from './services/product-categories.service';
 import { ProductsService } from './services/products.service';
@@ -29,6 +30,7 @@ import { ProductReservationsController } from './controllers/product-reservation
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, ProductCategory, StockMovement, Warehouse, Business]),
+    CommonModule,
   ],
   controllers: [ProductCategoriesController, ProductsController, StockMovementsController, WarehousesController, StockDashboardController, ProductReservationsController],
   exports: [TypeOrmModule, StockMovementsService, ProductsService, WarehousesService],

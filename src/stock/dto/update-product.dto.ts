@@ -75,13 +75,17 @@ export class UpdateProductDto {
   @IsBoolean()
   track_inventory?: boolean;
 
-  // ==================== Alaa change for service type ====================
   @IsOptional()
   @IsEnum(ProductType)
   type?: ProductType;
-  // ====================================================================
 
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  // ==================== Product image ====================
+  @IsOptional()
+  @IsString()
+  image_url?: string;
+  // ======================================================
 }

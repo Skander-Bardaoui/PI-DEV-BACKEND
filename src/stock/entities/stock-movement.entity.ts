@@ -72,9 +72,21 @@ export class StockMovement {
   @JoinColumn({ name: 'warehouse_id' })
   warehouse: any;
  
-  // FIX : snake_case
+  // ==================== Audit Fields ====================
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  @Index()
+  deleted_at: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  deleted_by: string | null;
+
+  @ManyToOne('User', { nullable: true, eager: false })
+  @JoinColumn({ name: 'deleted_by' })
+  deleter: any;
+  // ======================================================
  
   @ManyToOne(() => Product, (product) => product.stock_movements, {
     onDelete: 'CASCADE',

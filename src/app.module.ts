@@ -30,6 +30,9 @@ import { ActivitiesModule } from './activities/activities.module';
 // Statistics Module
 import { StatisticsModule } from './statistics/statistics.module';
 
+// Common Module
+import { CommonModule } from './common/common.module';
+
 // Core Entities
 import { User } from './users/entities/user.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
@@ -72,6 +75,9 @@ import { ChatColorPreference } from './messages/entities/chat-color-preference.e
 
 // Activities Entities
 import { Activity } from './activities/entities/activity.entity';
+
+// Common Entities
+import { AuditLog } from './common/entities/audit-log.entity';
 
 // Purchases Entities
 import { Supplier } from './Purchases/entities/supplier.entity';
@@ -155,10 +161,16 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
           // Activities
           Activity,
+
+          // Common
+          AuditLog,
         ],
       }),
       inject: [ConfigService],
     }),
+
+    // Common Module
+    CommonModule,
 
     // Core Modules
     UsersModule,
