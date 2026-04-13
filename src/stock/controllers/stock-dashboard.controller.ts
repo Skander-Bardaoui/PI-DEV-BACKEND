@@ -15,5 +15,19 @@ export class StockDashboardController {
   ): Promise<StockDashboardResponseDto> {
     return this.dashboardService.getDashboard(businessId);
   }
+
+  @Get('dashboard/products')
+  async getProductsDashboard(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+  ): Promise<StockDashboardResponseDto> {
+    return this.dashboardService.getProductsDashboard(businessId);
+  }
+
+  @Get('dashboard/services')
+  async getServicesDashboard(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+  ): Promise<StockDashboardResponseDto> {
+    return this.dashboardService.getServicesDashboard(businessId);
+  }
 }
 // ====================================================================

@@ -49,6 +49,50 @@ export class StockDashboardService {
     };
   }
 
+  async getProductsDashboard(businessId: string): Promise<StockDashboardResponseDto> {
+    const [
+      summary,
+      low_stock_products,
+      recent_movements,
+      movements_chart,
+      stock_forecast,
+    ] = await Promise.all([
+      this.getProductsSummary(businessId),
+      this.getLowStockProducts(businessId),
+      this.getProductMovements(businessId),
+      this.getProductMovementsChart(businessId),
+      this.getStockForecast(businessId),
+    ]);
+
+    return {
+      summary,
+      low_stock_products,
+      recent_movements,
+      movements_chart,
+      stock_forecast,
+    };
+  }
+
+  async getServicesDashboard(businessId: string): Promise<StockDashboardResponseDto> {
+    const [
+      summary,
+      recent_movements,
+      movements_chart,
+    ] = await Promise.all([
+      this.getServicesSummary(businessId),
+      this.getServiceActivities(businessId),
+      this.getServiceActivitiesChart(businessId),
+    ]);
+
+    return {
+      summary,
+      low_stock_products: [],
+      recent_movements,
+      movements_chart,
+      stock_forecast: [],
+    };
+  }
+
   private async getSummary(businessId: string): Promise<StockDashboardSummaryDto> {
     // Count active physical products
     const total_products = await this.productRepository.count({
@@ -282,6 +326,208 @@ export class StockDashboardService {
       .slice(0, 8);
 
     return forecast;
+  }
+
+  // Products-specific methods
+  private async getProductsSummary(businessId: string): Promise<StockDashboardSummaryDto> {
+    const total_products = await this.productRepository.count({
+      where: { business_id: businessId, is_active: true, type: ProductType.PHYSICAL },
+    });
+
+    const low_stock_count = await this.productRepository
+      .createQueryBuilder('product')
+      .where('product.business_id = :businessId', { businessId })
+      .andWhere('product.is_active = :isActive', { isActive: true })
+      .andWhere('product.type = :type', { type: ProductType.PHYSICAL })
+      .andWhere('product.track_inventory = :trackInventory', { trackInventory: true })
+      .andWhere('product.quantity <= product.min_quantity')
+      .getCount();
+
+    const total_categories = await this.categoryRepository
+      .createQueryBuilder('category')
+      .where('category.business_id = :businessId', { businessId })
+      .andWhere('category.is_active = :isActive', { isActive: true })
+      .andWhere('category.category_type = :categoryType', { categoryType: 'PRODUCT' })
+      .getCount();
+
+    const total_movements = await this.movementRepository
+      .createQueryBuilder('movement')
+      .innerJoin('movement.product', 'product')
+      .where('movement.business_id = :businessId', { businessId })
+      .andWhere('product.type = :type', { type: ProductType.PHYSICAL })
+      .getCount();
+
+    const stockValueResult = await this.productRepository
+      .createQueryBuilder('product')
+      .select('SUM(product.quantity * product.cost)', 'total_value')
+      .where('product.business_id = :businessId', { businessId })
+      .andWhere('product.is_active = :isActive', { isActive: true })
+      .andWhere('product.type = :type', { type: ProductType.PHYSICAL })
+      .andWhere('product.cost IS NOT NULL')
+      .getRawOne();
+
+    const total_stock_value = parseFloat(stockValueResult?.total_value || '0');
+
+    return {
+      total_products,
+      total_services: 0,
+      low_stock_count,
+      out_of_stock_count: 0,
+      total_categories,
+      total_movements,
+      total_stock_value,
+    };
+  }
+
+  private async getProductMovements(businessId: string): Promise<RecentMovementDto[]> {
+    const movements = await this.movementRepository
+      .createQueryBuilder('movement')
+      .leftJoinAndSelect('movement.product', 'product')
+      .where('movement.business_id = :businessId', { businessId })
+      .andWhere('product.type = :type', { type: ProductType.PHYSICAL })
+      .orderBy('movement.created_at', 'DESC')
+      .limit(8)
+      .getMany();
+
+    return movements.map((movement) => ({
+      id: movement.id,
+      type: movement.type,
+      quantity: parseFloat(movement.quantity.toString()),
+      created_at: movement.created_at,
+      product_name: movement.product?.name || 'Unknown Product',
+      product_sku: movement.product?.sku || '',
+      reference: movement.reference,
+    }));
+  }
+
+  private async getProductMovementsChart(businessId: string): Promise<MovementsChartDto[]> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const rawData = await this.movementRepository
+      .createQueryBuilder('movement')
+      .innerJoin('movement.product', 'product')
+      .select("DATE_TRUNC('day', movement.created_at)", 'date')
+      .addSelect(
+        `SUM(CASE WHEN movement.type = 'ENTREE_ACHAT' THEN movement.quantity ELSE 0 END)`,
+        'entrees',
+      )
+      .addSelect(
+        `SUM(CASE WHEN movement.type = 'SORTIE_VENTE' THEN ABS(movement.quantity) ELSE 0 END)`,
+        'sorties',
+      )
+      .addSelect(
+        `SUM(CASE WHEN movement.type IN ('AJUSTEMENT_POSITIF', 'AJUSTEMENT_NEGATIF') THEN ABS(movement.quantity) ELSE 0 END)`,
+        'ajustements',
+      )
+      .where('movement.business_id = :businessId', { businessId })
+      .andWhere('product.type = :type', { type: ProductType.PHYSICAL })
+      .andWhere('movement.created_at >= :thirtyDaysAgo', { thirtyDaysAgo })
+      .groupBy("DATE_TRUNC('day', movement.created_at)")
+      .orderBy('date', 'ASC')
+      .getRawMany();
+
+    return rawData.map((row) => ({
+      date: new Date(row.date).toISOString().split('T')[0],
+      entrees: parseFloat(row.entrees || '0'),
+      sorties: parseFloat(row.sorties || '0'),
+      ajustements: parseFloat(row.ajustements || '0'),
+    }));
+  }
+
+  // Services-specific methods
+  private async getServicesSummary(businessId: string): Promise<StockDashboardSummaryDto> {
+    const total_services = await this.productRepository.count({
+      where: { business_id: businessId, is_active: true, type: ProductType.SERVICE },
+    });
+
+    const total_categories = await this.categoryRepository
+      .createQueryBuilder('category')
+      .where('category.business_id = :businessId', { businessId })
+      .andWhere('category.is_active = :isActive', { isActive: true })
+      .andWhere('category.category_type = :categoryType', { categoryType: 'SERVICE' })
+      .getCount();
+
+    const total_movements = await this.movementRepository
+      .createQueryBuilder('movement')
+      .innerJoin('movement.product', 'product')
+      .where('movement.business_id = :businessId', { businessId })
+      .andWhere('product.type = :type', { type: ProductType.SERVICE })
+      .getCount();
+
+    const serviceValueResult = await this.productRepository
+      .createQueryBuilder('product')
+      .select('SUM(product.price)', 'total_value')
+      .where('product.business_id = :businessId', { businessId })
+      .andWhere('product.is_active = :isActive', { isActive: true })
+      .andWhere('product.type = :type', { type: ProductType.SERVICE })
+      .andWhere('product.price IS NOT NULL')
+      .getRawOne();
+
+    const total_stock_value = parseFloat(serviceValueResult?.total_value || '0');
+
+    return {
+      total_products: 0,
+      total_services,
+      low_stock_count: 0,
+      out_of_stock_count: 0,
+      total_categories,
+      total_movements,
+      total_stock_value,
+    };
+  }
+
+  private async getServiceActivities(businessId: string): Promise<RecentMovementDto[]> {
+    const movements = await this.movementRepository
+      .createQueryBuilder('movement')
+      .leftJoinAndSelect('movement.product', 'product')
+      .where('movement.business_id = :businessId', { businessId })
+      .andWhere('product.type = :type', { type: ProductType.SERVICE })
+      .orderBy('movement.created_at', 'DESC')
+      .limit(8)
+      .getMany();
+
+    return movements.map((movement) => ({
+      id: movement.id,
+      type: movement.type,
+      quantity: parseFloat(movement.quantity.toString()),
+      created_at: movement.created_at,
+      product_name: movement.product?.name || 'Unknown Service',
+      product_sku: movement.product?.sku || '',
+      reference: movement.reference,
+    }));
+  }
+
+  private async getServiceActivitiesChart(businessId: string): Promise<MovementsChartDto[]> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const rawData = await this.movementRepository
+      .createQueryBuilder('movement')
+      .innerJoin('movement.product', 'product')
+      .select("DATE_TRUNC('day', movement.created_at)", 'date')
+      .addSelect(
+        `SUM(CASE WHEN movement.type IN ('ENTREE_ACHAT', 'IN') THEN movement.quantity ELSE 0 END)`,
+        'entrees',
+      )
+      .addSelect(
+        `SUM(CASE WHEN movement.type IN ('SORTIE_VENTE', 'OUT') THEN ABS(movement.quantity) ELSE 0 END)`,
+        'sorties',
+      )
+      .addSelect('0', 'ajustements')
+      .where('movement.business_id = :businessId', { businessId })
+      .andWhere('product.type = :type', { type: ProductType.SERVICE })
+      .andWhere('movement.created_at >= :thirtyDaysAgo', { thirtyDaysAgo })
+      .groupBy("DATE_TRUNC('day', movement.created_at)")
+      .orderBy('date', 'ASC')
+      .getRawMany();
+
+    return rawData.map((row) => ({
+      date: new Date(row.date).toISOString().split('T')[0],
+      entrees: parseFloat(row.entrees || '0'),
+      sorties: parseFloat(row.sorties || '0'),
+      ajustements: parseFloat(row.ajustements || '0'),
+    }));
   }
 }
 // ====================================================================
