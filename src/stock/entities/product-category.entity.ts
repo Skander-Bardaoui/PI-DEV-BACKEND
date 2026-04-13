@@ -50,12 +50,38 @@ export class ProductCategory {
   category_type: string; // 'PRODUCT' or 'SERVICE'
   // ====================================================================
  
-  // FIX : snake_case
+  // ==================== Audit Fields ====================
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
  
   @UpdateDateColumn({ type: 'timestamptz' })
   updated_at: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  @Index()
+  deleted_at: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  created_by: string | null;
+
+  @ManyToOne('User', { nullable: true, eager: false })
+  @JoinColumn({ name: 'created_by' })
+  creator: any;
+
+  @Column({ type: 'uuid', nullable: true })
+  updated_by: string | null;
+
+  @ManyToOne('User', { nullable: true, eager: false })
+  @JoinColumn({ name: 'updated_by' })
+  updater: any;
+
+  @Column({ type: 'uuid', nullable: true })
+  deleted_by: string | null;
+
+  @ManyToOne('User', { nullable: true, eager: false })
+  @JoinColumn({ name: 'deleted_by' })
+  deleter: any;
+  // ======================================================
  
   @ManyToOne(() => ProductCategory, (category) => category.children, {
     nullable: true,
