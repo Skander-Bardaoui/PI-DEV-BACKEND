@@ -18,6 +18,9 @@ import { StockModule } from './stock/stock.module';
 // Tasks Module
 import { TasksModule } from './tasks/tasks.module';
 
+// Collaboration Module
+import { CollaborationModule } from './collaboration/collaboration.module';
+
 // Subtasks Module
 import { SubtasksModule } from './subtasks/subtasks.module';
 
@@ -30,6 +33,8 @@ import { ActivitiesModule } from './activities/activities.module';
 // Statistics Module
 import { StatisticsModule } from './statistics/statistics.module';
 
+// Presence Module
+import { PresenceModule } from './presence/presence.module';
 // Common Module
 import { CommonModule } from './common/common.module';
 
@@ -65,6 +70,12 @@ import { Warehouse } from './stock/entities/warehouse.entity';
 
 // Tasks Entities
 import { Task } from './tasks/entities/task.entity';
+
+// Collaboration Entities
+import { DailyCheckin } from './collaboration/entities/daily-checkin.entity';
+import { Comment } from './collaboration/entities/comment.entity';
+import { ActivityLog } from './collaboration/entities/activity-log.entity';
+import { Task as CollaborationTask } from './collaboration/entities/task.entity';
 
 // Subtasks Entities
 import { Subtask } from './subtasks/entities/subtask.entity';
@@ -152,6 +163,12 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           // Tasks
           Task,
 
+          // Collaboration
+          DailyCheckin,
+          Comment,
+          ActivityLog,
+          CollaborationTask,
+
           // Subtasks
           Subtask,
 
@@ -192,6 +209,9 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
     // Tasks
     TasksModule,
 
+    // Collaboration
+    CollaborationModule,
+
     // Subtasks
     SubtasksModule,
 
@@ -203,6 +223,9 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
     // Statistics
     StatisticsModule,
+
+    // Presence
+    PresenceModule,
   ],
   controllers: [],
   providers: [],

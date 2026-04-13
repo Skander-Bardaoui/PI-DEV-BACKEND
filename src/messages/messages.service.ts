@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Message } from './entities/message.entity';
@@ -28,6 +28,7 @@ export class MessagesService {
       }
     }
 
+    // If this is a reply, validate parent exists and increment its replyCount
     if (createMessageDto.parentMessageId) {
       const parentMessage = await this.messageRepository.findOne({
         where: { id: createMessageDto.parentMessageId },
@@ -37,6 +38,7 @@ export class MessagesService {
         throw new Error('Parent message not found');
       }
 
+      // Increment parent's reply count
       await this.messageRepository.increment(
         { id: createMessageDto.parentMessageId },
         'replyCount',
@@ -71,6 +73,7 @@ export class MessagesService {
   }
 
   async findAllByTask(taskId: string): Promise<Message[]> {
+    // Return only top-level messages (no replies)
     return this.messageRepository.find({
       where: { taskId, parentMessageId: IsNull() },
       relations: ['sender'],
