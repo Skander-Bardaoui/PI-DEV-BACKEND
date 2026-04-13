@@ -1,11 +1,17 @@
+// src/payments/entities/payment-schedule.ts
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn,
   ManyToOne, OneToMany, JoinColumn,
 } from 'typeorm';
-import { PurchaseInvoice }          from 'src/Purchases/entities/purchase-invoice.entity';
+import { PurchaseInvoice }            from 'src/Purchases/entities/purchase-invoice.entity';
 import { PaymentScheduleInstallment } from './payment-schedule-installment';
 
+export enum ScheduleStatus {
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
+  ACTIVE           = 'ACTIVE',
+  REJECTED         = 'REJECTED',
+}
 
 @Entity('payment_schedules')
 export class PaymentSchedule {
@@ -22,7 +28,6 @@ export class PaymentSchedule {
   @JoinColumn({ name: 'purchase_invoice_id' })
   purchase_invoice: PurchaseInvoice;
 
-  /** Total amount covered by this schedule */
   @Column({ type: 'decimal', precision: 15, scale: 3 })
   total_amount: number;
 
@@ -31,6 +36,22 @@ export class PaymentSchedule {
 
   @Column({ type: 'uuid', nullable: true })
   created_by: string | null;
+
+  // ── NEW ──────────────────────────────────────────────────────────
+  @Column({
+    type: 'enum',
+    enum: ScheduleStatus,
+    default: ScheduleStatus.PENDING_APPROVAL,
+  })
+  status: ScheduleStatus;
+
+  /** Secure token emailed to supplier for accept / reject */
+  @Column({ type: 'uuid', unique: true, nullable: true })
+  supplier_token: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  rejection_reason: string | null;
+  // ─────────────────────────────────────────────────────────────────
 
   @OneToMany(
     () => PaymentScheduleInstallment,
