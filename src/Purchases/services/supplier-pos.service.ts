@@ -16,6 +16,10 @@ import { SuppliersService }    from '../services/suppliers.service';
 import { PurchaseMailService } from '../services/purchase-mail.service';
 import { CreateSupplierPODto } from '../dto/create-supplier-po.dto';
 import { UpdateSupplierPODto } from '../dto/update-supplier-po.dto';
+import { StockMovementsService } from '../../stock/services/stock-movements/stock-movements.service';
+import { StockMovementType } from '../../stock/enums/stock-movement-type.enum';
+import { StockMovement } from '../../stock/entities/stock-movement.entity';
+import { Product, ProductType } from '../../stock/entities/product.entity';
 
 const TRANSITIONS: Record<POStatus, POStatus[]> = {
   [POStatus.DRAFT]:              [POStatus.SENT, POStatus.CANCELLED],
@@ -37,9 +41,16 @@ export class SupplierPOsService {
     @InjectRepository(SupplierPOItem)
     private readonly itemRepo: Repository<SupplierPOItem>,
 
+    @InjectRepository(StockMovement)
+    private readonly stockMovementRepo: Repository<StockMovement>,
+
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
+
     private readonly suppliersService: SuppliersService,
     private readonly dataSource: DataSource,
     private readonly purchaseMailService: PurchaseMailService,
+    private readonly stockMovementsService: StockMovementsService,
   ) {}
 
   async create(businessId: string, dto: CreateSupplierPODto): Promise<SupplierPO> {
@@ -229,6 +240,91 @@ async send(businessId: string, id: string) {
     else if (anyReceived) po.status = POStatus.PARTIALLY_RECEIVED;
 
     await manager.save(SupplierPO, po);
+
+    // Create stock movements whenever items are received (PARTIALLY_RECEIVED or FULLY_RECEIVED)
+    if (po.status === POStatus.PARTIALLY_RECEIVED || po.status === POStatus.FULLY_RECEIVED) {
+      await this.createStockMovementsForReceivedItems(businessId, po, manager);
+    }
+  }
+
+  /**
+   * Helper method to create stock movements for received items
+   */
+  private async createStockMovementsForReceivedItems(
+    businessId: string,
+    po: SupplierPO,
+    manager: any,
+  ): Promise<void> {
+    // Get existing stock movements for this PO grouped by product
+    const existingMovements = await manager
+      .createQueryBuilder(StockMovement, 'sm')
+      .where('sm.business_id = :businessId', { businessId })
+      .andWhere('sm.reference_type = :refType', { refType: 'SUPPLIER_PO' })
+      .andWhere('sm.reference_id = :refId', { refId: po.id })
+      .getMany();
+
+    // Map product_id -> total quantity already added to stock
+    const existingMovementsByProduct = new Map<string, number>();
+    for (const movement of existingMovements) {
+      const existing = existingMovementsByProduct.get(movement.product_id) || 0;
+      existingMovementsByProduct.set(
+        movement.product_id,
+        existing + Number(movement.quantity)
+      );
+    }
+
+    // Create stock movements for items with received quantities
+    for (const item of po.items) {
+      if (!item.product_id) {
+        this.logger.debug(`PO item ${item.id} has no product_id, skipping stock movement`);
+        continue;
+      }
+
+      // ==================== Alaa change for service type ====================
+      // Services and digital products do not affect stock — skip movement creation
+      const product = await this.productRepo.findOne({
+        where: { id: item.product_id },
+      });
+      if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
+        this.logger.debug(`Product ${item.product_id} is a service or digital product, skipping stock movement`);
+        continue;
+      }
+      // ====================================================================
+
+      const receivedQty = Number(item.quantity_received);
+      if (receivedQty <= 0) continue;
+
+      // Check how much we already added to stock for this product
+      const existingQty = existingMovementsByProduct.get(item.product_id) || 0;
+      const qtyToAdd = receivedQty - existingQty;
+
+      if (qtyToAdd <= 0) {
+        this.logger.debug(
+          `No new quantity to add for product ${item.product_id} (received: ${receivedQty}, already in stock: ${existingQty})`
+        );
+        continue;
+      }
+
+      try {
+        await this.stockMovementsService.createManual(businessId, {
+          product_id: item.product_id,
+          type: StockMovementType.ENTREE_ACHAT,
+          quantity: qtyToAdd,
+          source_type: 'SUPPLIER_PO',
+          source_id: po.id,
+          note: `Entrée achat - BC ${po.po_number} - ${item.description}`,
+        });
+
+        this.logger.log(
+          `Stock movement created for product ${item.product_id}: +${qtyToAdd} (BC ${po.po_number})`
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to create stock movement for product ${item.product_id} in PO ${po.po_number}:`,
+          error
+        );
+      }
+    }
   }
 
   private async transition(

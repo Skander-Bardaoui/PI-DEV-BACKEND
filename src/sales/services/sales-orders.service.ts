@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -22,6 +23,8 @@ import { CreateSalesOrderDto } from '../dto/create-sales-order.dto';
 import { UpdateSalesOrderDto } from '../dto/update-sales-order.dto';
 import { StockMovementsService } from '../../stock/services/stock-movements/stock-movements.service';
 import { StockMovementType } from '../../stock/enums/stock-movement-type.enum';
+import { StockMovement } from '../../stock/entities/stock-movement.entity';
+import { Product, ProductType } from '../../stock/entities/product.entity';
 
 const TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
   [SalesOrderStatus.CONFIRMED]: [SalesOrderStatus.IN_PROGRESS, SalesOrderStatus.CANCELLED],
@@ -33,6 +36,8 @@ const TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
 
 @Injectable()
 export class SalesOrdersService {
+  private readonly logger = new Logger(SalesOrdersService.name);
+
   constructor(
     @InjectRepository(SalesOrder)
     private readonly orderRepo: Repository<SalesOrder>,
@@ -51,6 +56,12 @@ export class SalesOrdersService {
 
     @InjectRepository(DeliveryNoteItem)
     private readonly deliveryNoteItemRepo: Repository<DeliveryNoteItem>,
+
+    @InjectRepository(StockMovement)
+    private readonly stockMovementRepo: Repository<StockMovement>,
+
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
 
     @Inject(forwardRef(() => SalesMailService))
     private readonly mailService: SalesMailService,
@@ -92,10 +103,41 @@ export class SalesOrdersService {
       );
       await manager.save(SalesOrderItem, lines);
 
-      return manager.findOne(SalesOrder, {
+      const result = await manager.findOne(SalesOrder, {
         where: { id: saved.id },
         relations: ['items', 'client'],
-      }) as Promise<SalesOrder>;
+      }) as SalesOrder;
+
+      // Create stock movements for each item with productId when order is confirmed
+      for (const item of lines) {
+        if (item.productId) {
+          try {
+            // ==================== Alaa change for service type ====================
+            // Services and digital products do not affect stock — skip movement creation
+            const product = await this.productRepo.findOne({
+              where: { id: item.productId },
+            });
+            if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
+              continue;
+            }
+            // ====================================================================
+
+            await this.stockMovementsService.createManual(businessId, {
+              product_id: item.productId,
+              type: StockMovementType.SORTIE_VENTE,
+              quantity: Number(item.quantity),
+              source_type: 'SALES_ORDER',
+              source_id: saved.id,
+              note: `Sortie vente - Commande ${orderNumber}`,
+            });
+          } catch (error) {
+            console.error(`Failed to create stock movement for product ${item.productId}:`, error);
+            // Continue with other items even if one fails
+          }
+        }
+      }
+
+      return result;
     });
   }
 
@@ -146,6 +188,9 @@ export class SalesOrdersService {
         order.notes = dto.notes;
 
       if (dto.items?.length) {
+        // Reverse stock movements for old items
+        await this.reverseStockMovements(businessId, id, manager);
+
         await manager.delete(SalesOrderItem, { salesOrderId: id });
 
         const { subtotal, taxAmount, netAmount, items } = this.calcTotals(dto.items);
@@ -163,6 +208,34 @@ export class SalesOrdersService {
           }),
         );
         await manager.save(SalesOrderItem, lines);
+
+        // Create new stock movements for updated items
+        for (const item of lines) {
+          if (item.productId) {
+            try {
+              // ==================== Alaa change for service type ====================
+              // Services and digital products do not affect stock — skip movement creation
+              const product = await this.productRepo.findOne({
+                where: { id: item.productId },
+              });
+              if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
+                continue;
+              }
+              // ====================================================================
+
+              await this.stockMovementsService.createManual(businessId, {
+                product_id: item.productId,
+                type: StockMovementType.SORTIE_VENTE,
+                quantity: Number(item.quantity),
+                source_type: 'SALES_ORDER',
+                source_id: id,
+                note: `Sortie vente - Commande ${order.orderNumber}`,
+              });
+            } catch (error) {
+              console.error(`Failed to create stock movement for product ${item.productId}:`, error);
+            }
+          }
+        }
       } else {
         await manager.save(SalesOrder, order);
       }
@@ -260,9 +333,50 @@ export class SalesOrdersService {
         );
       }
 
+      // Reverse stock movements before deleting
+      await this.reverseStockMovements(businessId, id, manager);
+
       await manager.delete(SalesOrderItem, { salesOrderId: id });
       await manager.delete(SalesOrder, { id, businessId });
     });
+  }
+
+  /**
+   * Helper method to reverse stock movements for a sales order
+   */
+  private async reverseStockMovements(
+    businessId: string,
+    salesOrderId: string,
+    manager: any,
+  ): Promise<void> {
+    // Find all stock movements for this sales order
+    const movements = await manager.find(StockMovement, {
+      where: {
+        business_id: businessId,
+        reference_type: 'SALES_ORDER',
+        reference_id: salesOrderId,
+      },
+    });
+
+    // Reverse each movement by updating product quantities
+    for (const movement of movements) {
+      try {
+        const product = await manager.findOne(Product, {
+          where: { id: movement.product_id },
+        });
+
+        if (product) {
+          // Reverse the quantity change (subtract the movement quantity)
+          product.quantity = Number(product.quantity) - Number(movement.quantity);
+          await manager.save(Product, product);
+        }
+
+        // Delete the movement record
+        await manager.remove(StockMovement, movement);
+      } catch (error) {
+        console.error(`Failed to reverse stock movement ${movement.id}:`, error);
+      }
+    }
   }
 
   private async transition(
@@ -375,9 +489,20 @@ export class SalesOrdersService {
   private getLogoBase64(): string {
     try {
       const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+      this.logger.log(`Tentative de chargement du logo depuis: ${logoPath}`);
+      
+      if (!fs.existsSync(logoPath)) {
+        this.logger.warn(`Logo non trouvé à: ${logoPath}`);
+        return '';
+      }
+      
       const logoBuffer = fs.readFileSync(logoPath);
-      return `data:image/png;base64,${logoBuffer.toString('base64')}`;
-    } catch {
+      const base64Logo = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+      this.logger.log(`Logo chargé avec succès, taille: ${logoBuffer.length} bytes`);
+      return base64Logo;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Erreur lors du chargement du logo: ${errorMessage}`);
       return '';
     }
   }
@@ -482,7 +607,6 @@ export class SalesOrdersService {
     const nodemailer = require('nodemailer');
     const frontendUrl = 'http://localhost:5173';
     const portalUrl = `${frontendUrl}/client-portal?token=${portalToken}`;
-    const logoBase64 = this.getLogoBase64();
 
     const businessName = order.business?.name || 'Votre Entreprise';
     const businessEmail = order.business?.email || 'novaentra2026@gmail.com';
@@ -535,11 +659,8 @@ export class SalesOrdersService {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="vertical-align:middle;">
-                    ${logoBase64
-                      ? `<img src="${logoBase64}" alt="${businessName}" height="44"
-                          style="display:block;height:44px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);" />`
-                      : `<p style="margin:0;font-size:20px;font-weight:800;color:#ffffff;">${businessName}</p>`
-                    }
+                    <img src="cid:company-logo" alt="${businessName}" height="44"
+                          style="display:block;height:44px;max-width:160px;object-fit:contain;filter:brightness(0) invert(1);" />
                     <p style="margin:6px 0 0;font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);">${businessName}</p>
                   </td>
                   <td style="text-align:right;vertical-align:middle;">
@@ -733,11 +854,20 @@ export class SalesOrdersService {
       },
     });
 
+    const attachments: any[] = [
+      {
+        filename: 'logo.png',
+        path: path.join(process.cwd(), 'public', 'logo.png'),
+        cid: 'company-logo',
+      },
+    ];
+
     await transporter.sendMail({
       from: `"${businessName}" <novaentra2026@gmail.com>`,
       to: recipientEmail,
       subject: `🧾 Commande ${order.orderNumber} — Confirmation requise`,
       html,
+      attachments,
     });
   }
 }

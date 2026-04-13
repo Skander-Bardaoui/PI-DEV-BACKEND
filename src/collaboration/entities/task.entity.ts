@@ -11,7 +11,9 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Business } from '../../businesses/entities/business.entity';
-import { Client } from '../../clients/entities/client.entity';
+import { Client } from '../../sales/entities/client.entity';
+import { Comment } from './comment.entity';
+import { ActivityLog } from './activity-log.entity';
 
 export enum TaskStatus {
   TODO = 'TODO',

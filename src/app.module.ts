@@ -7,7 +7,6 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { BusinessesModule } from './businesses/businesses.module';
-import { ClientsModule } from './clients/clients.module';
 
 // Sales & Finance Modules
 import { SalesModule } from './sales/sales.module';
@@ -36,6 +35,8 @@ import { StatisticsModule } from './statistics/statistics.module';
 
 // Presence Module
 import { PresenceModule } from './presence/presence.module';
+// Common Module
+import { CommonModule } from './common/common.module';
 
 // Core Entities
 import { User } from './users/entities/user.entity';
@@ -45,7 +46,7 @@ import { Tenant } from './tenants/entities/tenant.entity';
 import { Business } from './businesses/entities/business.entity';
 import { BusinessSettings } from './businesses/entities/business-settings.entity';
 import { TaxRate } from './businesses/entities/tax-rate.entity';
-import { Client } from './clients/entities/client.entity';
+import { Client } from './sales/entities/client.entity';
 import { Quote } from './sales/entities/quote.entity';
 import { QuoteItem } from './sales/entities/quote-item.entity';
 import { SalesOrder } from './sales/entities/sales-order.entity';
@@ -86,6 +87,9 @@ import { ChatColorPreference } from './messages/entities/chat-color-preference.e
 // Activities Entities
 import { Activity } from './activities/entities/activity.entity';
 
+// Common Entities
+import { AuditLog } from './common/entities/audit-log.entity';
+
 // Purchases Entities
 import { Supplier } from './Purchases/entities/supplier.entity';
 import { SupplierPO } from './Purchases/entities/supplier-po.entity';
@@ -97,7 +101,6 @@ import { PurchasesModule } from './Purchases/purchases.module';
 import { SupplierPOsController } from './Purchases/controllers/supplier-pos.controller';
 import { SuppliersController } from './Purchases/controllers/suppliers.controller';
 import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.entity';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -115,7 +118,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
         synchronize: true,
-        autoLoadEntities: true, 
+        autoLoadEntities: true,
         entities: [
           // Core
           User,
@@ -134,7 +137,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           PurchaseInvoice,
           GoodsReceipt,
           GoodsReceiptItem,
-           SupplierPortalToken,
+          // SupplierPortalToken, // Temporairement retiré pour éviter les erreurs de synchronisation
           // Sales
           Quote,
           QuoteItem,
@@ -175,17 +178,22 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
           // Activities
           Activity,
+
+          // Common
+          AuditLog,
         ],
       }),
       inject: [ConfigService],
     }),
+
+    // Common Module
+    CommonModule,
 
     // Core Modules
     UsersModule,
     AuthModule,
     TenantsModule,
     BusinessesModule,
-    ClientsModule,
 
     // Sales & Finance
     SalesModule,

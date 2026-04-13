@@ -11,6 +11,7 @@ import { InvoiceStatus, InvoiceType } from '../entities/invoice.entity';
 import { CreateInvoiceDto } from '../dto/create-invoice.dto';
 import { UpdateInvoiceDto } from '../dto/update-invoice.dto';
 import { SalesMailService } from './sales-mail.service';
+import { SalesEmailAiService } from './sales-email-ai.service';
 
 const TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
   [InvoiceStatus.DRAFT]: [InvoiceStatus.SENT, InvoiceStatus.CANCELLED],
@@ -32,6 +33,7 @@ export class InvoicesService {
 
     private readonly dataSource: DataSource,
     private readonly mailService: SalesMailService,
+    private readonly emailAiService: SalesEmailAiService,
   ) {}
 
   async create(businessId: string, dto: CreateInvoiceDto): Promise<Invoice> {
@@ -99,7 +101,7 @@ export class InvoicesService {
   async findOne(businessId: string, id: string): Promise<Invoice> {
     const invoice = await this.invoiceRepo.findOne({
       where: { id, business_id: businessId },
-      relations: ['items', 'client'],
+      relations: ['items', 'client', 'business'],
     });
     if (!invoice) throw new NotFoundException(`Facture introuvable (id: ${id})`);
     return invoice;
@@ -200,6 +202,33 @@ export class InvoicesService {
     }
 
     await this.mailService.sendPaymentReminder(invoice, email);
+  }
+
+  async generateEmailDraft(
+    businessId: string,
+    id: string,
+    language: 'fr' | 'ar' = 'fr',
+    isReminder: boolean = false,
+  ): Promise<{ subject: string; body: string }> {
+    const invoice = await this.findOne(businessId, id);
+
+    const dueDate = new Date(invoice.due_date).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const draft = await this.emailAiService.generateEmailDraft({
+      clientName: invoice.client?.name || 'Client',
+      invoiceNumber: invoice.invoice_number,
+      amount: Number(invoice.net_amount),
+      dueDate,
+      isReminder,
+      language,
+      businessName: invoice.business?.name || 'Votre Entreprise',
+    });
+
+    return draft;
   }
 
   async markPartiallyPaid(businessId: string, id: string) {

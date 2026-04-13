@@ -43,4 +43,10 @@ export class QueryCategoriesDto {
   @IsOptional()
   @IsEnum(SortOrder)
   sort_order?: SortOrder;
+
+  // ==================== Alaa change for service type ====================
+  @IsOptional()
+  @IsString()
+  category_type?: string; // 'PRODUCT' or 'SERVICE'
+  // ====================================================================
 }

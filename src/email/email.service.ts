@@ -24,30 +24,33 @@ export class EmailService {
     const verificationLink = `${frontendUrl}/verify-email?token=${token}`;
 
     const mailOptions = {
-      from: `"SaaS Platform" <${this.configService.get<string>('GMAIL_USER')}>`,
+      from: `"NovEntra" <${this.configService.get<string>('GMAIL_USER')}>`,
       to,
-      subject: 'Verify Your Email Address',
+      subject: 'Vérifiez votre adresse email - NovEntra',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Welcome to SaaS Platform, ${userName}!</h2>
-          <p>Thanks for signing up. Please verify your email address by clicking the button below:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${verificationLink}" 
-               style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Verify Email
-            </a>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; border-radius: 20px;">
+          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; margin: 0;">NovEntra</h1>
+            </div>
+            <h2 style="color: #333; margin-bottom: 20px;">Bienvenue, ${userName}! 👋</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
+              Merci de vous être inscrit sur NovEntra. Pour commencer à utiliser votre compte, veuillez vérifier votre adresse email en cliquant sur le bouton ci-dessous :
+            </p>
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${verificationLink}" 
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: bold; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                Vérifier mon email
+              </a>
+            </div>
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              Ou copiez et collez ce lien dans votre navigateur :<br>
+              <a href="${verificationLink}" style="color: #667eea; word-break: break-all;">${verificationLink}</a>
+            </p>
+            <p style="color: #999; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              Ce lien expirera dans 24 heures. Si vous n'avez pas créé de compte, vous pouvez ignorer cet email en toute sécurité.
+            </p>
           </div>
-          <p style="color: #666; font-size: 14px;">
-            Or copy and paste this link into your browser:<br>
-            <a href="${verificationLink}">${verificationLink}</a>
-          </p>
-          <p style="color: #666; font-size: 14px;">
-            This link will expire in 24 hours.
-          </p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="color: #999; font-size: 12px;">
-            If you didn't create an account, you can safely ignore this email.
-          </p>
         </div>
       `,
     };
@@ -62,31 +65,34 @@ export class EmailService {
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
 
     const mailOptions = {
-      from: `"SaaS Platform" <${this.configService.get<string>('GMAIL_USER')}>`,
+      from: `"NovEntra" <${this.configService.get<string>('GMAIL_USER')}>`,
       to,
-      subject: 'Reset Your Password',
+      subject: 'Réinitialisation de votre mot de passe - NovEntra',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Password Reset Request</h2>
-          <p>Hi ${userName},</p>
-          <p>We received a request to reset your password. Click the button below to create a new password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetLink}" 
-               style="background-color: #e74c3c; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Reset Password
-            </a>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; border-radius: 20px;">
+          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; margin: 0;">NovEntra</h1>
+            </div>
+            <h2 style="color: #333; margin-bottom: 20px;">Réinitialisation de mot de passe</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">Bonjour ${userName},</p>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
+              Nous avons reçu une demande de réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :
+            </p>
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${resetLink}" 
+                 style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: bold; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);">
+                Réinitialiser mon mot de passe
+              </a>
+            </div>
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              Ou copiez et collez ce lien dans votre navigateur :<br>
+              <a href="${resetLink}" style="color: #667eea; word-break: break-all;">${resetLink}</a>
+            </p>
+            <p style="color: #999; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              Ce lien expirera dans 1 heure. Si vous n'avez pas demandé de réinitialisation, vous pouvez ignorer cet email en toute sécurité. Votre mot de passe ne sera pas modifié.
+            </p>
           </div>
-          <p style="color: #666; font-size: 14px;">
-            Or copy and paste this link into your browser:<br>
-            <a href="${resetLink}">${resetLink}</a>
-          </p>
-          <p style="color: #666; font-size: 14px;">
-            This link will expire in 1 hour.
-          </p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="color: #999; font-size: 12px;">
-            If you didn't request a password reset, you can safely ignore this email. Your password won't be changed.
-          </p>
         </div>
       `,
     };
@@ -98,34 +104,176 @@ export class EmailService {
   // ─── Send Welcome Email (after verification) ────────────────────────────
   async sendWelcomeEmail(to: string, userName: string): Promise<void> {
     const mailOptions = {
-      from: `"SaaS Platform" <${this.configService.get<string>('GMAIL_USER')}>`,
+      from: `"NovEntra" <${this.configService.get<string>('GMAIL_USER')}>`,
       to,
-      subject: 'Welcome to SaaS Platform!',
+      subject: 'Bienvenue sur NovEntra ! 🎉',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Welcome aboard, ${userName}! 🎉</h2>
-          <p>Your email has been verified successfully. You're all set to start using SaaS Platform.</p>
-          <p>Here's what you can do next:</p>
-          <ul style="line-height: 1.8;">
-            <li>Set up your business profile</li>
-            <li>Create your first invoice</li>
-            <li>Invite team members</li>
-            <li>Track expenses</li>
-          </ul>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${this.configService.get<string>('FRONTEND_URL')}/dashboard" 
-               style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Go to Dashboard
-            </a>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; border-radius: 20px;">
+          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; margin: 0;">NovEntra</h1>
+            </div>
+            <h2 style="color: #333; margin-bottom: 20px;">Bienvenue, ${userName}! 🎉</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
+              Votre email a été vérifié avec succès. Vous êtes maintenant prêt à utiliser NovEntra pour gérer votre entreprise.
+            </p>
+            <div style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 12px; padding: 20px; margin: 30px 0;">
+              <h3 style="color: #333; margin-top: 0;">Prochaines étapes :</h3>
+              <ul style="color: #666; line-height: 2;">
+                <li>✅ Configurez votre profil d'entreprise</li>
+                <li>📄 Créez votre première facture</li>
+                <li>👥 Invitez les membres de votre équipe</li>
+                <li>💰 Suivez vos dépenses et revenus</li>
+              </ul>
+            </div>
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${this.configService.get<string>('FRONTEND_URL')}/app/dashboard" 
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: bold; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                Accéder au tableau de bord
+              </a>
+            </div>
+            <p style="color: #999; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+              Si vous avez des questions, n'hésitez pas à contacter notre équipe de support.
+            </p>
           </div>
-          <p style="color: #666; font-size: 14px;">
-            If you have any questions, feel free to reach out to our support team.
-          </p>
         </div>
       `,
     };
 
     await this.transporter.sendMail(mailOptions);
     console.log(`Welcome email sent to ${to}`);
+  }
+
+  // ─── Send Payment Schedule Approval Email ───────────────────────────────
+  async sendPaymentScheduleApprovalEmail(
+    to: string,
+    supplierName: string,
+    invoiceNumber: string,
+    totalAmount: number,
+    installments: { installment_number: number; due_date: Date; amount: number }[],
+    acceptUrl: string,
+    rejectUrl: string,
+  ): Promise<void> {
+    const installmentRows = installments
+      .map(
+        (i) => `
+          <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;color:#374151">
+              Échéance #${i.installment_number}
+            </td>
+            <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;color:#374151">
+              ${new Date(i.due_date).toLocaleDateString('fr-TN')}
+            </td>
+            <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;
+                       font-weight:600;color:#111827">
+              ${Number(i.amount).toFixed(3)} TND
+            </td>
+          </tr>`,
+      )
+      .join('');
+
+    const mailOptions = {
+      from: `"SaaS Platform" <${this.configService.get<string>('GMAIL_USER')}>`,
+      to,
+      subject: `Proposition de paiement échelonné — Facture ${invoiceNumber}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;
+                    margin:0 auto;color:#1f2937">
+
+          <!-- Header -->
+          <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);
+                      padding:32px;border-radius:16px 16px 0 0">
+            <h1 style="color:#fff;margin:0;font-size:22px">
+              Proposition de paiement échelonné
+            </h1>
+            <p style="color:#c7d2fe;margin:8px 0 0;font-size:14px">
+              Facture ${invoiceNumber}
+            </p>
+          </div>
+
+          <!-- Body -->
+          <div style="background:#fff;padding:32px;
+                      border:1px solid #e5e7eb;border-top:none;
+                      border-radius:0 0 16px 16px">
+
+            <p style="margin-top:0">
+              Bonjour <strong>${supplierName}</strong>,
+            </p>
+            <p>
+              Notre équipe vous propose un plan de paiement échelonné
+              pour la facture <strong>${invoiceNumber}</strong>
+              d'un montant total de
+              <strong>${Number(totalAmount).toFixed(3)} TND</strong>.
+            </p>
+
+            <!-- Installments table -->
+            <table style="width:100%;border-collapse:collapse;
+                          margin:20px 0;border-radius:8px;
+                          overflow:hidden;font-size:14px">
+              <thead>
+                <tr style="background:#4f46e5;color:#fff">
+                  <th style="padding:10px 12px;text-align:left;
+                             font-weight:600">
+                    Échéance
+                  </th>
+                  <th style="padding:10px 12px;text-align:left;
+                             font-weight:600">
+                    Date
+                  </th>
+                  <th style="padding:10px 12px;text-align:left;
+                             font-weight:600">
+                    Montant
+                  </th>
+                </tr>
+              </thead>
+              <tbody style="background:#f9fafb">
+                ${installmentRows}
+              </tbody>
+            </table>
+
+            <p style="color:#6b7280;font-size:14px">
+              Veuillez accepter ou refuser cette proposition
+              en cliquant sur l'un des boutons ci-dessous.
+            </p>
+
+            <!-- CTA buttons — table layout for email client compatibility -->
+            <table style="width:100%;margin-top:24px;
+                          border-collapse:collapse">
+              <tr>
+                <td style="padding-right:8px">
+                  <a href="${acceptUrl}"
+                     style="display:block;text-align:center;
+                            padding:14px 24px;background:#10b981;
+                            color:#fff;text-decoration:none;
+                            border-radius:10px;font-weight:600;
+                            font-size:15px">
+                    ✅ Accepter
+                  </a>
+                </td>
+                <td style="padding-left:8px">
+                  <a href="${rejectUrl}"
+                     style="display:block;text-align:center;
+                            padding:14px 24px;background:#ef4444;
+                            color:#fff;text-decoration:none;
+                            border-radius:10px;font-weight:600;
+                            font-size:15px">
+                    ❌ Refuser
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="color:#9ca3af;font-size:12px;margin-top:24px">
+              Ce lien est à usage unique et sécurisé.
+              Si vous n'êtes pas concerné par ce message,
+              ignorez cet email.
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    await this.transporter.sendMail(mailOptions);
+    console.log(`Payment schedule approval email sent to ${to}`);
   }
 }

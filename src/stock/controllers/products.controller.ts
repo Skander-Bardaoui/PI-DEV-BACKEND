@@ -15,6 +15,7 @@ import {
   BadRequestException,
   BadGatewayException,
   Res,
+  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
@@ -22,6 +23,7 @@ import { ProductsService } from '../services/products.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { ScanProductImageResponseDto } from '../dto/scan-product-image.dto';
+import { ScanServiceDescriptionResponseDto } from '../dto/scan-service-description.dto';
 import { GenerateSkuDto, GenerateSkuResponseDto } from '../dto/generate-sku.dto';
 import { BulkLabelsDto } from '../dto/bulk-labels.dto';
 import { QueryProductsDto } from '../dto/query-products.dto';
@@ -35,11 +37,9 @@ import type { Response } from 'express';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  // Transform frontend DTO to backend DTO
   private transformFrontendDto(frontendDto: any): any {
     const backendDto: any = { ...frontendDto };
-    
-    // Map frontend field names to backend field names
+
     if (frontendDto.reference !== undefined) {
       backendDto.sku = frontendDto.reference;
       delete backendDto.reference;
@@ -64,11 +64,10 @@ export class ProductsController {
       backendDto.track_inventory = frontendDto.is_stockable;
       delete backendDto.is_stockable;
     }
-    
+
     return backendDto;
   }
 
-  // Transform backend entity to frontend format
   private transformToFrontend(product: any): any {
     return {
       ...product,
@@ -99,9 +98,9 @@ export class ProductsController {
   }
 
   @Post('scan-image')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   @UseInterceptors(FileInterceptor('image', {
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
       if (!file.mimetype.match(/^image\/(jpeg|png|webp)$/)) {
         return cb(new BadRequestException('Only JPEG, PNG, and WEBP images are allowed'), false);
@@ -113,25 +112,18 @@ export class ProductsController {
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<ScanProductImageResponseDto> {
-    if (!file) {
-      throw new BadRequestException('No image file provided');
-    }
+    if (!file) throw new BadRequestException('No image file provided');
 
     try {
       return await this.productsService.scanProductImage(file.buffer, file.mimetype);
     } catch (error: any) {
       console.error('Error scanning product image:', error);
-      
-      // Check if it's a quota/rate limit error
       if (error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
         throw new BadGatewayException('Image scanning service has exceeded quota. Please try again later.');
       }
-      
-      // Check if it's an authentication error
       if (error?.message?.includes('API key') || error?.status === 401 || error?.status === 403) {
         throw new BadGatewayException('Image scanning service is not configured. Please contact your administrator.');
       }
-      
       throw new BadGatewayException('Failed to analyze image. Please try again.');
     }
   }
@@ -146,6 +138,48 @@ export class ProductsController {
     return { sku };
   }
 
+  @Post('scan-service-description')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  async scanServiceDescription(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Body() body: { description: string },
+  ): Promise<ScanServiceDescriptionResponseDto> {
+    const { description } = body;
+
+    if (!description || typeof description !== 'string') {
+      throw new BadRequestException('Description is required and must be a string');
+    }
+    if (description.length < 10) {
+      throw new BadRequestException('Description must be at least 10 characters');
+    }
+    if (description.length > 1000) {
+      throw new BadRequestException('Description must not exceed 1000 characters');
+    }
+
+    try {
+      return await this.productsService.scanServiceDescription(description);
+    } catch (error: any) {
+      console.error('Error scanning service description:', error);
+      if (error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
+        throw new BadGatewayException('AI service has exceeded quota. Please try again later.');
+      }
+      if (error?.message?.includes('API key') || error?.status === 401 || error?.status === 403) {
+        throw new BadGatewayException('AI service is not configured. Please contact your administrator.');
+      }
+      throw new BadGatewayException('Failed to analyze description. Please try again.');
+    }
+  }
+
+  // Archive routes must come BEFORE :id route to avoid UUID parsing issues
+  @Get('archived')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  async getArchived(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+  ) {
+    const products = await this.productsService.findArchived(businessId);
+    return products.map(p => this.transformToFrontend(p));
+  }
+
   @Get(':id')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   async findOne(
@@ -157,39 +191,87 @@ export class ProductsController {
   }
 
   @Post()
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   async create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: any,
+    @Request() req,
   ) {
     const backendDto = this.transformFrontendDto(dto);
-    const product = await this.productsService.create(businessId, backendDto);
+    const product = await this.productsService.create(businessId, backendDto, req.user?.id);
     return this.transformToFrontend(product);
   }
 
   @Put(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   async update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: any,
+    @Request() req,
   ) {
     const backendDto = this.transformFrontendDto(dto);
-    const product = await this.productsService.update(businessId, id, backendDto);
+    const product = await this.productsService.update(businessId, id, backendDto, req.user?.id);
     return this.transformToFrontend(product);
   }
 
   @Delete(':id')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  async softDelete(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
+  ) {
+    const product = await this.productsService.softDelete(businessId, id, req.user.id);
+    return this.transformToFrontend(product);
+  }
+
+  @Post(':id/restore')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
-  remove(
+  async restore(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
+  ) {
+    const product = await this.productsService.restore(businessId, id, req.user.id);
+    return this.transformToFrontend(product);
+  }
+
+  // ==================== Product image endpoints ====================
+  @Post(':id/image')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @UseInterceptors(FileInterceptor('image', {
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.match(/^image\/(jpeg|png|webp|gif)$/)) {
+        return cb(new BadRequestException('Only JPEG, PNG, WEBP, and GIF images are allowed'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  async uploadImage(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No image file provided');
+    const product = await this.productsService.uploadImage(businessId, id, file.buffer, file.mimetype);
+    return this.transformToFrontend(product);
+  }
+
+  @Delete(':id/image')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  async removeImage(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.productsService.remove(businessId, id);
+    const product = await this.productsService.removeImage(businessId, id);
+    return this.transformToFrontend(product);
   }
+  // ================================================================
 
   @Post(':id/generate-barcode')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   async generateBarcode(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -203,17 +285,17 @@ export class ProductsController {
   async getLabel(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
     @Res() res: Response,
   ) {
     const product = await this.productsService.findOne(businessId, id);
-    const pdfBuffer = await this.productsService.generateLabel(businessId, id);
-    
+    const pdfBuffer = await this.productsService.generateLabel(businessId, id, req.user?.id);
+
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="label-${product.sku}.pdf"`,
       'Content-Length': pdfBuffer.length,
     });
-    
     res.send(pdfBuffer);
   }
 
@@ -225,13 +307,12 @@ export class ProductsController {
     @Res() res: Response,
   ) {
     const pdfBuffer = await this.productsService.generateBulkLabels(businessId, dto.product_ids);
-    
+
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'attachment; filename="labels-bulk.pdf"',
       'Content-Length': pdfBuffer.length,
     });
-    
     res.send(pdfBuffer);
   }
 }

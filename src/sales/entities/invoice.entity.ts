@@ -11,7 +11,7 @@ import {
   Index,
 } from 'typeorm';
 import { Business } from '../../businesses/entities/business.entity';
-import { Client } from '../../clients/entities/client.entity';
+import { Client } from '../entities/client.entity';
 import { SalesOrder } from './sales-order.entity';
 import { InvoiceItem } from './invoice-item.entity';
 import { Quote } from './quote.entity';

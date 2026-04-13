@@ -1,5 +1,5 @@
 // src/stock/services/product-categories.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, IsNull } from 'typeorm';
 import { ProductCategory } from '../entities/product-category.entity';
@@ -17,7 +17,8 @@ export class ProductCategoriesService {
   async findAll(businessId: string, query: QueryCategoriesDto = {}): Promise<ProductCategory[]> {
     const qb: SelectQueryBuilder<ProductCategory> = this.categoryRepo
       .createQueryBuilder('category')
-      .where('category.business_id = :businessId', { businessId });
+      .where('category.business_id = :businessId', { businessId })
+      .andWhere('category.deleted_at IS NULL'); // Exclude soft-deleted items
 
     // Search filter
     if (query.search) {
@@ -47,6 +48,13 @@ export class ProductCategoriesService {
       qb.innerJoin('category.products', 'product');
     }
 
+    // ==================== Alaa change for service type ====================
+    // Category type filter
+    if (query.category_type) {
+      qb.andWhere('category.category_type = :categoryType', { categoryType: query.category_type });
+    }
+    // ====================================================================
+
     // Sorting
     const sortBy = query.sort_by || CategorySortBy.SORT_ORDER;
     const sortOrder = query.sort_order || 'ASC';
@@ -70,7 +78,7 @@ export class ProductCategoriesService {
 
   async findOne(businessId: string, id: string): Promise<ProductCategory> {
     const category = await this.categoryRepo.findOne({
-      where: { id, business_id: businessId },
+      where: { id, business_id: businessId, deleted_at: IsNull() },
     });
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`);
@@ -79,10 +87,13 @@ export class ProductCategoriesService {
   }
 
   async create(businessId: string, dto: CreateProductCategoryDto): Promise<ProductCategory> {
+    // ==================== Alaa change for service type ====================
     const category = this.categoryRepo.create({
       ...dto,
       business_id: businessId,
+      category_type: dto.category_type || 'PRODUCT', // Default to PRODUCT if not specified
     });
+    // ====================================================================
     return this.categoryRepo.save(category);
   }
 
@@ -98,6 +109,37 @@ export class ProductCategoriesService {
 
   async remove(businessId: string, id: string): Promise<void> {
     const category = await this.findOne(businessId, id);
-    await this.categoryRepo.remove(category);
+    // Soft delete by setting deleted_at
+    category.deleted_at = new Date();
+    await this.categoryRepo.save(category);
+  }
+
+  async findArchived(businessId: string): Promise<ProductCategory[]> {
+    return this.categoryRepo
+      .createQueryBuilder('category')
+      .where('category.business_id = :businessId', { businessId })
+      .andWhere('category.deleted_at IS NOT NULL')
+      .orderBy('category.deleted_at', 'DESC')
+      .getMany();
+  }
+
+  async restore(businessId: string, id: string): Promise<ProductCategory> {
+    const category = await this.categoryRepo
+      .createQueryBuilder('category')
+      .where('category.id = :id', { id })
+      .andWhere('category.business_id = :businessId', { businessId })
+      .getOne();
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    if (!category.deleted_at) {
+      throw new BadRequestException('Category is not deleted');
+    }
+
+    category.deleted_at = null;
+    await this.categoryRepo.save(category);
+    return this.findOne(businessId, id);
   }
 }

@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { ClientPortalToken } from '../entities/client-portal-token.entity';
 import { SalesOrder, SalesOrderStatus } from '../entities/sales-order.entity';
-import { Client } from '../../clients/entities/client.entity';
+import { Client } from '../entities/client.entity';
 import { Business } from '../../businesses/entities/business.entity';
 import { DeliveryNote } from '../entities/delivery-note.entity';
 import { DeliveryNoteItem } from '../entities/delivery-note-item.entity';

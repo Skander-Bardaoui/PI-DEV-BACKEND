@@ -125,7 +125,7 @@ async register(registerDto: RegisterDto, res: Response) {
       tax_id: registerDto.business.tax_id,
       currency: registerDto.business.currency || 'TND',
       address: registerDto.business.address,
-      email: registerDto.business.email || registerDto.email, // ← AJOUTER
+      email: registerDto.business.email || registerDto.email,
     });
     await queryRunner.manager.save(business);
 
@@ -138,20 +138,39 @@ async register(registerDto: RegisterDto, res: Response) {
     });
     await queryRunner.manager.save(taxRate);
 
+    // 5. Create email verification token
+    const verificationToken = uuidv4();
+    const expires_at = new Date();
+    expires_at.setHours(expires_at.getHours() + 24); // 24 hours
+
+    const resetToken = queryRunner.manager.create(PasswordResetToken, {
+      token: verificationToken,
+      user_id: user.id,
+      type: TokenType.EMAIL_VERIFICATION,
+      expires_at,
+      is_used: false,
+    });
+    await queryRunner.manager.save(resetToken);
+
     // Commit transaction
     await queryRunner.commitTransaction();
 
-    // 5. Generate tokens and set cookies
+    // 6. Send verification email
+    const fullName = `${user.firstName} ${user.lastName}`;
+    await this.emailService.sendVerificationEmail(user.email, verificationToken, fullName);
+
+    // 7. Generate tokens and set cookies (user can use the app but should verify email)
     await this.generateTokensAndSetCookies(user, res);
 
     return {
-      message: 'Registration successful',
+      message: 'Registration successful. Please check your email to verify your account.',
       user: {
         id: user.id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        is_verified: user.is_verified,
       },
     };
   } catch (error: any) {

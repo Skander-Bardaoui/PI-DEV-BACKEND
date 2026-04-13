@@ -6,9 +6,10 @@ import {
 import { FileInterceptor }  from '@nestjs/platform-express';
 import { diskStorage }      from 'multer';
 import { extname, join }    from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { AuthGuard }        from '@nestjs/passport';
 import { OcrService } from '../services/ocr.service';
+import * as fs from 'fs';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('businesses/:businessId/ocr')
@@ -49,7 +50,12 @@ export class OcrController {
   ) {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
 
-    const result = await this.ocrService.extractFromFile(file.path);
+    // Lire le fichier en buffer pour l'enrichissement AI
+    const fileBuffer = fs.readFileSync(file.path);
+    const mimeType = file.mimetype;
+
+    // Utiliser extractAndEnrich au lieu de extractFromFile pour avoir l'enrichissement AI
+    const result = await this.ocrService.extractAndEnrich(fileBuffer, mimeType);
 
     // Retourner aussi le chemin du fichier pour l'attacher à la facture
     return {

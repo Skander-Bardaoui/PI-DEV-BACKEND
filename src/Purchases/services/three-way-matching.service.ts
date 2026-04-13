@@ -15,11 +15,8 @@ import { Repository }       from 'typeorm';
 
 import { PurchaseInvoice }  from '../entities/purchase-invoice.entity';
 import { SupplierPO }       from '../entities/supplier-po.entity';
-import { SupplierPOItem }   from '../entities/supplier-po-item.entity';
 import { GoodsReceipt }     from '../entities/goods-receipt.entity';
-import { GoodsReceiptItem } from '../entities/goods-receipt-item.entity';
 import { InvoiceStatus }    from '../enum/invoice-status.enum';
-import { POStatus }         from '../enum/po-status.enum';
 import { ThreeWayMatchingAIService, AIMatchingAnalysis } from './three-way-matching-ai.service';
 
 // ─── Types résultat ──────────────────────────────────────────────────────────
@@ -51,6 +48,7 @@ export interface ThreeWayMatchResult {
   invoice_id:           string;
   invoice_number:       string;
   supplier_name:        string;
+  supplier_email:       string | null;  // ← Ajout de l'email du fournisseur
   status:               MatchStatus;
   can_auto_approve:     boolean;
   should_auto_dispute:  boolean;
@@ -92,14 +90,8 @@ export class ThreeWayMatchingService {
     @InjectRepository(SupplierPO)
     private readonly poRepo: Repository<SupplierPO>,
 
-    @InjectRepository(SupplierPOItem)
-    private readonly poItemRepo: Repository<SupplierPOItem>,
-
     @InjectRepository(GoodsReceipt)
     private readonly grRepo: Repository<GoodsReceipt>,
-
-    @InjectRepository(GoodsReceiptItem)
-    private readonly grItemRepo: Repository<GoodsReceiptItem>,
 
     private readonly aiService: ThreeWayMatchingAIService,
   ) {}
@@ -140,6 +132,7 @@ export class ThreeWayMatchingService {
         issues:              ['Aucun bon de commande associé à cette facture.'],
         recommendations:     ['Associez cette facture à un BC existant pour effectuer le rapprochement.'],
         gr_numbers:          [],
+        supplier_email:      invoice.supplier?.email ?? null,
       });
 
       if (autoAction) await this.applyAutoAction(result, businessId, invoiceId);
@@ -159,6 +152,7 @@ export class ThreeWayMatchingService {
         received_total: 0, invoiced_total: Number(invoice.net_amount),
         total_discrepancy: Number(invoice.net_amount), discrepancy_pct: 100,
         line_discrepancies: [], issues, recommendations: [], gr_numbers: [],
+        supplier_email: invoice.supplier?.email ?? null,
       });
     }
 
@@ -330,6 +324,7 @@ export class ThreeWayMatchingService {
       invoiced_total: invoicedTotal, total_discrepancy: totalDiscrep,
       discrepancy_pct: discrepancyPct, line_discrepancies: lineDiscrepancies,
       issues, recommendations, gr_numbers: grNumbers,
+      supplier_email: invoice.supplier?.email ?? null,
     });
 
     // 9. Analyse IA si demandée
@@ -440,11 +435,11 @@ export class ThreeWayMatchingService {
   private buildResult(
     invoice:  PurchaseInvoice,
     po:       SupplierPO | null,
-    grs:      GoodsReceipt[],
+    _grs:     GoodsReceipt[],
     data:     Omit<ThreeWayMatchResult, 'invoice_id'|'invoice_number'|'supplier_name'|'po_number'|'gr_numbers'|'matching_date'> & { gr_numbers: string[] },
   ): ThreeWayMatchResult {
-    // FIX: extraire gr_numbers de data avant le spread pour eviter la duplication
-    const { gr_numbers, ...rest } = data;
+    // FIX: extraire gr_numbers et supplier_email de data avant le spread pour eviter la duplication
+    const { gr_numbers, supplier_email, ...rest } = data;
     
     // Ajouter une note explicative sur le timbre fiscal dans les recommandations
     const recommendations = [...rest.recommendations];
@@ -456,6 +451,7 @@ export class ThreeWayMatchingService {
       invoice_id:     invoice.id,
       invoice_number: invoice.invoice_number_supplier,
       supplier_name:  invoice.supplier?.name ?? '',
+      supplier_email,
       po_number:      po?.po_number ?? null,
       gr_numbers,
       matching_date:  new Date(),
