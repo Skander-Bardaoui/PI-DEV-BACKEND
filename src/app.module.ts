@@ -34,6 +34,9 @@ import { ActivitiesModule } from './activities/activities.module';
 // Statistics Module
 import { StatisticsModule } from './statistics/statistics.module';
 
+// Presence Module
+import { PresenceModule } from './presence/presence.module';
+
 // Core Entities
 import { User } from './users/entities/user.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
@@ -212,6 +215,9 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
     // Statistics
     StatisticsModule,
+
+    // Presence
+    PresenceModule,
   ],
   controllers: [],
   providers: [],

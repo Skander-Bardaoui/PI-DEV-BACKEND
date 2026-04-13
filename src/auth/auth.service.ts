@@ -17,6 +17,7 @@ import { EmailService } from '../email/email.service';
 import { Role } from 'src/users/enums/role.enum';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { Business } from '../businesses/entities/business.entity';
+import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { TaxRate } from '../businesses/entities/tax-rate.entity';
 
 @Injectable()
@@ -37,6 +38,8 @@ constructor(
   private readonly tenantsRepository: Repository<Tenant>,
   @InjectRepository(Business)
   private readonly businessesRepository: Repository<Business>,
+  @InjectRepository(BusinessMember)
+  private readonly businessMembersRepository: Repository<BusinessMember>,
   @InjectRepository(TaxRate)
   private readonly taxRatesRepository: Repository<TaxRate>,
 ) {}
@@ -227,6 +230,7 @@ async register(registerDto: RegisterDto, res: Response) {
     let business_id: string | null = null;
 
     try {
+      // First, check if user is a business owner (has a tenant)
       const tenant = await this.tenantsRepository.findOne({
         where: { ownerId: user.id },
       });
@@ -240,9 +244,24 @@ async register(registerDto: RegisterDto, res: Response) {
           business_id = business.id;
         }
       }
-    }  catch (error: any) {
-  console.warn('Could not resolve business_id for JWT payload:', error?.message);
-}
+      
+      // If not found as owner, check if user is a member of a business
+      if (!business_id) {
+        const membership = await this.businessMembersRepository.findOne({
+          where: { 
+            user_id: user.id,
+            is_active: true,
+          },
+          order: { joined_at: 'ASC' },
+        });
+        
+        if (membership) {
+          business_id = membership.business_id;
+        }
+      }
+    } catch (error: any) {
+      console.warn('Could not resolve business_id for JWT payload:', error?.message);
+    }
 
     // ── Construire le payload JWT ─────────────────────────────────────
     const payload = {

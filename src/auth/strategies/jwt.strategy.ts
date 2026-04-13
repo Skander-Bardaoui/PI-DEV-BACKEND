@@ -30,13 +30,33 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
 async validate(payload: { sub: string; email: string; role: string; business_id: string | null }): Promise<any> {
+  // Fetch user to verify they still exist
   const user = await this.usersService.findById(payload.sub);
   if (!user) {
     return null;
   }
-  return {
-    ...user,
-    business_id: payload.business_id,  // ← ajout : disponible dans tous les controllers
+  
+  // Return user object with business_id from JWT payload
+  // This ensures business_id is always available even though it's not in the User entity
+  const userWithBusinessId = {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    phone: user.phone,
+    role: user.role,
+    is_verified: user.is_verified,
+    is_suspended: user.is_suspended,
+    avatarUrl: user.avatarUrl,
+    jobTitle: user.jobTitle,
+    preferredLanguage: user.preferredLanguage,
+    timezone: user.timezone,
+    messageColor: user.messageColor,
+    created_at: user.created_at,
+    updated_at: user.updated_at,
+    business_id: payload.business_id, // From JWT payload, not DB
   };
+  
+  return userWithBusinessId;
 }
 }

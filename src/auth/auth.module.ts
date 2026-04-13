@@ -13,6 +13,7 @@ import { EmailModule } from '../email/email.module';
 import { User } from '../users/entities/user.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { Business } from '../businesses/entities/business.entity';
+import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { TaxRate } from '../businesses/entities/tax-rate.entity';
 
 @Module({
@@ -33,10 +34,11 @@ import { TaxRate } from '../businesses/entities/tax-rate.entity';
     TypeOrmModule.forFeature([
       RefreshToken,
       PasswordResetToken,
-      User,      // ADD THIS
-      Tenant,    // ADD THIS
-      Business,  // ADD THIS
-      TaxRate,   // ADD THIS
+      User,
+      Tenant,
+      Business,
+      BusinessMember,
+      TaxRate,
     ]),
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy],
