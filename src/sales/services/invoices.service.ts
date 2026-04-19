@@ -76,7 +76,7 @@ export class InvoicesService {
   }
 
   async findAll(businessId: string, query: any) {
-    const { client_id, status, type, page = 1, limit = 20 } = query;
+    const { client_id, status, type, search, page = 1, limit = 20 } = query;
 
     const qb = this.invoiceRepo
       .createQueryBuilder('invoice')
@@ -92,6 +92,13 @@ export class InvoicesService {
     }
     if (type) qb.andWhere('invoice.type = :type', { type });
     if (client_id) qb.andWhere('invoice.client_id = :client_id', { client_id });
+    
+    if (search) {
+      qb.andWhere(
+        '(invoice.invoice_number ILIKE :search OR client.name ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
 
     const [data, total] = await qb.getManyAndCount();
     const total_pages = Math.ceil(total / limit);

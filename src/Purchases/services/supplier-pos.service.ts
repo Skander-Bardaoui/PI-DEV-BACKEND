@@ -244,7 +244,8 @@ async send(businessId: string, id: string) {
         await this.purchaseMailService.sendCancellationEmail(po);
         this.logger.log(`✅ Email d'annulation envoyé au fournisseur ${po.supplier.name} (${po.supplier.email})`);
       } catch (error) {
-        this.logger.error(`❌ Erreur lors de l'envoi de l'email d'annulation: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+        this.logger.error(`❌ Erreur lors de l'envoi de l'email d'annulation: ${errorMessage}`);
         // On continue l'annulation même si l'email échoue
       }
     }
