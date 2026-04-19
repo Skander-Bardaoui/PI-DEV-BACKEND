@@ -15,10 +15,10 @@ import {
 import { AuthGuard }        from '@nestjs/passport';
 import { Roles } from '../../auth/decorators/roles.decorators';
 import { RolesGuard } from '../../auth/guards/roles.guard';
-import { CreateSupplierDto } from '../../Purchases/dto/create-supplier.dto';
-import { QuerySuppliersDto, UpdateSupplierDto } from '../../Purchases/dto/update-supplier.dto';
-import { SuppliersService } from '../../Purchases/services/suppliers.service';
-import { SupplierRecommendationService } from '../../Purchases/services/supplier-recommendation.service';
+import { CreateSupplierDto, UpdateSupplierDto } from '../schemas/purchases.schemas';
+import { QuerySuppliersDto } from '../dto/update-supplier.dto';
+import { SuppliersService } from '../services/suppliers.service';
+import { SupplierRecommendationService } from '../services/supplier-recommendation.service';
 import { Role } from '../../users/enums/role.enum';
 
 

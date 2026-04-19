@@ -7,6 +7,7 @@ import * as dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { ZodValidationPipe as NestJsZodValidationPipe } from 'nestjs-zod';
 
 dotenv.config();
 
@@ -21,7 +22,11 @@ async function bootstrap() {
     prefix: '/',
   });
 
+  // Configuration globale pour Zod et class-validator (compatibilité)
   app.useGlobalPipes(
+    // Pipe Zod pour les DTOs qui utilisent nestjs-zod
+    new NestJsZodValidationPipe(),
+    // Pipe class-validator pour les anciens DTOs (rétrocompatibilité)
     new ValidationPipe({
       whitelist:        true,              // supprime les champs non déclarés dans les DTOs
       forbidNonWhitelisted: false,         // ne rejette pas, supprime juste

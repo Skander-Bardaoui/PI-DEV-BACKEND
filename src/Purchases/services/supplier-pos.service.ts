@@ -20,6 +20,7 @@ import { StockMovementsService } from '../../stock/services/stock-movements/stoc
 import { StockMovementType } from '../../stock/enums/stock-movement-type.enum';
 import { StockMovement } from '../../stock/entities/stock-movement.entity';
 import { Product, ProductType } from '../../stock/entities/product.entity';
+import { MlPredictionService } from './ml-prediction.service';
 
 const TRANSITIONS: Record<POStatus, POStatus[]> = {
   [POStatus.DRAFT]:              [POStatus.SENT, POStatus.CANCELLED],
@@ -48,6 +49,7 @@ export class SupplierPOsService {
     private readonly productRepo: Repository<Product>,
 
     private readonly suppliersService: SuppliersService,
+    private readonly mlPredictionService: MlPredictionService,
     private readonly dataSource: DataSource,
     private readonly purchaseMailService: PurchaseMailService,
     private readonly stockMovementsService: StockMovementsService,
@@ -56,12 +58,16 @@ export class SupplierPOsService {
   async create(businessId: string, dto: CreateSupplierPODto): Promise<SupplierPO> {
     await this.suppliersService.findOneOrFail(businessId, dto.supplier_id);
 
-    return this.dataSource.transaction(async (manager) => {
-      // FIX BUG 4: generateNumber utilise MAX() pour éviter la race condition.
-      // La transaction isole la lecture MAX → insert, donc deux BCs simultanés
-      // ne peuvent plus obtenir le même numéro.
+    // Debug log
+    this.logger.debug(`Creating PO with DTO: ${JSON.stringify(dto)}`);
+    this.logger.debug(`Items received: ${dto.items ? dto.items.length : 'undefined'}`);
+    this.logger.debug(`ML Product ID: ${dto.ml_product_id || 'none'}`);
+
+    const ml_product_id = dto.ml_product_id; // Sauvegarder avant la transaction
+
+    const result = await this.dataSource.transaction(async (manager) => {
       const po_number = await this.generateNumber(businessId, manager);
-      const { items: itemsDto, ...rest } = dto;
+      const { items: itemsDto, ml_product_id: _, ...rest } = dto;
       const { subtotal_ht, tax_amount, net_amount, items } = this.calcTotals(itemsDto);
 
       const po = manager.create(SupplierPO, {
@@ -90,6 +96,24 @@ export class SupplierPOsService {
         relations: ['items', 'supplier'],
       }) as Promise<SupplierPO>;
     });
+
+    // Marquer comme traité APRÈS la transaction (quand le BC existe vraiment)
+    if (ml_product_id && result) {
+      try {
+        this.logger.log(`🤖 Marquage ML pour produit ${ml_product_id}, BC ${result.id}`);
+        await this.mlPredictionService.markAsProcessed(
+          businessId,
+          ml_product_id,
+          result.id,
+        );
+        this.logger.log(`✅ Recommandation ML marquée comme traitée`);
+      } catch (error: any) {
+        this.logger.error(`❌ Erreur lors du marquage ML: ${error?.message || error}`);
+        // Ne pas bloquer la création du BC si le marquage échoue
+      }
+    }
+
+    return result;
   }
 
   async findAll(businessId: string, query: any) {
@@ -206,14 +230,25 @@ async send(businessId: string, id: string) {
 
   async cancel(businessId: string, id: string) {
     const po = await this.findOne(businessId, id);
-    if (
-      po.status === POStatus.PARTIALLY_RECEIVED ||
-      po.status === POStatus.FULLY_RECEIVED
-    ) {
+    
+    // Validation: annulation possible uniquement pour DRAFT ou SENT
+    if (![POStatus.DRAFT, POStatus.SENT].includes(po.status)) {
       throw new BadRequestException(
-        `Annulation impossible : des marchandises ont déjà été réceptionnées.`,
+        `Annulation impossible : le BC doit être en statut "Brouillon" ou "Envoyé". Statut actuel : ${po.status}`,
       );
     }
+
+    // Si le BC était envoyé, envoyer un email d'annulation au fournisseur
+    if (po.status === POStatus.SENT && po.supplier?.email) {
+      try {
+        await this.purchaseMailService.sendCancellationEmail(po);
+        this.logger.log(`✅ Email d'annulation envoyé au fournisseur ${po.supplier.name} (${po.supplier.email})`);
+      } catch (error) {
+        this.logger.error(`❌ Erreur lors de l'envoi de l'email d'annulation: ${error.message}`);
+        // On continue l'annulation même si l'email échoue
+      }
+    }
+
     return this.transition(businessId, id, POStatus.CANCELLED);
   }
 
@@ -350,6 +385,10 @@ async send(businessId: string, id: string) {
   }
 
   private calcTotals(itemsDto: CreateSupplierPODto['items']) {
+    if (!itemsDto || !Array.isArray(itemsDto)) {
+      throw new Error('Items array is required and must be an array');
+    }
+
     let subtotal_ht = 0;
     let tax_amount  = 0;
 

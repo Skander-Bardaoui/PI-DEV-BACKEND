@@ -53,6 +53,29 @@
       throw new BadRequestException('BC sans fournisseur associé.');
     }
 
+    // Validation de la date de réception
+    if (dto.receipt_date) {
+      const receiptDate = new Date(dto.receipt_date);
+      const poDate = new Date(po.created_at);
+      
+      // Normaliser les dates pour comparer uniquement jour/mois/année
+      receiptDate.setHours(0, 0, 0, 0);
+      poDate.setHours(0, 0, 0, 0);
+      
+      if (receiptDate < poDate) {
+        const poDateStr = poDate.toISOString().split('T')[0];
+        throw new BadRequestException(
+          `La date de réception doit être supérieure ou égale à la date du bon de commande (${poDateStr})`
+        );
+      }
+      
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (receiptDate > today) {
+        throw new BadRequestException('La date de réception ne peut pas être dans le futur');
+      }
+    }
+
     const poItems = await this.dataSource
       .getRepository(SupplierPOItem)
       .find({ where: { supplier_po_id: poId } });
