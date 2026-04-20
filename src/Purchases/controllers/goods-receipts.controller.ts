@@ -15,7 +15,7 @@ import { GoodsReceiptsService }   from '../services/goods-receipts.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles }      from '../../auth/decorators/roles.decorators';
 import { Role }       from '../../users/enums/role.enum';
-import { CreateGoodsReceiptDto } from '../dto/create-goods-receipt.dto';
+import { CreateGoodsReceiptDto } from '../schemas/purchases.schemas';
 
 @Controller('businesses/:businessId')
 @UseGuards(AuthGuard('jwt'), RolesGuard)

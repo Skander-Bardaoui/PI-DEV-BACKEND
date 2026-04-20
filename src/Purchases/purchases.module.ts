@@ -19,6 +19,7 @@ import { Supplier }            from './entities/supplier.entity';
 import { SupplierPortalToken } from './entities/supplier-portal-token.entity';
 import { PurchaseAlert }       from './entities/purchase-alert.entity';
 import { DisputeResponse }     from './entities/dispute-response.entity';
+import { MLRecommendationAction } from './entities/ml-recommendation-action.entity';
 import { Business }            from '../businesses/entities/business.entity';
 import { StockMovement }       from '../stock/entities/stock-movement.entity';
 import { Product }             from '../stock/entities/product.entity';
@@ -68,13 +69,15 @@ import { PurchaseOcrAiService } from './services/purchase-ocr-ai.service';
 import { OcrService } from './services/ocr.service';
 import { DisputeResolutionService } from './services/dispute-resolution.service';
 import { DisputeResolutionController } from './controllers/dispute-resolution.controller';
+import { MlPredictionService } from './services/ml-prediction.service';
+import { MlPredictionController } from './controllers/ml-prediction.controller';
  
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       GoodsReceipt, GoodsReceiptItem, PurchaseInvoice,
       SupplierPOItem, SupplierPO, Supplier,
-      PurchaseAlert, DisputeResponse, Business, Tenant, User,
+      PurchaseAlert, DisputeResponse, MLRecommendationAction, Business, Tenant, User,
       StockMovement, Product, SupplierPayment,
       // Product, // Module pas encore implémenté
       // SupplierPortalToken temporairement retiré pour éviter les erreurs de synchronisation
@@ -110,6 +113,7 @@ import { DisputeResolutionController } from './controllers/dispute-resolution.co
     SupplierOnboardingPublicController,
     DisputeResolutionController,
     PurchaseAiAssistantController,
+    MlPredictionController,
   ],
  
   providers: [
@@ -132,6 +136,7 @@ import { DisputeResolutionController } from './controllers/dispute-resolution.co
     DisputeResolutionService,
     SupplierRecommendationService,
     PurchaseAiAssistantService,
+    MlPredictionService,
   ],
  
   exports: [
