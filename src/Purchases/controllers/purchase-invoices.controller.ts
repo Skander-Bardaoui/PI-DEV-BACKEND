@@ -17,7 +17,8 @@ import { PurchaseInvoicesService }    from '../services/purchase-invoices.servic
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles }      from '../../auth/decorators/roles.decorators';
 import { Role }       from '../../users/enums/role.enum';
-import { CreatePurchaseInvoiceDto, UpdatePurchaseInvoiceDto, DisputeInvoiceDto, UpdatePaymentAmountDto } from '../schemas/purchases.schemas';
+import { CreatePurchaseInvoiceDto } from '../dto/create-purchase-invoice.dto';
+import { UpdatePurchaseInvoiceDto, DisputeInvoiceDto, UpdatePaymentAmountDto } from '../schemas/purchases.schemas';
 import { QueryPurchaseInvoicesDto } from '../dto/update-purchase-invoice.dto';
 
 @Controller('businesses/:businessId/purchase-invoices')

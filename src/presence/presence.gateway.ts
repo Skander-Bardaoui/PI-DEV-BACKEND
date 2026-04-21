@@ -40,9 +40,6 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   async handleConnection(client: Socket) {
     try {
-      console.log('🔌 New connection attempt:', client.id);
-      console.log('🍪 Cookies:', client.handshake.headers.cookie);
-      
       // Extract token from cookies (HTTP-only cookie named 'access_token')
       const cookies = client.handshake.headers.cookie;
       let token: string | undefined;
@@ -60,22 +57,16 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
       }
       
       if (!token) {
-        console.log('❌ No token provided in cookies, auth, or headers');
         client.disconnect();
         return;
       }
-
-      console.log('🔑 Token found, verifying...');
 
       // Verify JWT token (secret is configured in PresenceModule)
       const payload = this.jwtService.verify(token);
       const userId = payload.sub || payload.id;
       const businessId = client.handshake.query.businessId as string;
 
-      console.log('👤 User connecting:', { userId, businessId });
-
       if (!userId || !businessId) {
-        console.log('❌ Invalid user or business ID');
         client.disconnect();
         return;
       }
@@ -94,8 +85,6 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
       // Join business room
       client.join(`presence:${businessId}`);
 
-      console.log(`✅ User ${userId} connected to business ${businessId}`);
-
       // Broadcast user online status to business room
       this.server.to(`presence:${businessId}`).emit('userStatusChanged', {
         userId,
@@ -108,7 +97,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
       client.emit('onlineUsers', onlineUsers);
 
     } catch (error) {
-      console.error('❌ Connection error:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Presence connection error:', error instanceof Error ? error.message : 'Unknown error');
       client.disconnect();
     }
   }
@@ -123,8 +112,6 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
         // Update status to offline
         presence.status = 'offline';
         presence.lastSeen = new Date();
-
-        console.log(`👋 User ${userId} disconnected from business ${presence.businessId}`);
 
         // Broadcast user offline status
         this.server.to(`presence:${presence.businessId}`).emit('userStatusChanged', {

@@ -79,6 +79,13 @@ export class Invoice {
   @Column({ type: 'uuid', nullable: true })
   sales_order_id: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  recurring_invoice_id: string | null;
+
+  @ManyToOne(() => require('./recurring-invoice.entity').RecurringInvoice, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'recurring_invoice_id' })
+  recurringInvoice: any;
+
   @ManyToOne(() => SalesOrder, { nullable: true })
   @JoinColumn({ name: 'sales_order_id' })
   sales_order: SalesOrder;

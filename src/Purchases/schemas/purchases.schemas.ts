@@ -321,12 +321,11 @@ export const createGoodsReceiptItemSchema = z.object({
 
 export class CreateGoodsReceiptItemDto extends createZodDto(createGoodsReceiptItemSchema) {}
 
-// Schéma de base pour bon de réception avec date obligatoire
+// Schéma de base pour bon de réception avec date optionnelle
 export const createGoodsReceiptSchema = z.object({
   receipt_date: z
     .string()
     .trim()
-    .min(1, 'La date de réception est obligatoire')
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (format attendu : YYYY-MM-DD)')
     .refine((date) => {
       const parsed = new Date(date);
@@ -337,7 +336,9 @@ export const createGoodsReceiptSchema = z.object({
       const today = new Date();
       today.setHours(23, 59, 59, 999);
       return parsed <= today;
-    }, 'La date de réception ne peut pas être dans le futur'),
+    }, 'La date de réception ne peut pas être dans le futur')
+    .optional()
+    .or(z.literal('')),
 
   notes: z
     .string()
