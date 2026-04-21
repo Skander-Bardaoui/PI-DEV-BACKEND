@@ -182,14 +182,14 @@ pipeline {
                                 echo "🔌 Applying Service..."
                                 kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f service.yaml -n ${NAMESPACE}
                                 
+                                echo "📋 Applying Deployment..."
+                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f deployment.yaml -n ${NAMESPACE}
+                                
                                 echo "📋 Updating Deployment image..."
                                 kubectl --kubeconfig="$KUBECONFIG_FILE" set image \
                                     deployment/${DEPLOYMENT_NAME} \
                                     backend=${IMAGE_NAME}:${IMAGE_TAG} \
                                     -n ${NAMESPACE}
-                                
-                                echo "📋 Applying Deployment..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f deployment.yaml -n ${NAMESPACE}
                                 
                                 echo "✅ Deployment applied"
                             '''
