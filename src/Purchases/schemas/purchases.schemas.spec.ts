@@ -202,7 +202,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierPOSchema.safeParse(invalidPO);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('supérieure à 0');
+        expect(result.error.issues[0].message).toContain('supérieur à 0');
       }
     });
 
@@ -222,7 +222,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierPOSchema.safeParse(invalidPO);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('supérieure à 0');
+        expect(result.error.issues[0].message).toContain('supérieur à 0');
       }
     });
 

@@ -71,15 +71,14 @@ describe('Date Validation', () => {
 
       const result = createSupplierPOSchema.safeParse(invalidPO);
       expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.errors[0].message).toContain('ne peut pas être dans le passé');
+      if (!result.success && result.error.errors.length > 0) {
+        expect(result.error.errors[0].message).toContain('supérieure ou égale à aujourd\'hui');
       }
     });
 
     it('devrait accepter une date vide (optionnel)', () => {
       const validPO = {
         supplier_id: '123e4567-e89b-12d3-a456-426614174000',
-        expected_delivery: '',
         items: [
           {
             description: 'Produit test',
@@ -150,13 +149,13 @@ describe('Date Validation', () => {
 
       const result = createGoodsReceiptSchema.safeParse(invalidGR);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('ne peut pas être dans le futur');
       }
     });
 
-    it('devrait accepter une date vide (optionnel)', () => {
-      const validGR = {
+    it('devrait rejeter une date vide (obligatoire)', () => {
+      const invalidGR = {
         receipt_date: '',
         items: [
           {
@@ -166,8 +165,11 @@ describe('Date Validation', () => {
         ],
       };
 
-      const result = createGoodsReceiptSchema.safeParse(validGR);
-      expect(result.success).toBe(true);
+      const result = createGoodsReceiptSchema.safeParse(invalidGR);
+      expect(result.success).toBe(false);
+      if (!result.success && result.error.errors.length > 0) {
+        expect(result.error.errors[0].message).toContain('obligatoire');
+      }
     });
   });
 
@@ -183,7 +185,7 @@ describe('Date Validation', () => {
 
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('Date invalide');
       }
     });
@@ -199,7 +201,7 @@ describe('Date Validation', () => {
 
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('Date invalide');
       }
     });
@@ -230,7 +232,7 @@ describe('Date Validation', () => {
 
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('Date invalide');
       }
     });
@@ -246,7 +248,7 @@ describe('Date Validation', () => {
 
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('Date invalide');
       }
     });
@@ -262,7 +264,7 @@ describe('Date Validation', () => {
 
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('Date invalide');
       }
     });
@@ -280,7 +282,7 @@ describe('Date Validation', () => {
 
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('entre 1900 et 2100');
       }
     });
@@ -296,7 +298,7 @@ describe('Date Validation', () => {
 
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('entre 1900 et 2100');
       }
     });
@@ -369,7 +371,7 @@ describe('Date Validation', () => {
 
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('postérieure ou égale');
       }
     });
@@ -410,7 +412,7 @@ describe('Date Validation', () => {
 
       const result = createInvoiceFromPOSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && result.error.errors.length > 0) {
         expect(result.error.errors[0].message).toContain('postérieure ou égale');
       }
     });

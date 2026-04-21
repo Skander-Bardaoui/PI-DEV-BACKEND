@@ -7,7 +7,7 @@ import { ProductCategory }  from './product-category.entity';
 import { StockMovement }    from './stock-movement.entity';
 import { SupplierPOItem }   from '../../Purchases/entities/supplier-po-item.entity';
 import { GoodsReceiptItem } from '../../Purchases/entities/goods-receipt-item.entity';
-import { Business }         from 'src/businesses/entities/business.entity';
+import { Business }         from '../../businesses/entities/business.entity';
 import { Supplier }         from '../../Purchases/entities/supplier.entity';
 
 export enum ProductType {
