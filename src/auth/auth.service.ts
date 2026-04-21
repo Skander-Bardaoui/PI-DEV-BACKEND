@@ -92,7 +92,8 @@ async register(registerDto: RegisterDto, res: Response) {
 
   try {
     // 1. Create the user
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    // 🔐 Security: Use 12 rounds for bcrypt (more secure)
+    const hashedPassword = await bcrypt.hash(registerDto.password, 12);
     const user = queryRunner.manager.create(User, {
       email: registerDto.email,
       firstName: registerDto.firstName,
