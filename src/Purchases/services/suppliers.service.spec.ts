@@ -233,7 +233,8 @@ describe('SuppliersService', () => {
     });
 
     it('should throw BadRequestException if active POs exist', async () => {
-      jest.spyOn(service, 'findOneOrFail').mockResolvedValue(mockSupplier as Supplier);
+      const activeSupplier = { ...mockSupplier, is_active: true };
+      jest.spyOn(service, 'findOneOrFail').mockResolvedValue(activeSupplier as Supplier);
       jest.spyOn(supplierPORepo, 'count').mockResolvedValue(2);
 
       await expect(
@@ -242,7 +243,8 @@ describe('SuppliersService', () => {
     });
 
     it('should throw BadRequestException if unpaid invoices exist', async () => {
-      jest.spyOn(service, 'findOneOrFail').mockResolvedValue(mockSupplier as Supplier);
+      const activeSupplier = { ...mockSupplier, is_active: true };
+      jest.spyOn(service, 'findOneOrFail').mockResolvedValue(activeSupplier as Supplier);
       jest.spyOn(supplierPORepo, 'count').mockResolvedValue(0);
       jest.spyOn(invoiceRepo, 'count').mockResolvedValue(3);
 
@@ -252,7 +254,8 @@ describe('SuppliersService', () => {
     });
 
     it('should throw BadRequestException if incomplete receipts exist', async () => {
-      jest.spyOn(service, 'findOneOrFail').mockResolvedValue(mockSupplier as Supplier);
+      const activeSupplier = { ...mockSupplier, is_active: true };
+      jest.spyOn(service, 'findOneOrFail').mockResolvedValue(activeSupplier as Supplier);
       jest.spyOn(supplierPORepo, 'count').mockResolvedValue(0);
       jest.spyOn(invoiceRepo, 'count').mockResolvedValue(0);
       jest.spyOn(goodsReceiptRepo, 'createQueryBuilder').mockReturnValue({
@@ -283,7 +286,8 @@ describe('SuppliersService', () => {
     });
 
     it('should throw ConflictException if supplier already active', async () => {
-      jest.spyOn(service, 'findOneOrFail').mockResolvedValue(mockSupplier as Supplier);
+      const activeSupplier = { ...mockSupplier, is_active: true };
+      jest.spyOn(service, 'findOneOrFail').mockResolvedValue(activeSupplier as Supplier);
 
       await expect(
         service.restore(mockBusinessId, mockSupplierId),

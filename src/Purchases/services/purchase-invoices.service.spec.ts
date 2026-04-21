@@ -254,6 +254,7 @@ describe('PurchaseInvoicesService', () => {
 
   describe('dispute', () => {
     it('should mark invoice as disputed', async () => {
+      const pendingInvoice = { ...mockInvoice, status: InvoiceStatus.PENDING };
       const disputeDto = { dispute_reason: 'Incorrect amount' };
       const disputedInvoice = {
         ...mockInvoice,
@@ -261,7 +262,7 @@ describe('PurchaseInvoicesService', () => {
         dispute_reason: 'Incorrect amount',
       };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockInvoice as PurchaseInvoice);
+      jest.spyOn(service, 'findOne').mockResolvedValue(pendingInvoice as PurchaseInvoice);
       jest.spyOn(invoiceRepo, 'save').mockResolvedValue(disputedInvoice as PurchaseInvoice);
 
       const result = await service.dispute(mockBusinessId, mockInvoiceId, disputeDto);
@@ -315,10 +316,11 @@ describe('PurchaseInvoicesService', () => {
 
   describe('update', () => {
     it('should update a pending invoice', async () => {
+      const pendingInvoice = { ...mockInvoice, status: InvoiceStatus.PENDING };
       const updateDto = { subtotal_ht: 1200, tax_amount: 228 };
       const updatedInvoice = { ...mockInvoice, ...updateDto, net_amount: 1429 };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockInvoice as PurchaseInvoice);
+      jest.spyOn(service, 'findOne').mockResolvedValue(pendingInvoice as PurchaseInvoice);
       jest.spyOn(invoiceRepo, 'save').mockResolvedValue(updatedInvoice as PurchaseInvoice);
 
       const result = await service.update(mockBusinessId, mockInvoiceId, updateDto);

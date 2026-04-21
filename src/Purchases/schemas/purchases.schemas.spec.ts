@@ -156,9 +156,14 @@ describe('Purchases Schemas Validation', () => {
 
   describe('createSupplierPOSchema', () => {
     it('devrait valider un BC valide', () => {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
       const validPO = {
         supplier_id: '123e4567-e89b-12d3-a456-426614174000',
-        expected_delivery: '2024-12-31',
+        expected_delivery: tomorrowStr,
         items: [
           {
             description: 'Produit test',
@@ -202,7 +207,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierPOSchema.safeParse(invalidPO);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('supérieur à 0');
+        expect(result.error.issues[0].message).toContain('supérieure');
       }
     });
 
