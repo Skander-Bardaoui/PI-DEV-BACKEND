@@ -10,7 +10,7 @@ import { SupplierPayment }  from '../entities/supplier-payment.entity';
 import { Account }          from '../../payments/entities/account.entity';
 import { Transaction }      from '../../payments/entities/transaction.entity';
 import { TransactionType }  from '../../payments/enums/transaction-type.enum';
-import { PurchaseInvoice } from 'src/Purchases/entities/purchase-invoice.entity';
+import { PurchaseInvoice } from '../../Purchases/entities/purchase-invoice.entity';
 import { InvoiceStatus } from 'src/Purchases/enum/invoice-status.enum';
 
 @Injectable()

@@ -9,8 +9,8 @@ import { Payment } from '../entities/payment.entity';
 import { Account } from '../entities/account.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
-import { InvoiceStatus } from 'src/sales/entities/invoice.entity';
-import { Invoice } from 'src/sales/entities/invoice.entity';
+import { InvoiceStatus } from '../../sales/entities/invoice.entity';
+import { Invoice } from '../../sales/entities/invoice.entity';
 
 @Injectable()
 export class PaymentsService {

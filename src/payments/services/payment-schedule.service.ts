@@ -11,14 +11,14 @@ import { Account }                    from '../entities/account.entity';
 import { SupplierPayment }            from '../entities/supplier-payment.entity';
 import { TransactionType }            from '../enums/transaction-type.enum';
 import { InvoiceStatus }              from 'src/Purchases/enum/invoice-status.enum';
-import { PurchaseInvoice }            from 'src/Purchases/entities/purchase-invoice.entity';
+import { PurchaseInvoice }            from '../../Purchases/entities/purchase-invoice.entity';
 import { Transaction }                from '../entities/transaction.entity';
 import { PaymentSchedule, ScheduleStatus } from '../entities/payment-schedule';
 import { PaymentScheduleInstallment } from '../entities/payment-schedule-installment';
 import { CreatePaymentScheduleDto, PayInstallmentDto } from '../dto/payment-schedule';
 import { InstallmentStatus }          from '../enums/installment-status';
 import { EmailService }               from 'src/email/email.service';
-import { Supplier }                   from 'src/Purchases/entities/supplier.entity';
+import { Supplier }                   from '../../Purchases/entities/supplier.entity';
 
 @Injectable()
 export class PaymentScheduleService {
