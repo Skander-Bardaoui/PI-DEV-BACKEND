@@ -111,9 +111,37 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.{ts,js}",
+      "!**/*.spec.ts",
+      "!**/*.test.ts",
+      "!**/*.module.ts",
+      "!**/main.ts",
+      "!**/*.dto.ts",
+      "!**/*.entity.ts",
+      "!**/*.enum.ts",
+      "!**/node_modules/**",
+      "!**/dist/**"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "coverageReporters": [
+      "text",
+      "text-summary",
+      "html",
+      "lcov",
+      "json-summary"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/",
+      ".module.ts$",
+      ".dto.ts$",
+      ".entity.ts$",
+      ".enum.ts$",
+      "main.ts$"
+    ],
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    }
   }
 }
