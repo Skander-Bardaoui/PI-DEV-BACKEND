@@ -104,7 +104,11 @@ pipeline {
         // ─────────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '🔐 Scanning Docker image for vulnerabilities...'
+                    echo '⚠️ Security scan skipped due to disk space constraints'
+                    echo '💡 To enable: clean disk space and uncomment scan code'
+                    // Scan désactivé temporairement - manque d'espace disque
+                    // Pour réactiver: nettoyer l'espace disque avec cleanup-jenkins-disk.sh
+                    /*
                     sh '''
                         TRIVY_PATH="/var/lib/jenkins/tools/trivy/trivy"
                         
@@ -125,6 +129,7 @@ pipeline {
                         
                         echo "✅ Security scan completed"
                     '''
+                    */
                 }
             }
         }
