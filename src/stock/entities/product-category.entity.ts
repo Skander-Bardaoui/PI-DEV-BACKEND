@@ -4,7 +4,7 @@ import {
   ManyToOne, OneToMany, JoinColumn, Index,
 } from 'typeorm';
 import { Product }   from './product.entity';
-import { Business }  from 'src/businesses/entities/business.entity';
+import { Business }  from '../../businesses/entities/business.entity';
  
 @Entity('product_categories')
 @Index(['business_id', 'is_active'])

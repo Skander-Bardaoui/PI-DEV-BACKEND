@@ -30,7 +30,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierSchema.safeParse(invalidSupplier);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('au moins 2 caractères');
+        expect(result.error.issues[0].message).toContain('au moins 2 caractères');
       }
     });
 
@@ -43,7 +43,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierSchema.safeParse(invalidSupplier);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('email invalide');
+        expect(result.error.issues[0].message).toContain('email invalide');
       }
     });
 
@@ -56,7 +56,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierSchema.safeParse(invalidSupplier);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('ne peut pas être négatif');
+        expect(result.error.issues[0].message).toContain('ne peut pas être négatif');
       }
     });
 
@@ -69,7 +69,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierSchema.safeParse(invalidSupplier);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('365 jours');
+        expect(result.error.issues[0].message).toContain('365 jours');
       }
     });
   });
@@ -102,7 +102,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierPOSchema.safeParse(invalidPO);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('au moins une ligne');
+        expect(result.error.issues[0].message).toContain('au moins une ligne');
       }
     });
 
@@ -122,7 +122,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierPOSchema.safeParse(invalidPO);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('supérieure à 0');
+        expect(result.error.issues[0].message).toContain('supérieure à 0');
       }
     });
 
@@ -142,7 +142,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createSupplierPOSchema.safeParse(invalidPO);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('ne peut pas être négatif');
+        expect(result.error.issues[0].message).toContain('ne peut pas être négatif');
       }
     });
   });
@@ -174,7 +174,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('obligatoire');
+        expect(result.error.issues[0].message).toContain('obligatoire');
       }
     });
 
@@ -190,7 +190,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Date invalide');
+        expect(result.error.issues[0].message).toContain('Date invalide');
       }
     });
 
@@ -206,7 +206,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('ne peut pas être négatif');
+        expect(result.error.issues[0].message).toContain('ne peut pas être négatif');
       }
     });
   });
@@ -236,7 +236,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createGoodsReceiptSchema.safeParse(invalidGR);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('au moins une ligne');
+        expect(result.error.issues[0].message).toContain('au moins une ligne');
       }
     });
 
@@ -254,7 +254,7 @@ describe('Purchases Schemas Validation', () => {
       const result = createGoodsReceiptSchema.safeParse(invalidGR);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('positive');
+        expect(result.error.issues[0].message).toContain('positive');
       }
     });
   });
@@ -277,7 +277,7 @@ describe('Purchases Schemas Validation', () => {
       const result = disputeInvoiceSchema.safeParse(invalidDispute);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('au moins 10 caractères');
+        expect(result.error.issues[0].message).toContain('au moins 10 caractères');
       }
     });
 
@@ -289,7 +289,7 @@ describe('Purchases Schemas Validation', () => {
       const result = disputeInvoiceSchema.safeParse(invalidDispute);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('500 caractères');
+        expect(result.error.issues[0].message).toContain('500 caractères');
       }
     });
   });
