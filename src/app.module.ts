@@ -2,6 +2,9 @@
 import { Controller, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+
 // Core Modules
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -107,6 +110,12 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // 🔐 Security: Rate Limiting
+    ThrottlerModule.forRoot([{
+      ttl: 60000,  // Time window: 60 seconds
+      limit: 100,  // Max 100 requests per window
+    }]),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -228,6 +237,12 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
     PresenceModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    // 🔐 Security: Global rate limiting guard
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

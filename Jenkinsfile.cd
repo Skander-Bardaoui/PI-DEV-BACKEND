@@ -82,18 +82,16 @@ pipeline {
                 script {
                     echo "🐳 Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
                     
-                    dockerImage = docker.build(
-                        "${IMAGE_NAME}:${IMAGE_TAG}",
-                        """
-                        --build-arg BUILD_DATE=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                        --build-arg VCS_REF=${params.GIT_COMMIT} \
-                        --build-arg VERSION=${IMAGE_TAG} \
-                        --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                        --label org.opencontainers.image.revision=${params.GIT_COMMIT} \
-                        --label org.opencontainers.image.version=${IMAGE_TAG} \
-                        .
-                        """
-                    )
+                    sh """
+                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                          --build-arg BUILD_DATE=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+                          --build-arg VCS_REF=${params.GIT_COMMIT} \
+                          --build-arg VERSION=${IMAGE_TAG} \
+                          --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+                          --label org.opencontainers.image.revision=${params.GIT_COMMIT} \
+                          --label org.opencontainers.image.version=${IMAGE_TAG} \
+                          .
+                    """
                     
                     sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
                     echo '✅ Docker image built successfully'
@@ -106,7 +104,11 @@ pipeline {
         // ─────────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '🔐 Scanning Docker image for vulnerabilities...'
+                    echo '⚠️ Security scan skipped due to disk space constraints'
+                    echo '💡 To enable: clean disk space and uncomment scan code'
+                    // Scan désactivé temporairement - manque d'espace disque
+                    // Pour réactiver: nettoyer l'espace disque avec cleanup-jenkins-disk.sh
+                    /*
                     sh '''
                         TRIVY_PATH="/var/lib/jenkins/tools/trivy/trivy"
                         
@@ -127,6 +129,7 @@ pipeline {
                         
                         echo "✅ Security scan completed"
                     '''
+                    */
                 }
             }
         }
@@ -179,14 +182,14 @@ pipeline {
                                 echo "🔌 Applying Service..."
                                 kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f service.yaml -n ${NAMESPACE}
                                 
+                                echo "📋 Applying Deployment..."
+                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f deployment.yaml -n ${NAMESPACE}
+                                
                                 echo "📋 Updating Deployment image..."
                                 kubectl --kubeconfig="$KUBECONFIG_FILE" set image \
                                     deployment/${DEPLOYMENT_NAME} \
                                     backend=${IMAGE_NAME}:${IMAGE_TAG} \
                                     -n ${NAMESPACE}
-                                
-                                echo "📋 Applying Deployment..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f deployment.yaml -n ${NAMESPACE}
                                 
                                 echo "✅ Deployment applied"
                             '''
@@ -259,7 +262,7 @@ pipeline {
                             
                             echo "\n🏥 Pod Health:"
                             kubectl --kubeconfig="$KUBECONFIG_FILE" get pods -n ${NAMESPACE} -l app=backend \
-                                -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\t"}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
+                                -o jsonpath='{range .items[*]}{.metadata.name}{"\\t"}{.status.phase}{"\\t"}{.status.conditions[?(@.type=="Ready")].status}{"\\n"}{end}'
                         '''
                     }
                 }

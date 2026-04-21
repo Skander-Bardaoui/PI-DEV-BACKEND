@@ -4,7 +4,7 @@ import {
   CreateDateColumn, UpdateDateColumn,
   ManyToOne, OneToMany, JoinColumn,
 } from 'typeorm';
-import { PurchaseInvoice }            from 'src/Purchases/entities/purchase-invoice.entity';
+import { PurchaseInvoice }            from '../../Purchases/entities/purchase-invoice.entity';
 import { PaymentScheduleInstallment } from './payment-schedule-installment';
 
 export enum ScheduleStatus {
