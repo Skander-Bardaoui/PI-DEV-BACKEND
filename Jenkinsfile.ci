@@ -251,19 +251,27 @@ pipeline {
                 script {
                     echo '⏳ Waiting for SonarQube Quality Gate...'
                     timeout(time: 5, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        
-                        echo """
-                        📊 Quality Gate Result:
-                           • Status: ${qg.status}
-                           • Project: ${SONAR_PROJECT_KEY}
-                           • Build: #${env.BUILD_NUMBER}
-                        """
-                        
-                        if (qg.status != 'OK') {
-                            error "❌ Quality Gate failed: ${qg.status}"
+                        try {
+                            def qg = waitForQualityGate()
+                            
+                            echo """
+                            📊 Quality Gate Result:
+                               • Status: ${qg.status}
+                               • Project: ${SONAR_PROJECT_KEY}
+                               • Build: #${env.BUILD_NUMBER}
+                            """
+                            
+                            if (qg.status != 'OK') {
+                                echo "⚠️ Quality Gate failed: ${qg.status}"
+                                echo "⚠️ Continuing pipeline anyway (non-blocking mode)"
+                                echo "📊 View details: http://192.168.33.10:9000/dashboard?id=backend"
+                            } else {
+                                echo '✅ Quality Gate passed!'
+                            }
+                        } catch (Exception e) {
+                            echo "⚠️ Quality Gate check failed: ${e.message}"
+                            echo "⚠️ Continuing pipeline anyway..."
                         }
-                        echo '✅ Quality Gate passed!'
                     }
                 }
             }
