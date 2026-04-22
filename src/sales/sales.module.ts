@@ -16,6 +16,7 @@ import { InvoiceItem } from './entities/invoice-item.entity';
 import { RecurringInvoice } from './entities/recurring-invoice.entity';
 import { ClientPortalToken } from './entities/client-portal-token.entity';
 import { QuotePortalToken } from './entities/quote-portal-token.entity';
+import { RecurringSubscriptionToken } from './entities/recurring-subscription-token.entity';
 import { QuotesService } from './services/quotes.service';
 import { SalesOrdersService } from './services/sales-orders.service';
 import { DeliveryNotesService } from './services/delivery-notes.service';
@@ -28,12 +29,15 @@ import { SalesEmailAiService } from './services/sales-email-ai.service';
 import { InvoiceCronService } from './services/invoice-cron.service';
 import { RecurringInvoicesService } from './services/recurring-invoices.service';
 import { RecurringInvoiceCronService } from './services/recurring-invoice-cron.service';
+// import { RecurringSubscriptionMailService } from './services/recurring-subscription-mail.service';
+// import { SubscriptionManageService } from './services/subscription-manage.service';
 import { ClientPortalService } from './services/client-portal.service';
 import { QuotePortalService } from './services/quote-portal.service';
 import { SalesDashboardService } from './services/sales-dashboard.service';
 import { SalesMatchingService } from './services/sales-matching.service';
 import { ClientOnboardingService } from './services/client-onboarding.service';
 import { ClientsService } from './services/clients.service';
+import { SalesMLService } from './services/sales-ml.service';
 import { QuotesController } from './controllers/quotes.controller';
 import { SalesOrdersController } from './controllers/sales-orders.controller';
 import { DeliveryNotesController } from './controllers/delivery-notes.controller';
@@ -41,10 +45,12 @@ import { InvoicesController } from './controllers/invoices.controller';
 import { SalesOcrController } from './controllers/sales-ocr.controller';
 import { RecurringInvoicesController } from './controllers/recurring-invoices.controller';
 import { ClientPortalController } from './controllers/client-portal.controller';
+// import { SubscriptionManageController } from './controllers/subscription-manage.controller';
 import { QuotePortalController } from './controllers/quote-portal.controller';
 import { SalesDashboardController } from './controllers/sales-dashboard.controller';
 import { SalesMatchingController } from './controllers/sales-matching.controller';
 import { SalesClientsController } from './controllers/clients.controller';
+import { SalesMLController } from './controllers/sales-ml.controller';
 import {
   ClientOnboardingController,
   ClientOnboardingPublicController,
@@ -80,6 +86,7 @@ import { Product } from '../stock/entities/product.entity';
       RecurringInvoice,
       ClientPortalToken,
       QuotePortalToken,
+      RecurringSubscriptionToken,
       Client,
       Business,
       StockMovement,
@@ -99,12 +106,15 @@ import { Product } from '../stock/entities/product.entity';
     InvoiceCronService,
     RecurringInvoicesService,
     RecurringInvoiceCronService,
+    // RecurringSubscriptionMailService,
+    // SubscriptionManageService,
     ClientPortalService,
     QuotePortalService,
     SalesDashboardService,
     SalesMatchingService,
     ClientsService,
     ClientOnboardingService,
+    SalesMLService,
   ],
   controllers: [
     QuotesController,
@@ -114,10 +124,12 @@ import { Product } from '../stock/entities/product.entity';
     SalesOcrController,
     RecurringInvoicesController,
     ClientPortalController,
+    // SubscriptionManageController,
     QuotePortalController,
     SalesDashboardController,
     SalesMatchingController,
     SalesClientsController,
+    SalesMLController,
     ClientOnboardingController,
     ClientOnboardingPublicController,
   ],

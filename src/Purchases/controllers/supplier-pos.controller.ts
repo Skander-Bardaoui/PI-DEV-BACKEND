@@ -17,8 +17,7 @@ import { PoAiGeneratorService } from '../services/po-ai-generator.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles }      from '../../auth/decorators/roles.decorators';
 import { Role }       from '../../users/enums/role.enum';
-import { CreateSupplierPODto } from '../dto/create-supplier-po.dto';
-import { UpdateSupplierPODto } from '../dto/update-supplier-po.dto';
+import { CreateSupplierPODto, UpdateSupplierPODto, AiPOGeneratorDto } from '../schemas/purchases.schemas';
 
 @Controller('businesses/:businessId/supplier-pos')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -37,9 +36,9 @@ export class SupplierPOsController {
   @HttpCode(HttpStatus.OK)
   async generateFromText(
     @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Body('text') text: string,
+    @Body() dto: AiPOGeneratorDto,
   ): Promise<any> {
-    return this.aiGenerator.generateFromText(businessId, text);
+    return this.aiGenerator.generateFromText(businessId, dto.text);
   }
 
   // POST /businesses/:businessId/supplier-pos
@@ -48,9 +47,18 @@ export class SupplierPOsController {
   @HttpCode(HttpStatus.CREATED)
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Body() dto: CreateSupplierPODto,
+    @Body() dto: any, // Temporairement any pour voir ce qui arrive
   ) {
-    return this.service.create(businessId, dto);
+    console.log('🔍 Controller received DTO:', JSON.stringify(dto, null, 2));
+    console.log('🔍 DTO type:', typeof dto);
+    console.log('🔍 DTO keys:', Object.keys(dto));
+    console.log('🔍 Items in DTO:', dto.items ? `${dto.items.length} items` : 'UNDEFINED');
+    
+    if (!dto.items || !Array.isArray(dto.items)) {
+      throw new Error(`Items is missing or not an array. Received: ${JSON.stringify(dto)}`);
+    }
+    
+    return this.service.create(businessId, dto as CreateSupplierPODto);
   }
 
   // GET /businesses/:businessId/supplier-pos?status=&supplier_id=&page=

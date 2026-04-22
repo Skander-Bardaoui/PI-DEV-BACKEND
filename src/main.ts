@@ -1,4 +1,5 @@
 // src/main.ts
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
@@ -6,11 +7,19 @@ import * as dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { ZodValidationPipe as NestJsZodValidationPipe } from 'nestjs-zod';
+import helmet from 'helmet';
 
 dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // 🔐 Security: Helmet - Add security headers
+  app.use(helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+    crossOriginEmbedderPolicy: false,
+  }));
 
   // Enable cookie parsing
   app.use(cookieParser());
@@ -20,7 +29,11 @@ async function bootstrap() {
     prefix: '/',
   });
 
+  // Configuration globale pour Zod et class-validator (compatibilité)
   app.useGlobalPipes(
+    // Pipe Zod pour les DTOs qui utilisent nestjs-zod
+    new NestJsZodValidationPipe(),
+    // Pipe class-validator pour les anciens DTOs (rétrocompatibilité)
     new ValidationPipe({
       whitelist:        true,              // supprime les champs non déclarés dans les DTOs
       forbidNonWhitelisted: false,         // ne rejette pas, supprime juste
@@ -47,12 +60,28 @@ async function bootstrap() {
   );
 
 
-  // Allow React dev server to hit this backend.
-  // Vite defaults to port 5173. If yours is different, change it here.
+  // 🔐 Security: CORS - Restrict to specific origin
+  const allowedOrigins = [
+    'http://localhost:5173',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
+
   app.enableCors({
-    origin: 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['X-Total-Count'],
+    maxAge: 3600, // Cache preflight requests for 1 hour
   });
 
   await app.listen(3001);

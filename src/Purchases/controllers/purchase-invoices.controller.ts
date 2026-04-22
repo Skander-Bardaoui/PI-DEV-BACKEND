@@ -18,7 +18,8 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles }      from '../../auth/decorators/roles.decorators';
 import { Role }       from '../../users/enums/role.enum';
 import { CreatePurchaseInvoiceDto } from '../dto/create-purchase-invoice.dto';
-import { DisputeInvoiceDto, UpdatePaymentAmountDto, UpdatePurchaseInvoiceDto } from '../dto/update-purchase-invoice.dto';
+import { UpdatePurchaseInvoiceDto, DisputeInvoiceDto, UpdatePaymentAmountDto } from '../schemas/purchases.schemas';
+import { QueryPurchaseInvoicesDto } from '../dto/update-purchase-invoice.dto';
 
 @Controller('businesses/:businessId/purchase-invoices')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -42,7 +43,7 @@ export class PurchaseInvoicesController {
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   findAll(
     @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Query() query: any,
+    @Query() query: QueryPurchaseInvoicesDto,
   ) {
     return this.service.findAll(businessId, query);
   }

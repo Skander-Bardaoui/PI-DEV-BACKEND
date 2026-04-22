@@ -401,4 +401,44 @@ ${invoice.supplier_po ? `<tr><td style="padding:5px 0;">Montant BC</td><td style
       throw error;
     }
   }
+
+  // ─── Notification fournisseur : BC annulé ────────────────────────────────
+  async sendCancellationEmail(po: SupplierPO): Promise<void> {
+    const supplier = po.supplier;
+
+    if (!supplier?.email) {
+      this.logger.warn(`BC ${po.po_number} : fournisseur "${supplier?.name}" sans email.`);
+      return;
+    }
+
+    const { businessName, businessEmail, businessPhone } =
+      await this.resolveOwnerRecipients(po.business_id);
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+<div style="background:#DC2626;padding:24px;color:#fff;"><h1 style="margin:0;">❌ Annulation de commande</h1><p style="margin:4px 0 0;">BC ${po.po_number}</p></div>
+<div style="background:#fff;padding:24px;">
+  <p>Bonjour <strong>${supplier.name}</strong>,</p>
+  <p>Nous vous informons que le bon de commande <strong>${po.po_number}</strong> d'un montant de <strong>${Number(po.net_amount).toFixed(3)} TND TTC</strong> a été annulé.</p>
+  ${po.notes ? `<div style="background:#FEF2F2;border-left:4px solid #DC2626;padding:12px;margin:16px 0;"><p style="margin:0;"><strong>Raison :</strong></p><p style="margin:8px 0 0;">${po.notes}</p></div>` : ''}
+  <p>Si vous avez des questions, n'hésitez pas à nous contacter.</p>
+  <p>Cordialement,<br><strong>${businessName}</strong></p>
+  ${businessEmail ? `<p style="font-size:12px;color:#666;margin-top:20px;">Email : ${businessEmail}</p>` : ''}
+  ${businessPhone ? `<p style="font-size:12px;color:#666;margin:0;">Téléphone : ${businessPhone}</p>` : ''}
+</div>
+</body></html>`;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"${businessName}" <${this.from}>`,
+        replyTo: businessEmail || this.from,
+        to: supplier.email,
+        subject: `❌ Annulation BC ${po.po_number} — ${businessName}`,
+        html,
+      });
+      this.logger.log(`Email annulation BC ${po.po_number} envoyé à ${supplier.email}`);
+    } catch (err: any) {
+      this.logger.error(`Échec envoi email annulation BC ${po.po_number}: ${err.message}`);
+      throw err;
+    }
+  }
 }

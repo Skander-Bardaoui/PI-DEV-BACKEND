@@ -5,15 +5,15 @@ import { Account }            from './entities/account.entity';
 import { Payment }            from './entities/payment.entity';
 import { SupplierPayment }    from './entities/supplier-payment.entity';
 import { Transaction }        from './entities/transaction.entity';
-import { Invoice }            from 'src/sales/entities/invoice.entity';
+import { Invoice }            from '../sales/entities/invoice.entity';
 import { AccountsController }         from './controllers/accounts.controller';
 import { PaymentsController }         from './controllers/payments.controller';
 import { SupplierPaymentsController } from './controllers/supplier-payments.controller';
 import { AccountsService }            from './services/accounts.service';
 import { PaymentsService }            from './services/payments.service';
 import { SupplierPaymentsService }    from './services/supplier-payments.service';
-import { PurchasesModule }            from 'src/Purchases/purchases.module';
-import { PurchaseInvoice }            from 'src/Purchases/entities/purchase-invoice.entity';
+import { PurchasesModule }            from '../Purchases/purchases.module';
+import { PurchaseInvoice }            from '../Purchases/entities/purchase-invoice.entity';
 import { TransactionsController }     from './controllers/transactions.controller';
 import { TransactionsService }        from './services/transactions.service';
 import { TransfersController }        from './controllers/transfers.controller';
@@ -28,7 +28,9 @@ import { SalaryService }              from './services/salary.service';
 import { SalaryController }           from './controllers/salary.controller';
 import { BusinessMember }             from 'src/businesses/entities/business-member.entity';
 import { EmailModule }                from 'src/email/email.module';
-import { SalaryProposal }             from './entities/salary-proposal.entity'; 
+import { SalaryProposal }             from './entities/salary-proposal.entity';
+import { Supplier } from '../Purchases/entities/supplier.entity';
+import { SupplierSchedulePublicController } from './controllers/supplier-schedule-public.controller';
 
 @Module({
   imports: [
@@ -43,6 +45,7 @@ import { SalaryProposal }             from './entities/salary-proposal.entity';
       PaymentScheduleInstallment,
       BusinessMember,
       SalaryProposal,
+      Supplier,
     ]),
     forwardRef(() => PurchasesModule),
     EmailModule,
@@ -56,6 +59,7 @@ import { SalaryProposal }             from './entities/salary-proposal.entity';
     PaymentSchedulesController,
     SalaryController,
     ForecastController,
+    SupplierSchedulePublicController,
   ],
   providers: [
     AccountsService,

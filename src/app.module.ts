@@ -2,6 +2,9 @@
 import { Controller, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+
 // Core Modules
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -18,6 +21,9 @@ import { StockModule } from './stock/stock.module';
 // Tasks Module
 import { TasksModule } from './tasks/tasks.module';
 
+// Collaboration Module
+import { CollaborationModule } from './collaboration/collaboration.module';
+
 // Subtasks Module
 import { SubtasksModule } from './subtasks/subtasks.module';
 
@@ -30,6 +36,8 @@ import { ActivitiesModule } from './activities/activities.module';
 // Statistics Module
 import { StatisticsModule } from './statistics/statistics.module';
 
+// Presence Module
+import { PresenceModule } from './presence/presence.module';
 // Common Module
 import { CommonModule } from './common/common.module';
 
@@ -66,6 +74,12 @@ import { Warehouse } from './stock/entities/warehouse.entity';
 // Tasks Entities
 import { Task } from './tasks/entities/task.entity';
 
+// Collaboration Entities
+import { DailyCheckin } from './collaboration/entities/daily-checkin.entity';
+import { Comment } from './collaboration/entities/comment.entity';
+import { ActivityLog } from './collaboration/entities/activity-log.entity';
+import { Task as CollaborationTask } from './collaboration/entities/task.entity';
+
 // Subtasks Entities
 import { Subtask } from './subtasks/entities/subtask.entity';
 
@@ -96,6 +110,12 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // 🔐 Security: Rate Limiting
+    ThrottlerModule.forRoot([{
+      ttl: 60000,  // Time window: 60 seconds
+      limit: 100,  // Max 100 requests per window
+    }]),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -152,6 +172,12 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           // Tasks
           Task,
 
+          // Collaboration
+          DailyCheckin,
+          Comment,
+          ActivityLog,
+          CollaborationTask,
+
           // Subtasks
           Subtask,
 
@@ -192,6 +218,9 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
     // Tasks
     TasksModule,
 
+    // Collaboration
+    CollaborationModule,
+
     // Subtasks
     SubtasksModule,
 
@@ -203,8 +232,17 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
     // Statistics
     StatisticsModule,
+
+    // Presence
+    PresenceModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    // 🔐 Security: Global rate limiting guard
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

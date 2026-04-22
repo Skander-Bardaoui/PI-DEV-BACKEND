@@ -5,7 +5,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
@@ -42,7 +41,7 @@ export enum TaskEntityType {
   GENERAL = 'GENERAL',
 }
 
-@Entity('tasks')
+@Entity('collaboration_tasks')
 @Index(['tenantId', 'status'])
 @Index(['assignedToId', 'status'])
 @Index(['businessId', 'dueDate'])
@@ -134,13 +133,6 @@ export class Task {
 
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date | null;
-
-  // Relations inverses
-  @OneToMany(() => Comment, (comment) => comment.task)
-  comments: Comment[];
-
-  @OneToMany(() => ActivityLog, (log) => log.task)
-  activityLogs: ActivityLog[];
 
   @CreateDateColumn()
   createdAt: Date;

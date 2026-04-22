@@ -4,7 +4,7 @@ import {
 } from 'typeorm';
 import { StockMovementType } from '../enums/stock-movement-type.enum';
 import { Product }   from './product.entity';
-import { Business }  from 'src/businesses/entities/business.entity';
+import { Business }  from '../../businesses/entities/business.entity';
  
 @Entity('stock_movements')
 // FIX : snake_case dans les index
