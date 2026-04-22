@@ -156,8 +156,8 @@ describe('Date Validation', () => {
       }
     });
 
-    it('devrait rejeter une date vide (obligatoire)', () => {
-      const invalidGR = {
+    it('devrait accepter une date vide (optionnelle)', () => {
+      const validGR = {
         receipt_date: '',
         items: [
           {
@@ -167,12 +167,8 @@ describe('Date Validation', () => {
         ],
       };
 
-      const result = createGoodsReceiptSchema.safeParse(invalidGR);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        const errorMessages = result.error.issues.map(e => e.message).join(' ');
-        expect(errorMessages).toContain('obligatoire');
-      }
+      const result = createGoodsReceiptSchema.safeParse(validGR);
+      expect(result.success).toBe(true);
     });
   });
 
