@@ -358,6 +358,22 @@ pipeline {
                    • Duration: ${currentBuild.durationString}
                    • Status: SUCCESS ✅
                 """
+                
+                // Trigger CD pipeline automatically
+                echo '🚀 Triggering CD pipeline...'
+                try {
+                    build job: 'pi-dev-backend-cd',
+                          parameters: [
+                              string(name: 'BUILD_NUMBER', value: env.BUILD_NUMBER),
+                              string(name: 'GIT_COMMIT', value: env.GIT_COMMIT),
+                              string(name: 'GIT_BRANCH', value: env.GIT_BRANCH)
+                          ],
+                          wait: false
+                    echo '✅ CD pipeline triggered successfully'
+                } catch (Exception e) {
+                    echo "⚠️ Failed to trigger CD pipeline: ${e.message}"
+                    echo "You can trigger it manually from Jenkins"
+                }
             }
         }
         
