@@ -14,11 +14,14 @@ import {
   UploadedFile,
   BadRequestException,
   BadGatewayException,
+  ForbiddenException,
   Res,
   Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { ProductsService } from '../services/products.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
@@ -30,12 +33,17 @@ import { QueryProductsDto } from '../dto/query-products.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorators';
 import { Role } from '../../users/enums/role.enum';
+import { BusinessMember } from '../../businesses/entities/business-member.entity';
 import type { Response } from 'express';
 
 @Controller('businesses/:businessId/products')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    @InjectRepository(BusinessMember)
+    private businessMemberRepository: Repository<BusinessMember>,
+  ) {}
 
   private transformFrontendDto(frontendDto: any): any {
     const backendDto: any = { ...frontendDto };
@@ -78,6 +86,46 @@ export class ProductsController {
       min_stock_threshold: parseFloat(product.min_quantity) || 0,
       is_stockable: product.track_inventory,
     };
+  }
+
+  /**
+   * Check if user has permission for product operation
+   * Checks create_service/update_service/delete_service for SERVICE type
+   * Checks create_product/update_product/delete_product for other types
+   */
+  private async checkProductPermission(
+    businessId: string,
+    userId: string,
+    userRole: string,
+    productType: string,
+    operation: 'create' | 'update' | 'delete',
+  ): Promise<void> {
+    // BUSINESS_OWNER bypasses all checks
+    if (userRole === Role.BUSINESS_OWNER) {
+      return;
+    }
+
+    // Get member permissions
+    const member = await this.businessMemberRepository.findOne({
+      where: { business_id: businessId, user_id: userId, is_active: true },
+    });
+
+    if (!member) {
+      throw new ForbiddenException('Not a member of this business');
+    }
+
+    // Determine permission key based on product type
+    const isService = productType === 'SERVICE';
+    const permissionKey = isService
+      ? `${operation}_service`
+      : `${operation}_product`;
+
+    // Check permission (default to false if missing)
+    const hasPermission = member.stock_permissions?.[permissionKey] === true;
+
+    if (!hasPermission) {
+      throw new ForbiddenException(`Insufficient permissions to ${operation} ${isService ? 'services' : 'products'}`);
+    }
   }
 
   @Get()
@@ -197,6 +245,15 @@ export class ProductsController {
     @Body() dto: any,
     @Request() req,
   ) {
+    // Check permission based on product type
+    await this.checkProductPermission(
+      businessId,
+      req.user.id,
+      req.user.role,
+      dto.type || 'PHYSICAL',
+      'create',
+    );
+
     const backendDto = this.transformFrontendDto(dto);
     const product = await this.productsService.create(businessId, backendDto, req.user?.id);
     return this.transformToFrontend(product);
@@ -210,6 +267,18 @@ export class ProductsController {
     @Body() dto: any,
     @Request() req,
   ) {
+    // Fetch existing product to check its type
+    const existingProduct = await this.productsService.findOne(businessId, id);
+    
+    // Check permission based on existing product type
+    await this.checkProductPermission(
+      businessId,
+      req.user.id,
+      req.user.role,
+      existingProduct.type,
+      'update',
+    );
+
     const backendDto = this.transformFrontendDto(dto);
     const product = await this.productsService.update(businessId, id, backendDto, req.user?.id);
     return this.transformToFrontend(product);
@@ -222,6 +291,18 @@ export class ProductsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req,
   ) {
+    // Fetch existing product to check its type
+    const existingProduct = await this.productsService.findOne(businessId, id);
+    
+    // Check permission based on existing product type
+    await this.checkProductPermission(
+      businessId,
+      req.user.id,
+      req.user.role,
+      existingProduct.type,
+      'delete',
+    );
+
     const product = await this.productsService.softDelete(businessId, id, req.user.id);
     return this.transformToFrontend(product);
   }

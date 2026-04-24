@@ -17,28 +17,25 @@ export class ExampleController {
     @Param('userId') userId: string,
     @Body() updatePermissionsDto: UpdatePermissionsDto,
   ) {
-    // The DTO will automatically validate:
-    // 1. permissions is a string
-    // 2. permissions is exactly 6 characters long
-    // 3. permissions matches the format: [cud-][cud-][cud-][ak-][ak-][p-]
+    // The DTO will automatically validate that the objects are valid
     
-    const { permissions } = updatePermissionsDto;
+    const { collaboration_permissions, stock_permissions } = updatePermissionsDto;
     
-    // At this point, permissions is guaranteed to be valid
-    console.log('Valid permission string received:', permissions);
+    // At this point, permissions are guaranteed to be valid objects
+    console.log('Valid collaboration permissions received:', collaboration_permissions);
+    console.log('Valid stock permissions received:', stock_permissions);
     
     // Example usage:
-    // - permissions[0]: Create permission ('c' or '-')
-    // - permissions[1]: Update permission ('u' or '-')
-    // - permissions[2]: Delete permission ('d' or '-')
-    // - permissions[3]: Add member permission ('a' or '-')
-    // - permissions[4]: Kick member permission ('k' or '-')
-    // - permissions[5]: Promote permission ('p' or '-')
+    // collaboration_permissions?.create_task
+    // collaboration_permissions?.update_task
+    // stock_permissions?.create_product
+    // stock_permissions?.update_product
     
     return {
       businessId,
       userId,
-      permissions,
+      collaboration_permissions,
+      stock_permissions,
       message: 'Permissions would be updated',
     };
   }
@@ -49,24 +46,25 @@ export class ExampleController {
  * 
  * ✅ Valid requests:
  * POST /example/businesses/123/members/456/permissions
- * Body: { "permissions": "cudakp" }  // All permissions
+ * Body: { 
+ *   "collaboration_permissions": {
+ *     "create_task": true,
+ *     "update_task": true,
+ *     "delete_task": false
+ *   }
+ * }
  * 
  * POST /example/businesses/123/members/456/permissions
- * Body: { "permissions": "------" }  // No permissions
+ * Body: { 
+ *   "stock_permissions": {
+ *     "create_product": true,
+ *     "update_product": true
+ *   }
+ * }
  * 
  * POST /example/businesses/123/members/456/permissions
- * Body: { "permissions": "cud---" }  // Create, Update, Delete only
- * 
- * ❌ Invalid requests (will return 400 Bad Request):
- * POST /example/businesses/123/members/456/permissions
- * Body: { "permissions": "cud" }     // Too short
- * 
- * POST /example/businesses/123/members/456/permissions
- * Body: { "permissions": "CUDAKP" }  // Uppercase letters
- * 
- * POST /example/businesses/123/members/456/permissions
- * Body: { "permissions": "123456" }  // Invalid characters
- * 
- * POST /example/businesses/123/members/456/permissions
- * Body: { "permissions": "xudakp" }  // Invalid character in position 0
+ * Body: { 
+ *   "collaboration_permissions": { "create_task": true },
+ *   "stock_permissions": { "create_product": true }
+ * }
  */

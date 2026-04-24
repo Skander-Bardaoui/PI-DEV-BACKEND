@@ -37,14 +37,14 @@ export class TasksService {
   }
 
   // ─── Check if user has permission ──────────────────
-  private hasPermission(member: BusinessMember, permission: PermissionType): boolean {
+  private hasPermission(member: BusinessMember, permissionKey: string): boolean {
     // BUSINESS_OWNER always has full access
     if (member.role === Role.BUSINESS_OWNER) {
       return true;
     }
 
-    // All other roles (including BUSINESS_ADMIN) must check their permission string
-    return PermissionUtil.hasPermission(member.permissions, permission);
+    // All other roles (including BUSINESS_ADMIN) must check their collaboration_permissions object
+    return PermissionUtil.hasGranularPermission(member.collaboration_permissions, permissionKey);
   }
 
   // ─── Verify business membership ────────────────────
@@ -61,7 +61,7 @@ export class TasksService {
     // Verify user is member of business and has CREATE permission
     const member = await this.getMember(userId, dto.businessId);
     
-    if (!this.hasPermission(member, PermissionType.CREATE)) {
+    if (!this.hasPermission(member, 'create_task')) {
       throw new ForbiddenException('You do not have permission to create tasks');
     }
 
@@ -93,7 +93,7 @@ export class TasksService {
     // Verify user is member of business and has UPDATE permission
     const member = await this.getMember(userId, task.businessId!);
     
-    if (!this.hasPermission(member, PermissionType.UPDATE)) {
+    if (!this.hasPermission(member, 'update_task')) {
       throw new ForbiddenException('You do not have permission to update tasks');
     }
 
@@ -115,7 +115,7 @@ export class TasksService {
     // Verify user is member of business and has DELETE permission
     const member = await this.getMember(userId, task.businessId!);
     
-    if (!this.hasPermission(member, PermissionType.DELETE)) {
+    if (!this.hasPermission(member, 'delete_task')) {
       throw new ForbiddenException('You do not have permission to delete tasks');
     }
 

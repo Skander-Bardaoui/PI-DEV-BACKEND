@@ -10,7 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role } from '../../users/enums/role.enum';
 import { BusinessMember } from '../entities/business-member.entity';
-import { PermissionType, PermissionUtil } from '../utils/permission.util';
+import { PermissionUtil } from '../utils/permission.util';
 
 export const PERMISSION_KEY = 'permission';
 
@@ -23,7 +23,7 @@ export class PermissionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPermission = this.reflector.get<PermissionType>(
+    const requiredPermission = this.reflector.get<string>(
       PERMISSION_KEY,
       context.getHandler(),
     );
@@ -59,9 +59,14 @@ export class PermissionGuard implements CanActivate {
       throw new ForbiddenException('Not a member of this business');
     }
 
-    // Check permission
-    const hasPermission = PermissionUtil.hasPermission(
-      membership.permissions,
+    // Business owner always has full access
+    if (membership.role === Role.BUSINESS_OWNER) {
+      return true;
+    }
+
+    // Check granular permission
+    const hasPermission = PermissionUtil.hasGranularPermission(
+      membership.collaboration_permissions,
       requiredPermission,
     );
 

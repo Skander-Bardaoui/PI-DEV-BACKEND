@@ -1,5 +1,5 @@
 // src/stock/services/products.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, In, SelectQueryBuilder, Not, IsNull } from 'typeorm';
@@ -15,6 +15,9 @@ import { GenerateSkuDto } from '../dto/generate-sku.dto';
 import { QueryProductsDto, ProductSortBy } from '../dto/query-products.dto';
 import { generateInternalBarcode } from '../utils/barcode.util';
 import { Business } from '../../businesses/entities/business.entity';
+import { BusinessMember } from '../../businesses/entities/business-member.entity';
+import { Role } from '../../users/enums/role.enum';
+import { PermissionUtil, PermissionType } from '../../businesses/utils/permission.util';
 import { AuditLogService } from '../../common/services/audit-log.service';
 import { AuditAction, AuditEntityType } from '../../common/entities/audit-log.entity';
 
@@ -27,6 +30,8 @@ export class ProductsService {
     private readonly productRepo: Repository<Product>,
     @InjectRepository(Business)
     private readonly businessRepo: Repository<Business>,
+    @InjectRepository(BusinessMember)
+    private readonly memberRepo: Repository<BusinessMember>,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
   ) {
@@ -34,6 +39,31 @@ export class ProductsService {
     if (apiKey) {
       this.groq = new Groq({ apiKey });
     }
+  }
+
+  // ─── Get member with role check ────────────────────
+  private async getMember(userId: string, businessId: string): Promise<BusinessMember> {
+    const member = await this.memberRepo.findOne({
+      where: { user_id: userId, business_id: businessId, is_active: true },
+      relations: ['user'],
+    });
+
+    if (!member) {
+      throw new ForbiddenException('Not a member of this business');
+    }
+
+    return member;
+  }
+
+  // ─── Check if user has stock permission ──────────────────
+  private hasStockPermission(member: BusinessMember, permissionKey: string): boolean {
+    // BUSINESS_OWNER always has full access
+    if (member.role === Role.BUSINESS_OWNER) {
+      return true;
+    }
+
+    // All other roles (including BUSINESS_ADMIN) must check their stock_permissions object
+    return PermissionUtil.hasGranularPermission(member.stock_permissions, permissionKey);
   }
 
   async findAll(businessId: string, query: QueryProductsDto = {}, includeDeleted = false): Promise<Product[]> {
@@ -147,6 +177,14 @@ export class ProductsService {
   }
 
   async create(businessId: string, dto: CreateProductDto, userId?: string): Promise<Product> {
+    // Check stock CREATE permission
+    if (userId) {
+      const member = await this.getMember(userId, businessId);
+      if (!this.hasStockPermission(member, 'create_product')) {
+        throw new ForbiddenException('You do not have permission to create products');
+      }
+    }
+
     if (dto.type === ProductType.SERVICE || dto.type === ProductType.DIGITAL) {
       dto.track_inventory = false;
       dto.quantity = 0;
@@ -180,6 +218,14 @@ export class ProductsService {
   }
 
   async update(businessId: string, id: string, dto: UpdateProductDto, userId?: string): Promise<Product> {
+    // Check stock UPDATE permission
+    if (userId) {
+      const member = await this.getMember(userId, businessId);
+      if (!this.hasStockPermission(member, 'update_product')) {
+        throw new ForbiddenException('You do not have permission to update products');
+      }
+    }
+
     const product = await this.findOne(businessId, id);
     const oldValue = { ...product };
 
@@ -220,6 +266,12 @@ export class ProductsService {
   }
 
   async softDelete(businessId: string, id: string, userId: string): Promise<Product> {
+    // Check stock DELETE permission
+    const member = await this.getMember(userId, businessId);
+    if (!this.hasStockPermission(member, 'delete_product')) {
+      throw new ForbiddenException('You do not have permission to delete products');
+    }
+
     const product = await this.findOne(businessId, id);
 
     product.deleted_at = new Date();

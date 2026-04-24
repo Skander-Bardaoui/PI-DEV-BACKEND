@@ -127,14 +127,16 @@ export class BusinessMembersService {
     }
 
     // Get role-based default permissions
-    const defaultPermissions = PermissionUtil.getRoleDefaultPermissions(role);
+    const defaultCollaborationPermissions = PermissionUtil.getRoleDefaultCollaborationPermissions(role);
+    const defaultStockPermissions = PermissionUtil.getRoleDefaultStockPermissions(role);
 
     // Create membership with role-based default permissions
     const member = this.businessMemberRepository.create({
       business_id: businessId,
       user_id: userId,
       role,
-      permissions: defaultPermissions,
+      collaboration_permissions: defaultCollaborationPermissions,
+      stock_permissions: defaultStockPermissions,
       invited_by: invitedBy,
       invited_at: new Date(),
       joined_at: new Date(),
@@ -148,7 +150,8 @@ export class BusinessMembersService {
         businessId,
         userId,
         role,
-        permissions: defaultPermissions,
+        collaboration_permissions: defaultCollaborationPermissions,
+        stock_permissions: defaultStockPermissions,
         invitedBy,
         createdAt: new Date().toISOString()
       });
@@ -231,15 +234,17 @@ export class BusinessMembersService {
     console.log('Found member:', { id: member.id, currentRole: member.role, newRole });
     
     const previousRole = member.role;
-    const previousPermissions = member.permissions;
+    const previousCollaborationPermissions = member.collaboration_permissions;
+    const previousStockPermissions = member.stock_permissions;
     
     // Update role in business_members table
     member.role = newRole;
     
     // If promoting to BUSINESS_OWNER, set full permissions (requirement 7.5)
     if (newRole === Role.BUSINESS_OWNER) {
-      member.permissions = PermissionUtil.getRoleDefaultPermissions(newRole);
-      console.log('Promoting to BUSINESS_OWNER, setting full permissions:', member.permissions);
+      member.collaboration_permissions = PermissionUtil.getRoleDefaultCollaborationPermissions(newRole);
+      member.stock_permissions = PermissionUtil.getRoleDefaultStockPermissions(newRole);
+      console.log('Promoting to BUSINESS_OWNER, setting full permissions');
     }
     // Note: When demoting from BUSINESS_OWNER, permissions are preserved (requirement 7.6)
     // This is a security consideration - permissions must be manually adjusted if needed
@@ -255,8 +260,10 @@ export class BusinessMembersService {
         userId,
         previousRole,
         newRole,
-        previousPermissions,
-        newPermissions: saved.permissions,
+        previousCollaborationPermissions,
+        newCollaborationPermissions: saved.collaboration_permissions,
+        previousStockPermissions,
+        newStockPermissions: saved.stock_permissions,
         updatedAt: new Date().toISOString()
       });
       
@@ -269,37 +276,43 @@ export class BusinessMembersService {
 
   /**
    * Seed existing business members with role-based default permissions
-   * This method updates all business members that have default '------' permissions
+   * This method updates all business members that have null or empty permissions
    * with appropriate permissions based on their role
    */
   async seedExistingMembersWithDefaultPermissions(): Promise<{ updated: number; skipped: number }> {
     console.log('Starting to seed existing business members with default permissions...');
     
-    // Find all business members with default permissions ('------') or null/empty permissions
-    const membersWithDefaultPermissions = await this.businessMemberRepository.find({
+    // Find all business members with null or empty permissions
+    const membersWithoutPermissions = await this.businessMemberRepository.find({
       where: [
-        { permissions: '------' },
-        { permissions: null as any },
-        { permissions: '' },
+        { collaboration_permissions: null as any },
+        { stock_permissions: null as any },
       ],
       relations: ['user'],
     });
 
-    console.log(`Found ${membersWithDefaultPermissions.length} members with default permissions`);
+    console.log(`Found ${membersWithoutPermissions.length} members without permissions`);
 
     let updated = 0;
     let skipped = 0;
 
-    for (const member of membersWithDefaultPermissions) {
+    for (const member of membersWithoutPermissions) {
       try {
-        const defaultPermissions = PermissionUtil.getRoleDefaultPermissions(member.role);
+        const defaultCollaborationPermissions = PermissionUtil.getRoleDefaultCollaborationPermissions(member.role);
+        const defaultStockPermissions = PermissionUtil.getRoleDefaultStockPermissions(member.role);
         
-        // Update permissions regardless of current value since we're seeding
-        member.permissions = defaultPermissions;
+        // Update permissions if they are null
+        if (!member.collaboration_permissions) {
+          member.collaboration_permissions = defaultCollaborationPermissions;
+        }
+        if (!member.stock_permissions) {
+          member.stock_permissions = defaultStockPermissions;
+        }
+        
         await this.businessMemberRepository.save(member);
         updated++;
         
-        console.log(`Updated member ${member.user_id} (${member.role}) with permissions: ${defaultPermissions}`);
+        console.log(`Updated member ${member.user_id} (${member.role}) with default permissions`);
       } catch (error) {
         console.error(`Error updating member ${member.id}:`, error);
         skipped++;
@@ -313,16 +326,18 @@ export class BusinessMembersService {
 
   /**
    * Update member permissions with enhanced validation and error handling
+   * Supports updating both collaboration permissions and stock permissions independently or together
    */
   async updateMemberPermissions(
     businessId: string,
     userId: string,
-    permissions: string,
+    collaboration_permissions?: Record<string, boolean>,
+    stock_permissions?: Record<string, boolean>,
   ): Promise<BusinessMember> {
-    // Validate permission string format
-    if (!PermissionUtil.validatePermissionString(permissions)) {
+    // At least one permission field must be provided
+    if (!collaboration_permissions && !stock_permissions) {
       throw new BadRequestException(
-        'Invalid permission string format. Expected 6 characters with valid permission letters (c,u,d,a,k,p) or dashes (-)'
+        'At least one permission field (collaboration_permissions or stock_permissions) must be provided'
       );
     }
 
@@ -353,10 +368,18 @@ export class BusinessMembersService {
     }
 
     // Store previous permissions for logging
-    const previousPermissions = member.permissions;
+    const previousCollaborationPermissions = member.collaboration_permissions;
+    const previousStockPermissions = member.stock_permissions;
 
-    // Update permissions
-    member.permissions = permissions;
+    // Update collaboration permissions if provided
+    if (collaboration_permissions) {
+      member.collaboration_permissions = collaboration_permissions;
+    }
+
+    // Update stock permissions if provided
+    if (stock_permissions) {
+      member.stock_permissions = stock_permissions;
+    }
     
     try {
       const updatedMember = await this.businessMemberRepository.save(member);
@@ -365,8 +388,10 @@ export class BusinessMembersService {
         businessId,
         userId,
         memberRole: member.role,
-        previousPermissions,
-        newPermissions: permissions,
+        previousCollaborationPermissions,
+        newCollaborationPermissions: member.collaboration_permissions,
+        previousStockPermissions,
+        newStockPermissions: member.stock_permissions,
         updatedAt: new Date().toISOString()
       });
 
@@ -459,21 +484,21 @@ export class BusinessMembersService {
   }
 
   /**
-   * Get user's permissions in a specific business
+   * Get user's collaboration permissions in a specific business
    */
-  async getUserPermissionsInBusiness(
+  async getUserCollaborationPermissionsInBusiness(
     userId: string,
     businessId: string,
-  ): Promise<string | null> {
+  ): Promise<Record<string, boolean> | null> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
     if (!user) {
       return null;
     }
 
-    // PLATFORM_ADMIN has all permissions
-    if (user.role === Role.PLATFORM_ADMIN) {
-      return 'cudakp';
+    // PLATFORM_ADMIN and BUSINESS_OWNER have all permissions
+    if (user.role === Role.PLATFORM_ADMIN || user.role === Role.BUSINESS_OWNER) {
+      return PermissionUtil.getRoleDefaultCollaborationPermissions(user.role);
     }
 
     // Check membership for permissions
@@ -481,24 +506,67 @@ export class BusinessMembersService {
       where: { business_id: businessId, user_id: userId, is_active: true },
     });
 
-    return member?.permissions || null;
+    return member?.collaboration_permissions || null;
   }
 
   /**
-   * Validate if a user can perform a specific action in a business
+   * Get user's stock permissions in a specific business
    */
-  async validateUserPermission(
+  async getUserStockPermissionsInBusiness(
     userId: string,
     businessId: string,
-    requiredPermission: number, // PermissionType enum value
+  ): Promise<Record<string, boolean> | null> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      return null;
+    }
+
+    // PLATFORM_ADMIN and BUSINESS_OWNER have all permissions
+    if (user.role === Role.PLATFORM_ADMIN || user.role === Role.BUSINESS_OWNER) {
+      return PermissionUtil.getRoleDefaultStockPermissions(user.role);
+    }
+
+    // Check membership for permissions
+    const member = await this.businessMemberRepository.findOne({
+      where: { business_id: businessId, user_id: userId, is_active: true },
+    });
+
+    return member?.stock_permissions || null;
+  }
+
+  /**
+   * Validate if a user has a specific collaboration permission in a business
+   */
+  async validateUserCollaborationPermission(
+    userId: string,
+    businessId: string,
+    permissionKey: string, // e.g., 'create_task', 'update_task'
   ): Promise<boolean> {
-    const permissions = await this.getUserPermissionsInBusiness(userId, businessId);
+    const permissions = await this.getUserCollaborationPermissionsInBusiness(userId, businessId);
     
     if (!permissions) {
       return false;
     }
 
-    return PermissionUtil.hasPermission(permissions, requiredPermission);
+    return permissions[permissionKey] === true;
+  }
+
+  /**
+   * Validate if a user has a specific stock permission in a business
+   */
+  async validateUserStockPermission(
+    userId: string,
+    businessId: string,
+    permissionKey: string, // e.g., 'create_product', 'update_product'
+  ): Promise<boolean> {
+    const permissions = await this.getUserStockPermissionsInBusiness(userId, businessId);
+    
+    if (!permissions) {
+      return false;
+    }
+
+    return permissions[permissionKey] === true;
   }
 
   /**
@@ -519,7 +587,11 @@ export class BusinessMembersService {
    */
   async bulkUpdatePermissions(
     businessId: string,
-    updates: Array<{ userId: string; permissions: string }>,
+    updates: Array<{ 
+      userId: string; 
+      collaboration_permissions?: Record<string, boolean>;
+      stock_permissions?: Record<string, boolean>;
+    }>,
   ): Promise<{ updated: number; failed: number; errors: string[] }> {
     let updated = 0;
     let failed = 0;
@@ -536,13 +608,6 @@ export class BusinessMembersService {
 
     for (const update of updates) {
       try {
-        // Validate permission string
-        if (!PermissionUtil.validatePermissionString(update.permissions)) {
-          errors.push(`Invalid permission string for user ${update.userId}: ${update.permissions}`);
-          failed++;
-          continue;
-        }
-
         // Find and update member
         const member = await this.businessMemberRepository.findOne({
           where: { business_id: businessId, user_id: update.userId },
@@ -554,7 +619,14 @@ export class BusinessMembersService {
           continue;
         }
 
-        member.permissions = update.permissions;
+        if (update.collaboration_permissions) {
+          member.collaboration_permissions = update.collaboration_permissions;
+        }
+        
+        if (update.stock_permissions) {
+          member.stock_permissions = update.stock_permissions;
+        }
+        
         await this.businessMemberRepository.save(member);
         updated++;
       } catch (error) {
