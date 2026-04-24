@@ -17,7 +17,11 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed:permissions": "ts-node src/scripts/seed-member-permissions.ts",
+    "check:permissions": "npm run build && node dist/scripts/check-member-permissions.js",
+    "test:permission-utils": "npm run build && node dist/scripts/test-permission-utils.js",
+    "fix:permissions": "npm run build && node dist/scripts/fix-permission-format.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

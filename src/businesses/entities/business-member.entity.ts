@@ -42,6 +42,13 @@ export class BusinessMember {
   @Column({ default: true })
   is_active: boolean;
 
+  @Column({ 
+    type: 'varchar', 
+    length: 6, 
+    default: '------' 
+  })
+  permissions: string;
+
   @Column({ nullable: true })
   invited_by: string; // User ID of who invited this member
 
