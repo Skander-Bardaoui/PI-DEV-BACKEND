@@ -135,7 +135,7 @@ export class DisputeResolutionService {
 
     return {
       invoice_id: invoice.id,
-      invoice_number: invoice.invoice_number_supplier,
+      invoice_number: invoice.invoice_number,
       supplier_name: invoice.supplier?.name || '',
       supplier_email: invoice.supplier?.email || null,
       status: invoice.status,
@@ -176,7 +176,7 @@ export class DisputeResolutionService {
     switch (dto.action) {
       case ResolutionAction.APPROVE_AS_IS:
         updatedInvoice = await this.approveAsIs(invoice, dto.resolution_notes);
-        message = `Facture ${invoice.invoice_number_supplier} approuvée malgré l'écart.`;
+        message = `Facture ${invoice.invoice_number} approuvée malgré l'écart.`;
         break;
 
       case ResolutionAction.CORRECT_AMOUNTS:
@@ -184,12 +184,12 @@ export class DisputeResolutionService {
           throw new BadRequestException('Les montants corrigés sont requis pour cette action.');
         }
         updatedInvoice = await this.correctAmounts(invoice, dto.corrected_amounts, dto.resolution_notes);
-        message = `Montants corrigés et facture ${invoice.invoice_number_supplier} approuvée.`;
+        message = `Montants corrigés et facture ${invoice.invoice_number} approuvée.`;
         break;
 
       case ResolutionAction.REQUEST_CREDIT_NOTE:
         updatedInvoice = await this.requestCreditNote(invoice, dto.resolution_notes);
-        message = `Demande d'avoir envoyée au fournisseur pour la facture ${invoice.invoice_number_supplier}.`;
+        message = `Demande d'avoir envoyée au fournisseur pour la facture ${invoice.invoice_number}.`;
         if (dto.notify_supplier && invoice.supplier?.email) {
           await this.notifySupplierCreditNote(businessId, invoice, dto.resolution_notes);
         }
@@ -197,7 +197,7 @@ export class DisputeResolutionService {
 
       case ResolutionAction.REQUEST_CORRECTED_INVOICE:
         updatedInvoice = await this.requestCorrectedInvoice(invoice, dto.resolution_notes);
-        message = `Demande de facture rectificative envoyée au fournisseur pour ${invoice.invoice_number_supplier}.`;
+        message = `Demande de facture rectificative envoyée au fournisseur pour ${invoice.invoice_number}.`;
         if (dto.notify_supplier && invoice.supplier?.email) {
           await this.notifySupplierCorrection(businessId, invoice, dto.resolution_notes);
         }
@@ -205,7 +205,7 @@ export class DisputeResolutionService {
 
       case ResolutionAction.REJECT_INVOICE:
         updatedInvoice = await this.rejectInvoice(invoice, dto.resolution_notes);
-        message = `Facture ${invoice.invoice_number_supplier} rejetée.`;
+        message = `Facture ${invoice.invoice_number} rejetée.`;
         if (dto.notify_supplier && invoice.supplier?.email) {
           await this.notifySupplierRejection(businessId, invoice, dto.resolution_notes);
         }
@@ -213,12 +213,12 @@ export class DisputeResolutionService {
 
       case ResolutionAction.WAIT_FOR_DELIVERY:
         updatedInvoice = await this.waitForDelivery(invoice, dto.resolution_notes);
-        message = `Facture ${invoice.invoice_number_supplier} en attente de livraison complète.`;
+        message = `Facture ${invoice.invoice_number} en attente de livraison complète.`;
         break;
 
       case ResolutionAction.CONTACT_SUPPLIER:
         updatedInvoice = invoice; // Pas de changement de statut
-        message = `Email de clarification envoyé au fournisseur pour ${invoice.invoice_number_supplier}.`;
+        message = `Email de clarification envoyé au fournisseur pour ${invoice.invoice_number}.`;
         if (invoice.supplier?.email) {
           await this.notifySupplierClarification(businessId, invoice, dto.resolution_notes);
         }
@@ -228,7 +228,7 @@ export class DisputeResolutionService {
         throw new BadRequestException(`Action de résolution inconnue: ${dto.action}`);
     }
 
-    this.logger.log(`Litige résolu: ${invoice.invoice_number_supplier} - Action: ${dto.action}`);
+    this.logger.log(`Litige résolu: ${invoice.invoice_number} - Action: ${dto.action}`);
 
     return {
       success: true,
@@ -307,7 +307,7 @@ export class DisputeResolutionService {
     notes?: string
   ): Promise<void> {
     // TODO: Implémenter l'envoi d'email pour demande d'avoir
-    this.logger.log(`Email demande d'avoir envoyé pour ${invoice.invoice_number_supplier}`);
+    this.logger.log(`Email demande d'avoir envoyé pour ${invoice.invoice_number}`);
   }
 
   private async notifySupplierCorrection(
@@ -316,7 +316,7 @@ export class DisputeResolutionService {
     notes?: string
   ): Promise<void> {
     // TODO: Implémenter l'envoi d'email pour demande de correction
-    this.logger.log(`Email demande de correction envoyé pour ${invoice.invoice_number_supplier}`);
+    this.logger.log(`Email demande de correction envoyé pour ${invoice.invoice_number}`);
   }
 
   private async notifySupplierRejection(
@@ -325,7 +325,7 @@ export class DisputeResolutionService {
     notes?: string
   ): Promise<void> {
     // TODO: Implémenter l'envoi d'email pour rejet
-    this.logger.log(`Email de rejet envoyé pour ${invoice.invoice_number_supplier}`);
+    this.logger.log(`Email de rejet envoyé pour ${invoice.invoice_number}`);
   }
 
   private async notifySupplierClarification(
@@ -353,7 +353,7 @@ export class DisputeResolutionService {
       businessId,
       invoice.supplier.email,
       invoice.supplier.name,
-      invoice.invoice_number_supplier,
+      invoice.invoice_number,
       invoice.dispute_reason || 'Clarification requise',
       notes || 'Merci de nous fournir des clarifications concernant cette facture.',
       category,
@@ -362,7 +362,7 @@ export class DisputeResolutionService {
       discrepancy,
     );
 
-    this.logger.log(`Email de clarification envoyé pour ${invoice.invoice_number_supplier}`);
+    this.logger.log(`Email de clarification envoyé pour ${invoice.invoice_number}`);
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -524,7 +524,7 @@ export class DisputeResolutionService {
 
     return responses.map(response => ({
       id: response.id,
-      invoice_number: response.invoice.invoice_number_supplier,
+      invoice_number: response.invoice.invoice_number,
       supplier_name: response.supplier.name,
       response_message: response.response_message,
       proposed_solution: response.proposed_solution,
@@ -577,7 +577,7 @@ export class DisputeResolutionService {
       await this.disputeResponseRepo.save(response);
 
       this.logger.log(
-        `Réponse acceptée pour facture ${invoice.invoice_number_supplier} - Litige résolu`
+        `Réponse acceptée pour facture ${invoice.invoice_number} - Litige résolu`
       );
 
       return {
@@ -594,7 +594,7 @@ export class DisputeResolutionService {
       await this.disputeResponseRepo.save(response);
 
       this.logger.log(
-        `Réponse rejetée pour facture ${invoice.invoice_number_supplier} - Litige toujours actif`
+        `Réponse rejetée pour facture ${invoice.invoice_number} - Litige toujours actif`
       );
 
       return {

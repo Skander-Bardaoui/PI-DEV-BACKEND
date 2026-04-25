@@ -1,11 +1,6 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from "class-validator";
 
 export class CreatePurchaseInvoiceDto {
-  @IsString({ message: 'Le numéro de facture doit être une chaîne de caractères' })
-  @IsNotEmpty({ message: 'Le numéro de facture fournisseur est obligatoire' })
-  @MaxLength(100, { message: 'Le numéro de facture ne peut pas dépasser 100 caractères' })
-  invoice_number_supplier: string;
- 
   @IsUUID('4', { message: 'Fournisseur invalide' })
   @IsNotEmpty({ message: 'Le fournisseur est obligatoire' })
   supplier_id: string;
@@ -13,6 +8,10 @@ export class CreatePurchaseInvoiceDto {
   @IsOptional()
   @IsUUID('4', { message: 'Bon de commande invalide' })
   supplier_po_id?: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'Bon de réception invalide' })
+  goods_receipt_id?: string;
  
   @IsString({ message: 'La date de facture doit être une chaîne de caractères' })
   @IsNotEmpty({ message: 'La date de facture est obligatoire' })

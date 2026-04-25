@@ -62,17 +62,27 @@ export class PoAiGeneratorService {
   async generateFromText(businessId: string, text: string): Promise<GeneratedPO> {
     const start = Date.now();
 
+    this.logger.log(`🔍 [Service] generateFromText appelé`);
+    this.logger.log(`🔍 [Service] businessId: ${businessId}`);
+    this.logger.log(`🔍 [Service] text reçu: "${text}"`);
+    this.logger.log(`🔍 [Service] type de text: ${typeof text}`);
+
     if (!this.apiKey) {
       throw new BadRequestException('GEMINI_API_KEY non configurée. Impossible de générer le BC par IA.');
     }
 
-    if (!text || text.trim().length < 10) {
-      throw new BadRequestException('Le texte de commande est trop court (minimum 10 caractères).');
+    // Validation simple: le texte ne doit pas être vide
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      throw new BadRequestException('Le texte est obligatoire.');
     }
+
+    const trimmedText = text.trim();
+    this.logger.log(`🔍 [Service] text après trim: "${trimmedText}"`);
+    this.logger.log(`🔍 [Service] longueur après trim: ${trimmedText.length}`);
 
     try {
       // 1. Parser le texte avec l'IA
-      const parsed = await this.parseTextWithAI(text);
+      const parsed = await this.parseTextWithAI(trimmedText);
       this.logger.log(`Texte parsé: ${JSON.stringify(parsed)}`);
 
       // 2. Rechercher le fournisseur

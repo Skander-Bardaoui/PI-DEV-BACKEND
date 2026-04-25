@@ -197,34 +197,30 @@ export class ThreeWayMatchingService {
       poTotal       += poLineTotal;
       receivedTotal += receivedLineTotal;
 
-      // Comparer avec ce qui est facturé (approximation sur la facture globale)
-      const discrepancyAmt = this.round(receivedLineTotal - poLineTotal);
-      const discrepancyPct = poLineTotal > 0
-        ? Math.abs(discrepancyAmt / poLineTotal) * 100
-        : 0;
+      // Pour les réceptions partielles, on ne compare QUE ce qui a été reçu
+      // La facture doit correspondre à la réception, pas au BC complet
+      const discrepancyAmt = 0; // Pas d'écart ligne par ligne, on compare les totaux globaux
+      const discrepancyPct = 0;
 
       let lineStatus: LineDiscrepancy['status'] = 'OK';
 
       if (qtyReceived === 0) {
         lineStatus = 'NOT_RECEIVED';
-        issues.push(`"${poItem.description}" : commandé mais pas encore réceptionné.`);
+        // Ne pas signaler comme erreur si la facture ne facture pas cette ligne
+        // C'est normal en cas de réception partielle
       } else if (qtyReceived > qtyOrdered) {
         lineStatus = 'OVER_INVOICED';
         issues.push(`"${poItem.description}" : reçu plus que commandé (${qtyReceived} > ${qtyOrdered}).`);
-      } else if (qtyReceived < qtyOrdered && Math.abs(discrepancyAmt) > 0.005) {
-        // Réception partielle : c'est OK si la facture correspond à ce qui a été reçu
-        // On ne signale PAS d'erreur ici, c'est normal
+      } else if (qtyReceived < qtyOrdered) {
+        // Réception partielle : c'est OK, on ne signale rien
         lineStatus = 'OK';
-      } else if (discrepancyPct > TOLERANCE_PCT) {
-        lineStatus = 'QTY_MISMATCH';
-        issues.push(`"${poItem.description}" : écart de quantité (commandé ${qtyOrdered}, reçu ${qtyReceived}).`);
       }
 
       lineDiscrepancies.push({
         description:        poItem.description,
         po_quantity:        qtyOrdered,
         received_quantity:  qtyReceived,
-        invoiced_quantity:  qtyOrdered, // simplification — on compare BC vs BR
+        invoiced_quantity:  qtyReceived, // On suppose que la facture = réception
         po_unit_price:      unitPrice,
         po_line_total:      poLineTotal,
         received_total:     receivedLineTotal,
@@ -264,13 +260,15 @@ export class ThreeWayMatchingService {
 
     // 8. Déterminer le statut global
     // LOGIQUE CORRIGÉE : 
-    // - Réception partielle = OK si facture correspond exactement à ce qui est reçu
+    // - Réception partielle = OK si facture correspond exactement à ce qui est reçu + timbre
     // - Surfacturation = LITIGE automatique
     // - Sous-facturation = OK (remise ou avoir)
-    const hasNotReceived  = lineDiscrepancies.some(l => l.status === 'NOT_RECEIVED');
+    // - Articles non reçus = OK si non facturés (réception partielle normale)
+    const hasNotReceivedAndInvoiced = lineDiscrepancies.some(l => 
+      l.status === 'NOT_RECEIVED' && l.received_quantity === 0 && invoicedTotal > receivedTotal
+    );
     const hasOverInvoiced = lineDiscrepancies.some(l => l.status === 'OVER_INVOICED');
-    const hasQtyMismatch  = lineDiscrepancies.some(l => l.status === 'QTY_MISMATCH');
-    const allOk           = lineDiscrepancies.every(l => l.status === 'OK');
+    const allOk           = lineDiscrepancies.every(l => l.status === 'OK' || (l.status === 'NOT_RECEIVED' && l.received_quantity === 0));
     const noGR            = goodsReceipts.length === 0;
 
     let status: MatchStatus;
@@ -289,13 +287,11 @@ export class ThreeWayMatchingService {
       status            = MatchStatus.OVER_INVOICED;
       shouldAutoDispute = discrepancyPct > 5;
       recommendations.push(`🚨 SURFACTURATION de ${Math.abs(totalDiscrep).toFixed(3)} TND (${discrepancyPct.toFixed(2)}%). Mise en litige ${discrepancyPct > 5 ? 'automatique' : 'recommandée'}.`);
-    } else if (hasNotReceived) {
-      status = MatchStatus.MISSING_GR;
-      recommendations.push('⚠️ Certains articles ne sont pas encore réceptionnés. Attendre la livraison complète.');
-    } else if (hasQtyMismatch) {
-      status            = MatchStatus.MISMATCH;
-      shouldAutoDispute = discrepancyPct > 5;
-      recommendations.push(`⚠️ Écart de quantité détecté (${discrepancyPct.toFixed(2)}%). ${discrepancyPct > 5 ? 'Litige automatique.' : 'Vérification manuelle requise.'}`);
+    } else if (hasNotReceivedAndInvoiced) {
+      // Facture des articles non reçus = problème
+      status = MatchStatus.MISMATCH;
+      shouldAutoDispute = true;
+      recommendations.push('🚨 LITIGE : Certains articles facturés n\'ont pas été réceptionnés.');
     } else if (discrepancyPct <= TOLERANCE_PCT) {
       // Facture correspond à la réception (même si réception partielle)
       status         = allOk ? MatchStatus.MATCHED : MatchStatus.PARTIAL_MATCH;
@@ -304,13 +300,14 @@ export class ThreeWayMatchingService {
       if (receivedTotal < poTotal) {
         // Réception partielle mais facture correcte
         const remaining = this.round(poTotal - receivedTotal);
-        recommendations.push(`✅ Réception partielle : facture conforme à la livraison. Reste à recevoir : ${remaining.toFixed(3)} TND.`);
+        const receivedPct = this.round((receivedTotal / poTotal) * 100);
+        recommendations.push(`✅ Réception partielle (${receivedPct.toFixed(0)}%) : facture conforme à la livraison. Reste à recevoir : ${remaining.toFixed(3)} TND.`);
       } else if (invoicedTotal < receivedTotal) {
         // Sous-facturation (remise ou avoir)
         recommendations.push(`✅ Sous-facturation de ${Math.abs(totalDiscrep).toFixed(3)} TND détectée. Vérifier si remise ou avoir appliqué.`);
       } else {
         // Correspondance parfaite
-        recommendations.push('✅ Rapprochement parfait : BC = BR = Facture. Approbation automatique recommandée.');
+        recommendations.push('✅ Rapprochement parfait : Facture = Réception + Timbre. Approbation automatique recommandée.');
       }
     } else {
       status = MatchStatus.PARTIAL_MATCH;
@@ -449,7 +446,7 @@ export class ThreeWayMatchingService {
     
     return {
       invoice_id:     invoice.id,
-      invoice_number: invoice.invoice_number_supplier,
+      invoice_number: invoice.invoice_number,
       supplier_name:  invoice.supplier?.name ?? '',
       supplier_email,
       po_number:      po?.po_number ?? null,
