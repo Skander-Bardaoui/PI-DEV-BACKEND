@@ -43,11 +43,16 @@ export class BusinessMember {
   is_active: boolean;
 
   @Column({ 
-    type: 'varchar', 
-    length: 6, 
-    default: '------' 
+    type: 'jsonb', 
+    default: {} 
   })
-  permissions: string;
+  collaboration_permissions: Record<string, boolean>;
+
+  @Column({ 
+    type: 'jsonb', 
+    default: {} 
+  })
+  stock_permissions: Record<string, boolean>;
 
   @Column({ nullable: true })
   invited_by: string; // User ID of who invited this member

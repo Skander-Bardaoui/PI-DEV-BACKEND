@@ -322,7 +322,8 @@ async getMembers(@Param('id') businessId: string) {
     return this.businessMembersService.updateMemberPermissions(
       businessId,
       userId,
-      updatePermissionsDto.permissions,
+      updatePermissionsDto.collaboration_permissions,
+      updatePermissionsDto.stock_permissions,
     );
   }
 

@@ -11,9 +11,17 @@ import { Repository } from 'typeorm';
 import { Role } from '../../users/enums/role.enum';
 import { BusinessMember } from '../../businesses/entities/business-member.entity';
 import { Task } from '../entities/task.entity';
-import { PermissionType, PermissionUtil } from '../../businesses/utils/permission.util';
 
 export const PERMISSION_KEY = 'permission';
+
+// Permission keys for collaboration
+export type CollaborationPermissionKey = 
+  | 'create_task'
+  | 'update_task'
+  | 'delete_task'
+  | 'add_member'
+  | 'kick_member'
+  | 'promote_member';
 
 @Injectable()
 export class CollaborationPermissionGuard implements CanActivate {
@@ -26,7 +34,7 @@ export class CollaborationPermissionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPermission = this.reflector.get<PermissionType>(
+    const requiredPermission = this.reflector.get<CollaborationPermissionKey>(
       PERMISSION_KEY,
       context.getHandler(),
     );
@@ -43,8 +51,8 @@ export class CollaborationPermissionGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    // Platform admin has all permissions
-    if (user.role === Role.PLATFORM_ADMIN) {
+    // Platform admin and business owner have all permissions
+    if (user.role === Role.PLATFORM_ADMIN || user.role === Role.BUSINESS_OWNER) {
       return true;
     }
 
@@ -89,11 +97,8 @@ export class CollaborationPermissionGuard implements CanActivate {
       throw new ForbiddenException('Not a member of this business');
     }
 
-    // Check permission
-    const hasPermission = PermissionUtil.hasPermission(
-      membership.permissions,
-      requiredPermission,
-    );
+    // Check permission using granular permissions
+    const hasPermission = membership.collaboration_permissions?.[requiredPermission] === true;
 
     if (!hasPermission) {
       throw new ForbiddenException('Insufficient permissions');
