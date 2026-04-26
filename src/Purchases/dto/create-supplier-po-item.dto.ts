@@ -31,4 +31,3 @@ export class CreateSupplierPOItemDto {
   @Min(0, { message: 'L\'ordre de tri ne peut pas être négatif' })
   sort_order?: number;
 }
-

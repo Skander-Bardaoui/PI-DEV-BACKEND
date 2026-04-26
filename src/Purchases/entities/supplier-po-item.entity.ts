@@ -42,6 +42,9 @@ export class SupplierPOItem {
   product: Product | null;
 
   // ── Données de la ligne ───────────────────────────────────────
+  @Column({ type: 'varchar', length: 20, default: 'PRODUCT' })
+  item_type: string; // 'PRODUCT' or 'SERVICE'
+
   @Column({ type: 'varchar', length: 500 })
   description: string;
 

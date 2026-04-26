@@ -10,8 +10,6 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
-  BadRequestException,
-  UsePipes,
 } from '@nestjs/common';
 import { AuthGuard }         from '@nestjs/passport';
 import { SupplierPOsService } from '../services/supplier-pos.service';
@@ -33,46 +31,14 @@ export class SupplierPOsController {
   // POST /businesses/:businessId/supplier-pos/generate-from-text
   // Génération de BC par IA à partir de texte naturel
   // IMPORTANT: Cette route doit être AVANT @Post() pour éviter les conflits
-  // DÉSACTIVER la validation Zod globale pour cette route car elle cause des problèmes
   @Post('generate-from-text')
   @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
   @HttpCode(HttpStatus.OK)
-  @UsePipes() // Désactive tous les pipes globaux pour cette route
   async generateFromText(
     @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Body() body: any,
+    @Body() dto: AiPOGeneratorDto,
   ): Promise<any> {
-    console.log('🔍 [Controller] Requête reçue pour generate-from-text');
-    console.log('🔍 [Controller] businessId:', businessId);
-    console.log('🔍 [Controller] Body brut reçu:', JSON.stringify(body));
-    console.log('🔍 [Controller] body.text:', body.text);
-    console.log('🔍 [Controller] Type de body.text:', typeof body.text);
-    
-    // Validation manuelle complète
-    if (!body) {
-      throw new BadRequestException('Le corps de la requête est vide');
-    }
-    
-    if (!body.text) {
-      throw new BadRequestException('Le champ "text" est obligatoire');
-    }
-    
-    if (typeof body.text !== 'string') {
-      throw new BadRequestException('Le champ "text" doit être une chaîne de caractères');
-    }
-    
-    const trimmedText = body.text.trim();
-    
-    if (trimmedText.length === 0) {
-      throw new BadRequestException('Le texte ne peut pas être vide');
-    }
-    
-    if (trimmedText.length > 5000) {
-      throw new BadRequestException('Le texte ne peut pas dépasser 5000 caractères');
-    }
-    
-    console.log('✅ [Controller] Validation réussie, appel du service...');
-    return this.aiGenerator.generateFromText(businessId, trimmedText);
+    return this.aiGenerator.generateFromText(businessId, dto.text);
   }
 
   // POST /businesses/:businessId/supplier-pos
