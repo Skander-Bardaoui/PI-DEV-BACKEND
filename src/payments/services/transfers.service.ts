@@ -2,12 +2,16 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Account }         from '../entities/account.entity';
 import { Transaction }     from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
+import { BusinessMember } from '../../businesses/entities/business-member.entity';
+import { Role } from '../../users/enums/role.enum';
+import { PermissionUtil } from '../../businesses/utils/permission.util';
 
 @Injectable()
 export class TransfersService {
@@ -18,13 +22,56 @@ export class TransfersService {
     @InjectRepository(Transaction)
     private readonly transactionRepo: Repository<Transaction>,
 
+    @InjectRepository(BusinessMember)
+    private readonly memberRepo: Repository<BusinessMember>,
+
     private readonly dataSource: DataSource,
   ) {}
+
+  // Check if user has payment permission
+  private async hasPaymentPermission(
+    userId: string,
+    businessId: string,
+    permissionKey: string,
+  ): Promise<boolean> {
+    const member = await this.memberRepo.findOne({
+      where: { user_id: userId, business_id: businessId, is_active: true },
+      relations: ['user'],
+    });
+
+    if (!member) {
+      return false;
+    }
+
+    // BUSINESS_OWNER always has full access
+    if (member.role === Role.BUSINESS_OWNER) {
+      return true;
+    }
+
+    // Check granular permission
+    return PermissionUtil.hasGranularPermission(
+      member.payment_permissions,
+      permissionKey,
+    );
+  }
 
   async create(businessId: string, userId: string, dto: any): Promise<{
     debit: Transaction;
     credit: Transaction;
   }> {
+    // Check permission
+    const hasPermission = await this.hasPaymentPermission(
+      userId,
+      businessId,
+      'create_transfer',
+    );
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        'You do not have permission to create transfers',
+      );
+    }
+
     return await this.dataSource.transaction(async (manager) => {
       // 1. Vérifier compte source
       const fromAccount = await manager.findOne(Account, {

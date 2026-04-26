@@ -324,6 +324,8 @@ async getMembers(@Param('id') businessId: string) {
       userId,
       updatePermissionsDto.collaboration_permissions,
       updatePermissionsDto.stock_permissions,
+      updatePermissionsDto.payment_permissions,
+      updatePermissionsDto.salary_permissions,
     );
   }
 

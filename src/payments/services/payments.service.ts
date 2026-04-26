@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -11,6 +12,9 @@ import { Transaction } from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { InvoiceStatus } from '../../sales/entities/invoice.entity';
 import { Invoice } from '../../sales/entities/invoice.entity';
+import { BusinessMember } from '../../businesses/entities/business-member.entity';
+import { Role } from '../../users/enums/role.enum';
+import { PermissionUtil } from '../../businesses/utils/permission.util';
 
 @Injectable()
 export class PaymentsService {
@@ -27,10 +31,53 @@ export class PaymentsService {
     @InjectRepository(Invoice)
     private readonly invoiceRepo: Repository<Invoice>,
 
+    @InjectRepository(BusinessMember)
+    private readonly memberRepo: Repository<BusinessMember>,
+
     private readonly dataSource: DataSource,
   ) {}
 
+  // Check if user has payment permission
+  private async hasPaymentPermission(
+    userId: string,
+    businessId: string,
+    permissionKey: string,
+  ): Promise<boolean> {
+    const member = await this.memberRepo.findOne({
+      where: { user_id: userId, business_id: businessId, is_active: true },
+      relations: ['user'],
+    });
+
+    if (!member) {
+      return false;
+    }
+
+    // BUSINESS_OWNER always has full access
+    if (member.role === Role.BUSINESS_OWNER) {
+      return true;
+    }
+
+    // Check granular permission
+    return PermissionUtil.hasGranularPermission(
+      member.payment_permissions,
+      permissionKey,
+    );
+  }
+
   async create(businessId: string, userId: string, dto: any): Promise<Payment> {
+    // Check permission
+    const hasPermission = await this.hasPaymentPermission(
+      userId,
+      businessId,
+      'create_client_payment',
+    );
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        'You do not have permission to create client payments',
+      );
+    }
+
     return await this.dataSource.transaction(async (manager) => {
       // 1. Vérifier la facture
       const invoice = await manager.findOne(Invoice, {

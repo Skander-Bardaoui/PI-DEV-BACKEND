@@ -2,6 +2,7 @@
 import {
   Injectable, NotFoundException,
   BadRequestException, ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -19,6 +20,9 @@ import { CreatePaymentScheduleDto, PayInstallmentDto } from '../dto/payment-sche
 import { InstallmentStatus }          from '../enums/installment-status';
 import { EmailService }               from 'src/email/email.service';
 import { Supplier }                   from '../../Purchases/entities/supplier.entity';
+import { BusinessMember } from '../../businesses/entities/business-member.entity';
+import { Role } from '../../users/enums/role.enum';
+import { PermissionUtil } from '../../businesses/utils/permission.util';
 
 @Injectable()
 export class PaymentScheduleService {
@@ -38,9 +42,39 @@ export class PaymentScheduleService {
     @InjectRepository(Supplier)
     private readonly supplierRepo: Repository<Supplier>,
 
+    @InjectRepository(BusinessMember)
+    private readonly memberRepo: Repository<BusinessMember>,
+
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
   ) {}
+
+  // Check if user has payment permission
+  private async hasPaymentPermission(
+    userId: string,
+    businessId: string,
+    permissionKey: string,
+  ): Promise<boolean> {
+    const member = await this.memberRepo.findOne({
+      where: { user_id: userId, business_id: businessId, is_active: true },
+      relations: ['user'],
+    });
+
+    if (!member) {
+      return false;
+    }
+
+    // BUSINESS_OWNER always has full access
+    if (member.role === Role.BUSINESS_OWNER) {
+      return true;
+    }
+
+    // Check granular permission
+    return PermissionUtil.hasGranularPermission(
+      member.payment_permissions,
+      permissionKey,
+    );
+  }
 
   // ──────────────────────────────────────────────────────────────────
   // CREATE SCHEDULE  →  sends approval email to supplier
@@ -50,6 +84,18 @@ export class PaymentScheduleService {
     userId: string,
     dto: CreatePaymentScheduleDto,
   ): Promise<PaymentSchedule> {
+    // Check permission
+    const hasPermission = await this.hasPaymentPermission(
+      userId,
+      businessId,
+      'create_schedule',
+    );
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        'You do not have permission to create payment schedules',
+      );
+    }
 
     const schedule = await this.dataSource.transaction(async (manager) => {
 
@@ -186,6 +232,19 @@ export class PaymentScheduleService {
     installmentId: string,
     dto: PayInstallmentDto,
   ): Promise<PaymentScheduleInstallment> {
+    // Check permission
+    const hasPermission = await this.hasPaymentPermission(
+      userId,
+      businessId,
+      'pay_installment',
+    );
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        'You do not have permission to pay installments',
+      );
+    }
+
     return this.dataSource.transaction(async (manager) => {
 
       const installment = await manager.findOne(PaymentScheduleInstallment, {

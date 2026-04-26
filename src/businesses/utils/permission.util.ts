@@ -222,6 +222,93 @@ export class PermissionUtil {
   }
 
   /**
+   * Get default payment permissions for a role
+   */
+  static getRoleDefaultPaymentPermissions(role: Role): Record<string, boolean> {
+    const defaults: Record<string, Record<string, boolean>> = {
+      [Role.BUSINESS_OWNER]: {
+        create_client_payment: true,
+        delete_client_payment: true,
+        create_supplier_payment: true,
+        delete_supplier_payment: true,
+        create_schedule: true,
+        update_schedule: true,
+        delete_schedule: true,
+        pay_installment: true,
+        create_account: true,
+        update_account: true,
+        delete_account: true,
+        create_transfer: true,
+        delete_transfer: true,
+      },
+      [Role.BUSINESS_ADMIN]: {
+        create_client_payment: true,
+        delete_client_payment: false,
+        create_supplier_payment: true,
+        delete_supplier_payment: false,
+        create_schedule: true,
+        update_schedule: true,
+        delete_schedule: false,
+        pay_installment: true,
+        create_account: false,
+        update_account: false,
+        delete_account: false,
+        create_transfer: true,
+        delete_transfer: false,
+      },
+      [Role.TEAM_MEMBER]: {
+        create_client_payment: false,
+        delete_client_payment: false,
+        create_supplier_payment: false,
+        delete_supplier_payment: false,
+        create_schedule: false,
+        update_schedule: false,
+        delete_schedule: false,
+        pay_installment: false,
+        create_account: false,
+        update_account: false,
+        delete_account: false,
+        create_transfer: false,
+        delete_transfer: false,
+      },
+      [Role.ACCOUNTANT]: {
+        create_client_payment: true,
+        delete_client_payment: false,
+        create_supplier_payment: true,
+        delete_supplier_payment: false,
+        create_schedule: true,
+        update_schedule: false,
+        delete_schedule: false,
+        pay_installment: true,
+        create_account: false,
+        update_account: false,
+        delete_account: false,
+        create_transfer: false,
+        delete_transfer: false,
+      },
+      [Role.CLIENT]: {},
+      [Role.SUPPLIER]: {},
+      [Role.PLATFORM_ADMIN]: {
+        create_client_payment: true,
+        delete_client_payment: true,
+        create_supplier_payment: true,
+        delete_supplier_payment: true,
+        create_schedule: true,
+        update_schedule: true,
+        delete_schedule: true,
+        pay_installment: true,
+        create_account: true,
+        update_account: true,
+        delete_account: true,
+        create_transfer: true,
+        delete_transfer: true,
+      },
+    };
+    
+    return defaults[role] || {};
+  }
+
+  /**
    * Check if a member has a specific granular permission
    */
   static hasGranularPermission(

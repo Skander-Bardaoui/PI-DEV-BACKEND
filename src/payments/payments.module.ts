@@ -31,6 +31,7 @@ import { EmailModule }                from 'src/email/email.module';
 import { SalaryProposal }             from './entities/salary-proposal.entity';
 import { Supplier } from '../Purchases/entities/supplier.entity';
 import { SupplierSchedulePublicController } from './controllers/supplier-schedule-public.controller';
+import { SalaryPermissionGuard } from './guards/salary-permission.guard';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { SupplierSchedulePublicController } from './controllers/supplier-schedul
     PaymentScheduleService,
     SalaryService,
     ForecastService,
+    SalaryPermissionGuard,
   ],
   exports: [
     AccountsService,
