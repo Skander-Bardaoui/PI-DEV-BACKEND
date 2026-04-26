@@ -10,7 +10,7 @@ import { Repository } from 'typeorm';
 import { Task, TaskStatus } from './entities/task.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { Role } from '../users/enums/role.enum';
-import { PermissionUtil, PermissionType } from '../businesses/utils/permission.util';
+import { PermissionUtil } from '../businesses/utils/permission.util';
 
 @Injectable()
 export class TasksService {

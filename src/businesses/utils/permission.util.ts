@@ -101,7 +101,7 @@ export class PermissionUtil {
       },
     };
     
-    return defaults[role] || {};
+    return defaults[role] ?? {};
   }
 
   /**
@@ -218,7 +218,7 @@ export class PermissionUtil {
       },
     };
     
-    return defaults[role] || {};
+    return defaults[role] ?? {};
   }
 
   /**
@@ -228,10 +228,7 @@ export class PermissionUtil {
     permissions: Record<string, boolean> | undefined,
     permissionKey: string,
   ): boolean {
-    if (!permissions) {
-      return false;
-    }
-    return permissions[permissionKey] === true;
+    return permissions?.[permissionKey] === true;
   }
 
   /**
@@ -250,5 +247,23 @@ export class PermissionUtil {
     const permissionChars = ['c', 'u', 'd', 'a', 'k', 'p'];
     chars[type] = granted ? permissionChars[type] : '-';
     return chars.join('');
+  }
+
+  /**
+   * Get default permissions string for a role (legacy format)
+   * This method is used by tests and maintains backward compatibility
+   */
+  static getRoleDefaultPermissions(role: Role): string {
+    const defaults: Record<string, string> = {
+      [Role.BUSINESS_OWNER]: 'cudakp',
+      [Role.BUSINESS_ADMIN]: 'cud---',
+      [Role.TEAM_MEMBER]: '-u----',
+      [Role.ACCOUNTANT]: '-u----',
+      [Role.CLIENT]: '------',
+      [Role.SUPPLIER]: '------',
+      [Role.PLATFORM_ADMIN]: 'cudakp',
+    };
+    
+    return defaults[role] ?? '------';
   }
 }

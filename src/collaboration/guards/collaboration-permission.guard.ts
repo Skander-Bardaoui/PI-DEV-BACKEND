@@ -26,11 +26,11 @@ export type CollaborationPermissionKey =
 @Injectable()
 export class CollaborationPermissionGuard implements CanActivate {
   constructor(
-    private reflector: Reflector,
+    private readonly reflector: Reflector,
     @InjectRepository(BusinessMember)
-    private businessMemberRepository: Repository<BusinessMember>,
+    private readonly businessMemberRepository: Repository<BusinessMember>,
     @InjectRepository(Task)
-    private taskRepository: Repository<Task>,
+    private readonly taskRepository: Repository<Task>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

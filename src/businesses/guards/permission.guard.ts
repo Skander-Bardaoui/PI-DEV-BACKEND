@@ -17,9 +17,9 @@ export const PERMISSION_KEY = 'permission';
 @Injectable()
 export class PermissionGuard implements CanActivate {
   constructor(
-    private reflector: Reflector,
+    private readonly reflector: Reflector,
     @InjectRepository(BusinessMember)
-    private businessMemberRepository: Repository<BusinessMember>,
+    private readonly businessMemberRepository: Repository<BusinessMember>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

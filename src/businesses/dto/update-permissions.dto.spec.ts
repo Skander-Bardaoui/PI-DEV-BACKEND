@@ -121,8 +121,6 @@ describe('UpdatePermissionsDto', () => {
 
   describe('Non-string values', () => {
     const nonStringValues = [
-      { value: null, description: 'null' },
-      { value: undefined, description: 'undefined' },
       { value: 123456, description: 'number' },
       { value: ['c', 'u', 'd', 'a', 'k', 'p'], description: 'array' },
       { value: { permissions: 'cudakp' }, description: 'object' },
@@ -139,6 +137,18 @@ describe('UpdatePermissionsDto', () => {
         const permissionsError = errors.find(error => error.property === 'permissions');
         expect(permissionsError).toBeDefined();
       });
+    });
+
+    it('should allow null value since field is optional', async () => {
+      dto.permissions = null as any;
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('should allow undefined value since field is optional', async () => {
+      dto.permissions = undefined;
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
     });
   });
 
