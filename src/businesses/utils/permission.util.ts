@@ -101,7 +101,7 @@ export class PermissionUtil {
       },
     };
     
-    return defaults[role] || {};
+    return defaults[role] ?? {};
   }
 
   /**
@@ -218,7 +218,7 @@ export class PermissionUtil {
       },
     };
     
-    return defaults[role] || {};
+    return defaults[role] ?? {};
   }
 
   /**
@@ -228,10 +228,7 @@ export class PermissionUtil {
     permissions: Record<string, boolean> | undefined,
     permissionKey: string,
   ): boolean {
-    if (!permissions) {
-      return false;
-    }
-    return permissions[permissionKey] === true;
+    return permissions?.[permissionKey] === true;
   }
 
   /**
@@ -267,6 +264,6 @@ export class PermissionUtil {
       [Role.PLATFORM_ADMIN]: 'cudakp',
     };
     
-    return defaults[role] || '------';
+    return defaults[role] ?? '------';
   }
 }
