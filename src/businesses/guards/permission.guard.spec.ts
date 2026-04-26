@@ -6,7 +6,6 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PermissionGuard } from './permission.guard';
 import { BusinessMember } from '../entities/business-member.entity';
-import { PermissionType } from '../utils/permission.util';
 import { Role } from '../../users/enums/role.enum';
 
 describe('PermissionGuard', () => {
@@ -74,7 +73,7 @@ describe('PermissionGuard', () => {
     });
 
     it('should allow access for platform admin', async () => {
-      mockReflector.get.mockReturnValue(PermissionType.CREATE);
+      mockReflector.get.mockReturnValue('create_task');
 
       const user = { id: 'user1', role: Role.PLATFORM_ADMIN };
       const context = createMockExecutionContext(user, { id: 'business1' });
@@ -85,7 +84,7 @@ describe('PermissionGuard', () => {
     });
 
     it('should throw ForbiddenException when user is not authenticated', async () => {
-      mockReflector.get.mockReturnValue(PermissionType.CREATE);
+      mockReflector.get.mockReturnValue('create_task');
 
       const context = createMockExecutionContext(null, { id: 'business1' });
 
@@ -95,7 +94,7 @@ describe('PermissionGuard', () => {
     });
 
     it('should throw ForbiddenException when business ID is missing', async () => {
-      mockReflector.get.mockReturnValue(PermissionType.CREATE);
+      mockReflector.get.mockReturnValue('create_task');
 
       const user = { id: 'user1', role: Role.TEAM_MEMBER };
       const context = createMockExecutionContext(user, {});
@@ -106,7 +105,7 @@ describe('PermissionGuard', () => {
     });
 
     it('should throw ForbiddenException when user is not a business member', async () => {
-      mockReflector.get.mockReturnValue(PermissionType.CREATE);
+      mockReflector.get.mockReturnValue('create_task');
       mockBusinessMemberRepository.findOne.mockResolvedValue(null);
 
       const user = { id: 'user1', role: Role.TEAM_MEMBER };
@@ -126,14 +125,15 @@ describe('PermissionGuard', () => {
     });
 
     it('should allow access when user has required permission', async () => {
-      mockReflector.get.mockReturnValue(PermissionType.CREATE);
+      mockReflector.get.mockReturnValue('create_task');
       
       const membership = {
         id: 'member1',
         business_id: 'business1',
         user_id: 'user1',
-        permissions: 'c-----', // Has CREATE permission
+        collaboration_permissions: { create_task: true }, // Has CREATE permission
         is_active: true,
+        role: Role.TEAM_MEMBER,
       };
       mockBusinessMemberRepository.findOne.mockResolvedValue(membership);
 
@@ -146,14 +146,15 @@ describe('PermissionGuard', () => {
     });
 
     it('should throw ForbiddenException when user lacks required permission', async () => {
-      mockReflector.get.mockReturnValue(PermissionType.CREATE);
+      mockReflector.get.mockReturnValue('create_task');
       
       const membership = {
         id: 'member1',
         business_id: 'business1',
         user_id: 'user1',
-        permissions: '------', // No permissions
+        collaboration_permissions: { create_task: false }, // No permission
         is_active: true,
+        role: Role.TEAM_MEMBER,
       };
       mockBusinessMemberRepository.findOne.mockResolvedValue(membership);
 
@@ -166,14 +167,15 @@ describe('PermissionGuard', () => {
     });
 
     it('should work with businessId parameter', async () => {
-      mockReflector.get.mockReturnValue(PermissionType.UPDATE);
+      mockReflector.get.mockReturnValue('update_task');
       
       const membership = {
         id: 'member1',
         business_id: 'business1',
         user_id: 'user1',
-        permissions: '-u----', // Has UPDATE permission
+        collaboration_permissions: { update_task: true }, // Has UPDATE permission
         is_active: true,
+        role: Role.TEAM_MEMBER,
       };
       mockBusinessMemberRepository.findOne.mockResolvedValue(membership);
 
