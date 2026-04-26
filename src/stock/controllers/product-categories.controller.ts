@@ -31,7 +31,7 @@ export class ProductCategoriesController {
   constructor(
     private readonly categoriesService: ProductCategoriesService,
     @InjectRepository(BusinessMember)
-    private businessMemberRepository: Repository<BusinessMember>,
+    private readonly businessMemberRepository: Repository<BusinessMember>,
   ) {}
 
   /**

@@ -76,22 +76,22 @@ async validateUser(email: string, password: string): Promise<User | null> {
 
 // src/auth/auth.service.ts
 async register(registerDto: RegisterDto, res: Response) {
-  // Check if user already exists
-  const existingUser = await this.usersRepository.findOne({
-    where: { email: registerDto.email },
-  });
-
-  if (existingUser) {
-    throw new BadRequestException('Email already registered');
-  }
-
   // Use queryRunner for transaction
   const queryRunner = this.usersRepository.manager.connection.createQueryRunner();
   await queryRunner.connect();
   await queryRunner.startTransaction();
 
   try {
-    // 1. Create the user
+    // 1. Check if user already exists (inside transaction to prevent race conditions)
+    const existingUser = await queryRunner.manager.findOne(User, {
+      where: { email: registerDto.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Email already registered');
+    }
+
+    // 2. Create the user
     // 🔐 Security: Use 12 rounds for bcrypt (more secure)
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);
     const user = queryRunner.manager.create(User, {
@@ -106,7 +106,7 @@ async register(registerDto: RegisterDto, res: Response) {
     });
     await queryRunner.manager.save(user);
 
-    // 2. Create the tenant
+    // 3. Create the tenant
     const tenant = queryRunner.manager.create(Tenant, {
       name: registerDto.tenant.name,
       domain: registerDto.tenant.domain,
@@ -118,7 +118,7 @@ async register(registerDto: RegisterDto, res: Response) {
     });
     await queryRunner.manager.save(tenant);
 
-    // 3. Create the business
+    // 4. Create the business
     const business = queryRunner.manager.create(Business, {
       tenant_id: tenant.id,
       name: registerDto.business.name,
@@ -130,7 +130,7 @@ async register(registerDto: RegisterDto, res: Response) {
     });
     await queryRunner.manager.save(business);
 
-    // 4. Create the default tax rate
+    // 5. Create the default tax rate
     const taxRate = queryRunner.manager.create(TaxRate, {
       business_id: business.id,
       name: registerDto.taxRate.name,
@@ -139,7 +139,7 @@ async register(registerDto: RegisterDto, res: Response) {
     });
     await queryRunner.manager.save(taxRate);
 
-    // 5. Create email verification token
+    // 6. Create email verification token
     const verificationToken = uuidv4();
     const expires_at = new Date();
     expires_at.setHours(expires_at.getHours() + 24); // 24 hours
@@ -153,18 +153,17 @@ async register(registerDto: RegisterDto, res: Response) {
     });
     await queryRunner.manager.save(resetToken);
 
-    // Commit transaction
+    // 7. Commit transaction
     await queryRunner.commitTransaction();
 
-    // 6. Send verification email
+    // 8. Send verification email (after commit, so we don't send email if transaction fails)
     const fullName = `${user.firstName} ${user.lastName}`;
     await this.emailService.sendVerificationEmail(user.email, verificationToken, fullName);
 
-    // 7. Generate tokens and set cookies (user can use the app but should verify email)
-    await this.generateTokensAndSetCookies(user, res);
-
+    // 9. Return success response WITHOUT generating tokens
+    // User must log in manually to get tokens
     return {
-      message: 'Registration successful. Please check your email to verify your account.',
+      message: 'Registration successful. Please log in with your credentials.',
       user: {
         id: user.id,
         email: user.email,

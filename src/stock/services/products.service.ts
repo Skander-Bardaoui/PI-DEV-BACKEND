@@ -17,7 +17,7 @@ import { generateInternalBarcode } from '../utils/barcode.util';
 import { Business } from '../../businesses/entities/business.entity';
 import { BusinessMember } from '../../businesses/entities/business-member.entity';
 import { Role } from '../../users/enums/role.enum';
-import { PermissionUtil, PermissionType } from '../../businesses/utils/permission.util';
+import { PermissionUtil } from '../../businesses/utils/permission.util';
 import { AuditLogService } from '../../common/services/audit-log.service';
 import { AuditAction, AuditEntityType } from '../../common/entities/audit-log.entity';
 

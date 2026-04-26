@@ -42,7 +42,7 @@ export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     @InjectRepository(BusinessMember)
-    private businessMemberRepository: Repository<BusinessMember>,
+    private readonly businessMemberRepository: Repository<BusinessMember>,
   ) {}
 
   private transformFrontendDto(frontendDto: any): any {
