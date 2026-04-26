@@ -9,7 +9,7 @@ import { DailyCheckin } from './entities/daily-checkin.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
-import { Task, TaskStatus } from './entities/task.entity';
+import { Task } from './entities/task.entity';
 import { Role } from '../users/enums/role.enum';
 import { CreateCheckinDto } from './dto/create-checkin.dto';
 
@@ -32,8 +32,23 @@ export class DailyCheckinsService {
     private tenantRepo: Repository<Tenant>,
   ) {}
 
+  // ─── Verify business membership ────────────────────
+  async hasAccess(userId: string, businessId: string): Promise<boolean> {
+    const member = await this.memberRepo.findOne({
+      where: { user_id: userId, business_id: businessId, is_active: true },
+    });
+
+    return !!member;
+  }
+
   // ─── CREATE CHECK-IN ───────────────────────────────
   async createCheckin(dto: CreateCheckinDto, userId: string) {
+    // Verify user is member of business
+    const hasAccess = await this.hasAccess(userId, dto.businessId);
+    if (!hasAccess) {
+      throw new ForbiddenException('Not a member of this business');
+    }
+
     // Verify user is TEAM_MEMBER or ACCOUNTANT
     const member = await this.memberRepo.findOne({
       where: { user_id: userId, business_id: dto.businessId },
@@ -101,53 +116,10 @@ export class DailyCheckinsService {
   async getBusinessCheckinsToday(businessId: string, userId: string) {
     console.log('🔍 Getting business checkins for:', { businessId, userId });
     
-    // Verify user has access to this business (either as member or through tenant)
-    const member = await this.memberRepo.findOne({
-      where: { user_id: userId, business_id: businessId },
-      relations: ['business', 'business.tenant'],
-    });
-
-    console.log('👤 Member found:', member ? { id: member.id, role: member.role } : null);
-
-    // If not found as member, check if user owns the tenant that owns this business
-    if (!member) {
-      // Try to find the business and check tenant ownership
-      const business = await this.businessRepo.findOne({
-        where: { id: businessId },
-        relations: ['tenant'],
-      });
-
-      console.log('🏢 Business found:', business ? { id: business.id, tenant_id: business.tenant_id } : null);
-
-      if (!business) {
-        throw new ForbiddenException('Business not found');
-      }
-
-      // Check if user is the tenant owner
-      const tenant = await this.tenantRepo.findOne({
-        where: { id: business.tenant_id },
-      });
-
-      console.log('🏛️ Tenant found:', tenant ? { id: tenant.id, ownerId: tenant.ownerId } : null);
-
-      if (!tenant || tenant.ownerId !== userId) {
-        throw new ForbiddenException('Not a member of this business');
-      }
-
-      // User is tenant owner, they have full access
-      console.log('✅ User is tenant owner, granting access');
-    } else {
-      // User is a member, check their role
-      console.log('🔐 Member role:', member.role);
-
-      if (
-        member.role !== Role.BUSINESS_OWNER &&
-        member.role !== Role.BUSINESS_ADMIN
-      ) {
-        throw new ForbiddenException(
-          'Only OWNER and ADMIN can view business check-ins',
-        );
-      }
+    // Verify user is member of business
+    const hasAccess = await this.hasAccess(userId, businessId);
+    if (!hasAccess) {
+      throw new ForbiddenException('Not a member of this business');
     }
 
     // Get all team members and accountants

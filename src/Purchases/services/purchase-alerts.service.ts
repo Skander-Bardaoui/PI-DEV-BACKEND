@@ -130,10 +130,10 @@ import { AlertSeverity } from '../enum/alertSeverity';
             type:         AlertType.INVOICE_DUE_SOON,
             severity:     days === 1 ? AlertSeverity.DANGER : days === 3 ? AlertSeverity.WARNING : AlertSeverity.INFO,
             title:        `Facture à payer dans ${days} jour${days > 1 ? 's' : ''}`,
-            message:      `La facture ${inv.invoice_number_supplier} de ${inv.supplier?.name} arrive à échéance le ${new Date(inv.due_date).toLocaleDateString('fr-TN')}. Reste à payer : ${remaining.toFixed(3)} TND.`,
+            message:      `La facture ${inv.invoice_number} de ${inv.supplier?.name} arrive à échéance le ${new Date(inv.due_date).toLocaleDateString('fr-TN')}. Reste à payer : ${remaining.toFixed(3)} TND.`,
             entity_type:  'PurchaseInvoice',
             entity_id:    inv.id,
-            entity_label: inv.invoice_number_supplier,
+            entity_label: inv.invoice_number,
             metadata:     { days_remaining: days, remaining_amount: remaining, supplier_name: inv.supplier?.name },
           });
 

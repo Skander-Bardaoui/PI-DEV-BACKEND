@@ -6,6 +6,7 @@ import { BusinessesService } from './businesses.service';
 import { BusinessMembersService } from './services/business-members.service';
 import { InvitationsService } from './services/invitations.service';
 import { BusinessesController } from './businesses.controller';
+import { PermissionGuard } from './guards/permission.guard';
 import {
   InvitationsController,
   BusinessInvitationsController,
@@ -31,7 +32,7 @@ import { User } from '../users/entities/user.entity';
       User,
     ]),
   ],
-  providers: [BusinessesService, BusinessMembersService, InvitationsService],
+  providers: [BusinessesService, BusinessMembersService, InvitationsService, PermissionGuard],
   controllers: [
     BusinessesController,
     InvitationsController,
@@ -41,6 +42,7 @@ import { User } from '../users/entities/user.entity';
     BusinessesService, 
     BusinessMembersService, 
     InvitationsService,
+    PermissionGuard, // Export PermissionGuard for use in other modules
     TypeOrmModule, // Export TypeOrmModule to make repositories available
   ],
 })

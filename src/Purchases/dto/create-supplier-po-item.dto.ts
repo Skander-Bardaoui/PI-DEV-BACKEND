@@ -1,16 +1,7 @@
 import { Type } from 'class-transformer';
-import { IsUUID, IsDate, IsArray, ArrayMinSize, ArrayMaxSize, IsInt, IsPositive, IsOptional, IsString, IsNotEmpty, MaxLength, IsNumber, Min, Max, ValidateNested, IsEnum } from 'class-validator';
-
-export enum ItemType {
-  PRODUCT = 'PRODUCT',
-  SERVICE = 'SERVICE',
-}
+import { IsUUID, IsDate, IsArray, ArrayMinSize, ArrayMaxSize, IsInt, IsPositive, IsOptional, IsString, IsNotEmpty, MaxLength, IsNumber, Min, Max, ValidateNested } from 'class-validator';
  
 export class CreateSupplierPOItemDto {
-  @IsOptional()
-  @IsEnum(ItemType, { message: 'Le type d\'article doit être PRODUCT ou SERVICE' })
-  item_type?: ItemType;
-
   @IsOptional() 
   @IsUUID('4', { message: 'Produit invalide' }) 
   product_id?: string;
@@ -40,4 +31,3 @@ export class CreateSupplierPOItemDto {
   @Min(0, { message: 'L\'ordre de tri ne peut pas être négatif' })
   sort_order?: number;
 }
-

@@ -167,7 +167,7 @@
     async findAllByPO(businessId: string, poId: string): Promise<GoodsReceipt[]> {
       await this.supplierPOsService.findOne(businessId, poId);
       return this.grRepo.find({
-        where:     { supplier_po_id: poId, business_id: businessId },
+        where:     { supplier_po_id: poId, business_id: businessId, is_invoiced: false },
         relations: ['items', 'items.supplier_po_item'],
         order:     { created_at: 'DESC' },
       });

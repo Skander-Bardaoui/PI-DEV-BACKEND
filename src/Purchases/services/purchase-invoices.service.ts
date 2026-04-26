@@ -49,8 +49,13 @@ export class PurchaseInvoicesService {
       ? new Date(dto.due_date)
       : new Date(new Date(dto.invoice_date).getTime() + dueDelta * 86_400_000);
 
+    // Générer le numéro de facture interne automatiquement
+    const invoice_number = await this.generateInvoiceNumber(businessId);
+
     const inv = this.invRepo.create({
       ...dto,
+      invoice_number,           // Numéro interne auto-généré
+      invoice_number_supplier: null, // Pas de numéro fournisseur
       business_id:   businessId,
       timbre_fiscal: timbre,
       net_amount:    net,
@@ -59,7 +64,17 @@ export class PurchaseInvoicesService {
       due_date:      dueDate,
     });
 
-    return this.invRepo.save(inv);
+    const savedInvoice = await this.invRepo.save(inv);
+
+    // Si la facture est liée à un bon de réception, marquer le BR comme facturé
+    if (dto.goods_receipt_id) {
+      await this.invRepo.manager.query(
+        `UPDATE goods_receipts SET is_invoiced = true WHERE id = $1 AND business_id = $2`,
+        [dto.goods_receipt_id, businessId]
+      );
+    }
+
+    return savedInvoice;
   }
   // ─── FIND ALL (avec tri côté backend) ─────────────────────────────────────────
   async findAll(businessId: string, query: any) {
@@ -243,6 +258,26 @@ async approve(businessId: string, id: string): Promise<PurchaseInvoice> {
 
   private round(v: number): number {
     return Math.round(v * 1000) / 1000;
+  }
+
+  /**
+   * Génère un numéro de facture unique au format FACT-YYYY-NNNN
+   * Ex: FACT-2026-0001, FACT-2026-0002, etc.
+   */
+  private async generateInvoiceNumber(businessId: string): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `FACT-${year}-`;
+
+    // Trouver le dernier numéro de séquence pour cette année
+    const result = await this.invRepo.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(invoice_number FROM LENGTH($2) + 1) AS INTEGER)), 0) + 1 AS next_seq
+       FROM purchase_invoices
+       WHERE business_id = $1 AND invoice_number LIKE $2 || '%'`,
+      [businessId, prefix],
+    );
+
+    const seq = String(result[0]?.next_seq ?? 1).padStart(4, '0');
+    return `${prefix}${seq}`;
   }
 
 

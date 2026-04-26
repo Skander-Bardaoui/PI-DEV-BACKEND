@@ -19,11 +19,13 @@ import { BusinessesService } from './businesses.service';
 import { BusinessMembersService } from './services/business-members.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { BusinessAccessGuard } from './guards/business-access.guard';
+import { PermissionGuard } from './guards/permission.guard';
 import { Role } from '../users/enums/role.enum';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { UpdateBusinessSettingsDto } from './dto/update-business-settings.dto';
 import { QueryBusinessesDto } from './dto/query-businesses.dto';
+import { UpdatePermissionsDto } from './dto/update-permissions.dto';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { UpdateTaxRateDto } from './dto/update-tax-rate.dto';
 import { CreateTaxRateDto } from './dto/create-tax-rate.dto';
@@ -299,5 +301,36 @@ async getMembers(@Param('id') businessId: string) {
     );
     console.log('Update member role result:', result);
     return result;
+  }
+
+  // PATCH /businesses/:id/members/:userId/permissions
+  @Patch(':id/members/:userId/permissions')
+  @UseGuards(AuthGuard('jwt'), RolesGuard, BusinessAccessGuard, PermissionGuard)
+  @Roles(Role.BUSINESS_OWNER)
+  @OwnerOnly()
+  async updateMemberPermissions(
+    @Param('id') businessId: string,
+    @Param('userId') userId: string,
+    @Body() updatePermissionsDto: UpdatePermissionsDto,
+    @Request() req,
+  ) {
+    // Prevent self-modification
+    if (req.user.id === userId) {
+      throw new BadRequestException('Cannot modify your own permissions');
+    }
+
+    return this.businessMembersService.updateMemberPermissions(
+      businessId,
+      userId,
+      updatePermissionsDto.collaboration_permissions,
+      updatePermissionsDto.stock_permissions,
+    );
+  }
+
+  // POST /businesses/seed-permissions - Admin endpoint to seed existing members
+  @Post('seed-permissions')
+  @Roles(Role.PLATFORM_ADMIN)
+  async seedMemberPermissions() {
+    return this.businessMembersService.seedExistingMembersWithDefaultPermissions();
   }
 }

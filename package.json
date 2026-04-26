@@ -17,7 +17,11 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed:permissions": "ts-node src/scripts/seed-member-permissions.ts",
+    "check:permissions": "npm run build && node dist/scripts/check-member-permissions.js",
+    "test:permission-utils": "npm run build && node dist/scripts/test-permission-utils.js",
+    "fix:permissions": "npm run build && node dist/scripts/fix-permission-format.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -47,7 +51,9 @@
     "dotenv": "^17.2.3",
     "groq-sdk": "^1.1.2",
     "helmet": "^8.1.0",
+
     "libphonenumber-js": "^1.12.41",
+
     "multer": "^2.0.2",
     "nestjs-zod": "^5.3.0",
     "node-tesseract-ocr": "^2.2.1",

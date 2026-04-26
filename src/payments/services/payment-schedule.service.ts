@@ -273,7 +273,7 @@ export class PaymentScheduleService {
         type:                TransactionType.DECAISSEMENT,
         amount:              installment.amount,
         transaction_date:    dto.paid_at ?? new Date().toISOString().slice(0, 10),
-        description:         `Installment #${installment.installment_number} — ${invoice.invoice_number_supplier}`,
+        description:         `Installment #${installment.installment_number} — ${invoice.invoice_number}`,
         reference:           dto.reference ?? null,
         notes:               dto.notes ?? null,
         related_entity_type: 'PaymentScheduleInstallment',
@@ -354,7 +354,7 @@ export class PaymentScheduleService {
   await this.emailService.sendPaymentScheduleApprovalEmail(
     supplier.email!,
     supplier.name,
-    invoice.invoice_number_supplier,
+    invoice.invoice_number,
     Number(schedule.total_amount),
     schedule.installments.map((i) => ({
       installment_number: i.installment_number,

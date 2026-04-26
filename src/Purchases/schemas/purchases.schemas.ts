@@ -562,7 +562,6 @@ export class SupplierInviteDto extends createZodDto(supplierInviteSchema) {}
 export const aiPOGeneratorSchema = z.object({
   text: z
     .string()
-    .trim()
     .min(1, 'Le texte est obligatoire')
     .max(5000, 'Le texte ne peut pas dépasser 5000 caractères'),
 });
