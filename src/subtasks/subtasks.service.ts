@@ -29,6 +29,10 @@ export class SubtasksService {
     });
   }
 
+  async findOne(id: string): Promise<Subtask | null> {
+    return this.subtaskRepository.findOne({ where: { id } });
+  }
+
   async getTaskProgress(taskId: string): Promise<{ completed: number; total: number; percentage: number }> {
     const subtasks = await this.findByTask(taskId);
     const total = subtasks.length;
