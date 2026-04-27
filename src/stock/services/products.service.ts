@@ -16,6 +16,8 @@ import { QueryProductsDto, ProductSortBy } from '../dto/query-products.dto';
 import { generateInternalBarcode } from '../utils/barcode.util';
 import { Business } from '../../businesses/entities/business.entity';
 import { BusinessMember } from '../../businesses/entities/business-member.entity';
+import { User } from '../../users/entities/user.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Role } from '../../users/enums/role.enum';
 import { PermissionUtil } from '../../businesses/utils/permission.util';
 import { AuditLogService } from '../../common/services/audit-log.service';
@@ -32,6 +34,10 @@ export class ProductsService {
     private readonly businessRepo: Repository<Business>,
     @InjectRepository(BusinessMember)
     private readonly memberRepo: Repository<BusinessMember>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    @InjectRepository(Tenant)
+    private readonly tenantRepo: Repository<Tenant>,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
   ) {
@@ -41,29 +47,64 @@ export class ProductsService {
     }
   }
 
-  // ─── Get member with role check ────────────────────
-  private async getMember(userId: string, businessId: string): Promise<BusinessMember> {
+  // ─── Check if user has stock permission ──────────────────
+  private async hasStockPermission(
+    userId: string,
+    businessId: string,
+    permissionKey: string,
+  ): Promise<boolean> {
+    // First, check if user is a PLATFORM_ADMIN or BUSINESS_OWNER at the user level
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return false;
+    }
+
+    // PLATFORM_ADMIN always has full access
+    if (user.role === Role.PLATFORM_ADMIN) {
+      return true;
+    }
+
+    // BUSINESS_OWNER: Check if they own the tenant that owns this business
+    if (user.role === Role.BUSINESS_OWNER) {
+      const tenant = await this.tenantRepo.findOne({
+        where: { ownerId: userId },
+      });
+
+      if (tenant) {
+        const business = await this.businessRepo.findOne({
+          where: { id: businessId },
+        });
+
+        // If the business belongs to the tenant owned by this user, they have full access
+        if (business && business.tenant_id === tenant.id) {
+          return true;
+        }
+      }
+    }
+
+    // For other roles, check BusinessMember permissions
     const member = await this.memberRepo.findOne({
       where: { user_id: userId, business_id: businessId, is_active: true },
       relations: ['user'],
     });
 
     if (!member) {
-      throw new ForbiddenException('Not a member of this business');
+      return false;
     }
 
-    return member;
-  }
-
-  // ─── Check if user has stock permission ──────────────────
-  private hasStockPermission(member: BusinessMember, permissionKey: string): boolean {
-    // BUSINESS_OWNER always has full access
+    // BUSINESS_OWNER role in business_members table also has full access
     if (member.role === Role.BUSINESS_OWNER) {
       return true;
     }
 
-    // All other roles (including BUSINESS_ADMIN) must check their stock_permissions object
-    return PermissionUtil.hasGranularPermission(member.stock_permissions, permissionKey);
+    // Check granular permission
+    return PermissionUtil.hasGranularPermission(
+      member.stock_permissions,
+      permissionKey,
+    );
   }
 
   async findAll(businessId: string, query: QueryProductsDto = {}, includeDeleted = false): Promise<Product[]> {
@@ -179,8 +220,8 @@ export class ProductsService {
   async create(businessId: string, dto: CreateProductDto, userId?: string): Promise<Product> {
     // Check stock CREATE permission
     if (userId) {
-      const member = await this.getMember(userId, businessId);
-      if (!this.hasStockPermission(member, 'create_product')) {
+      const hasPermission = await this.hasStockPermission(userId, businessId, 'create_product');
+      if (!hasPermission) {
         throw new ForbiddenException('You do not have permission to create products');
       }
     }
@@ -220,8 +261,8 @@ export class ProductsService {
   async update(businessId: string, id: string, dto: UpdateProductDto, userId?: string): Promise<Product> {
     // Check stock UPDATE permission
     if (userId) {
-      const member = await this.getMember(userId, businessId);
-      if (!this.hasStockPermission(member, 'update_product')) {
+      const hasPermission = await this.hasStockPermission(userId, businessId, 'update_product');
+      if (!hasPermission) {
         throw new ForbiddenException('You do not have permission to update products');
       }
     }
@@ -267,8 +308,8 @@ export class ProductsService {
 
   async softDelete(businessId: string, id: string, userId: string): Promise<Product> {
     // Check stock DELETE permission
-    const member = await this.getMember(userId, businessId);
-    if (!this.hasStockPermission(member, 'delete_product')) {
+    const hasPermission = await this.hasStockPermission(userId, businessId, 'delete_product');
+    if (!hasPermission) {
       throw new ForbiddenException('You do not have permission to delete products');
     }
 

@@ -27,6 +27,9 @@ import { PaymentSchedule }            from './entities/payment-schedule';
 import { SalaryService }              from './services/salary.service';
 import { SalaryController }           from './controllers/salary.controller';
 import { BusinessMember }             from 'src/businesses/entities/business-member.entity';
+import { User }                       from 'src/users/entities/user.entity';
+import { Business }                   from 'src/businesses/entities/business.entity';
+import { Tenant }                     from 'src/tenants/entities/tenant.entity';
 import { EmailModule }                from 'src/email/email.module';
 import { SalaryProposal }             from './entities/salary-proposal.entity';
 import { Supplier } from '../Purchases/entities/supplier.entity';
@@ -45,6 +48,9 @@ import { SalaryPermissionGuard } from './guards/salary-permission.guard';
       PaymentSchedule,
       PaymentScheduleInstallment,
       BusinessMember,
+      User,
+      Business,
+      Tenant,
       SalaryProposal,
       Supplier,
     ]),
