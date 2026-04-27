@@ -13,6 +13,8 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { BusinessesService } from './businesses.service';
@@ -306,8 +308,8 @@ async getMembers(@Param('id') businessId: string) {
   // PATCH /businesses/:id/members/:userId/permissions
   @Patch(':id/members/:userId/permissions')
   @UseGuards(AuthGuard('jwt'), RolesGuard, BusinessAccessGuard, PermissionGuard)
-  @Roles(Role.BUSINESS_OWNER)
-  @OwnerOnly()
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @OwnerAndAdmin()
   async updateMemberPermissions(
     @Param('id') businessId: string,
     @Param('userId') userId: string,
@@ -319,11 +321,46 @@ async getMembers(@Param('id') businessId: string) {
       throw new BadRequestException('Cannot modify your own permissions');
     }
 
+    // Get current user's role
+    const currentUserRole = req.user.role;
+
+    // Get target member to check their role
+    const targetMember = await this.businessMembersService.getBusinessMemberDetails(
+      businessId,
+      userId,
+    );
+
+    if (!targetMember) {
+      throw new NotFoundException('Target member not found');
+    }
+
+    // Apply role-based restrictions
+    if (currentUserRole === Role.BUSINESS_ADMIN) {
+      // BUSINESS_ADMIN can only update TEAM_MEMBER and ACCOUNTANT
+      if (targetMember.role === Role.BUSINESS_OWNER) {
+        throw new ForbiddenException(
+          'BUSINESS_ADMIN cannot update BUSINESS_OWNER permissions',
+        );
+      }
+      if (targetMember.role === Role.BUSINESS_ADMIN) {
+        throw new ForbiddenException(
+          'BUSINESS_ADMIN cannot update another BUSINESS_ADMIN permissions',
+        );
+      }
+      if (targetMember.role !== Role.TEAM_MEMBER && targetMember.role !== Role.ACCOUNTANT) {
+        throw new ForbiddenException(
+          'BUSINESS_ADMIN can only update TEAM_MEMBER and ACCOUNTANT permissions',
+        );
+      }
+    }
+
     return this.businessMembersService.updateMemberPermissions(
       businessId,
       userId,
       updatePermissionsDto.collaboration_permissions,
       updatePermissionsDto.stock_permissions,
+      updatePermissionsDto.payment_permissions,
+      updatePermissionsDto.salary_permissions,
     );
   }
 

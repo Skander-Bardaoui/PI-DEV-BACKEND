@@ -54,6 +54,18 @@ export class BusinessMember {
   })
   stock_permissions: Record<string, boolean>;
 
+  @Column({ 
+    type: 'jsonb', 
+    default: {} 
+  })
+  payment_permissions: Record<string, boolean>;
+
+  @Column({ 
+    type: 'jsonb', 
+    default: {} 
+  })
+  salary_permissions: Record<string, boolean>;
+
   @Column({ nullable: true })
   invited_by: string; // User ID of who invited this member
 

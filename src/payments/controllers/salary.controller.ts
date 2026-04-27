@@ -5,6 +5,8 @@ import { IsString, IsNumber, IsOptional, IsIn, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SalaryService } from '../services/salary.service';
+import { SalaryPermissionGuard } from '../guards/salary-permission.guard';
+import { RequireSalaryPermission } from '../decorators/salary-permission.decorator';
 
 // ─── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -86,7 +88,8 @@ export class SalaryController {
   }
 
   @Post(':businessId/propose')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SalaryPermissionGuard)
+  @RequireSalaryPermission('send_proposal')
   async sendProposal(
     @Param('businessId') businessId: string,
     @Body() dto: SendProposalDto,
@@ -107,13 +110,14 @@ export class SalaryController {
   }
 
   @Post(':businessId/pay/:proposalId')
-@UseGuards(JwtAuthGuard)
-async paySalary(
-  @Param('businessId') businessId: string,
-  @Param('proposalId') proposalId: string,
-  @Body() dto: PaySalaryDto,
-  @Request() req: any,
-) {
+  @UseGuards(JwtAuthGuard, SalaryPermissionGuard)
+  @RequireSalaryPermission('pay_salary')
+  async paySalary(
+    @Param('businessId') businessId: string,
+    @Param('proposalId') proposalId: string,
+    @Body() dto: PaySalaryDto,
+    @Request() req: any,
+  ) {
   return this.salaryService.paySalary(
     businessId,
     proposalId,

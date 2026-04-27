@@ -5,10 +5,12 @@ import { ConfigModule } from '@nestjs/config';
 import { SubtasksController } from './subtasks.controller';
 import { SubtasksService } from './subtasks.service';
 import { Subtask } from './entities/subtask.entity';
+import { BusinessMember } from '../businesses/entities/business-member.entity';
+import { Task } from '../tasks/entities/task.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Subtask]),
+    TypeOrmModule.forFeature([Subtask, BusinessMember, Task]),
     HttpModule,
     ConfigModule,
   ],

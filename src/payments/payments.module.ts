@@ -27,10 +27,14 @@ import { PaymentSchedule }            from './entities/payment-schedule';
 import { SalaryService }              from './services/salary.service';
 import { SalaryController }           from './controllers/salary.controller';
 import { BusinessMember }             from 'src/businesses/entities/business-member.entity';
+import { User }                       from 'src/users/entities/user.entity';
+import { Business }                   from 'src/businesses/entities/business.entity';
+import { Tenant }                     from 'src/tenants/entities/tenant.entity';
 import { EmailModule }                from 'src/email/email.module';
 import { SalaryProposal }             from './entities/salary-proposal.entity';
 import { Supplier } from '../Purchases/entities/supplier.entity';
 import { SupplierSchedulePublicController } from './controllers/supplier-schedule-public.controller';
+import { SalaryPermissionGuard } from './guards/salary-permission.guard';
 
 @Module({
   imports: [
@@ -44,6 +48,9 @@ import { SupplierSchedulePublicController } from './controllers/supplier-schedul
       PaymentSchedule,
       PaymentScheduleInstallment,
       BusinessMember,
+      User,
+      Business,
+      Tenant,
       SalaryProposal,
       Supplier,
     ]),
@@ -70,6 +77,7 @@ import { SupplierSchedulePublicController } from './controllers/supplier-schedul
     PaymentScheduleService,
     SalaryService,
     ForecastService,
+    SalaryPermissionGuard,
   ],
   exports: [
     AccountsService,
