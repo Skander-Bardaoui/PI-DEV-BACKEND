@@ -1,10 +1,10 @@
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
 
 export class CreateInvoiceFromPODto {
+  @IsOptional()
   @IsString({ message: 'Le numéro de facture doit être une chaîne de caractères' })
-  @IsNotEmpty({ message: 'Le numéro de facture est obligatoire' })
   @MaxLength(100, { message: 'Le numéro de facture ne peut pas dépasser 100 caractères' })
-  invoice_number_supplier: string;
+  invoice_number_supplier?: string;
 
   @IsString({ message: 'La date de facture doit être une chaîne de caractères' })
   @IsNotEmpty({ message: 'La date de facture est obligatoire' })

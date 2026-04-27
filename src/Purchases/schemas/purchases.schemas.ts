@@ -361,8 +361,9 @@ export const createPurchaseInvoiceSchema = z.object({
   invoice_number_supplier: z
     .string()
     .trim()
-    .min(1, 'Le numéro de facture est obligatoire')
-    .max(100, 'Numéro de facture trop long'),
+    .max(100, 'Numéro de facture trop long')
+    .optional()
+    .or(z.literal('')),
 
   supplier_id: z
     .string()
@@ -562,8 +563,9 @@ export class SupplierInviteDto extends createZodDto(supplierInviteSchema) {}
 export const aiPOGeneratorSchema = z.object({
   text: z
     .string()
-    .min(1, 'Le texte est obligatoire')
-    .max(5000, 'Le texte ne peut pas dépasser 5000 caractères'),
+    .max(5000, 'Le texte ne peut pas dépasser 5000 caractères')
+    .optional()
+    .or(z.literal('')),
 });
 
 export class AiPOGeneratorDto extends createZodDto(aiPOGeneratorSchema) {}
@@ -584,8 +586,9 @@ export const createInvoiceFromPOSchema = z.object({
   invoice_number_supplier: z
     .string()
     .trim()
-    .min(1, 'Le numéro de facture est obligatoire')
-    .max(100, 'Numéro de facture trop long'),
+    .max(100, 'Numéro de facture trop long')
+    .optional()
+    .or(z.literal('')),
 
   invoice_date: requiredIsoDate,
 
