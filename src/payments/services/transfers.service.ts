@@ -10,6 +10,9 @@ import { Account }         from '../entities/account.entity';
 import { Transaction }     from '../entities/transaction.entity';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { BusinessMember } from '../../businesses/entities/business-member.entity';
+import { User } from '../../users/entities/user.entity';
+import { Business } from '../../businesses/entities/business.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Role } from '../../users/enums/role.enum';
 import { PermissionUtil } from '../../businesses/utils/permission.util';
 
@@ -25,6 +28,15 @@ export class TransfersService {
     @InjectRepository(BusinessMember)
     private readonly memberRepo: Repository<BusinessMember>,
 
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+
+    @InjectRepository(Business)
+    private readonly businessRepo: Repository<Business>,
+
+    @InjectRepository(Tenant)
+    private readonly tenantRepo: Repository<Tenant>,
+
     private readonly dataSource: DataSource,
   ) {}
 
@@ -34,6 +46,39 @@ export class TransfersService {
     businessId: string,
     permissionKey: string,
   ): Promise<boolean> {
+    // First, check if user is a PLATFORM_ADMIN or BUSINESS_OWNER at the user level
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return false;
+    }
+
+    // PLATFORM_ADMIN always has full access
+    if (user.role === Role.PLATFORM_ADMIN) {
+      return true;
+    }
+
+    // BUSINESS_OWNER: Check if they own the tenant that owns this business
+    if (user.role === Role.BUSINESS_OWNER) {
+      const tenant = await this.tenantRepo.findOne({
+        where: { ownerId: userId },
+      });
+
+      if (tenant) {
+        const business = await this.businessRepo.findOne({
+          where: { id: businessId },
+        });
+
+        // If the business belongs to the tenant owned by this user, they have full access
+        if (business && business.tenant_id === tenant.id) {
+          return true;
+        }
+      }
+    }
+
+    // For other roles, check BusinessMember permissions
     const member = await this.memberRepo.findOne({
       where: { user_id: userId, business_id: businessId, is_active: true },
       relations: ['user'],
@@ -43,7 +88,7 @@ export class TransfersService {
       return false;
     }
 
-    // BUSINESS_OWNER always has full access
+    // BUSINESS_OWNER role in business_members table also has full access
     if (member.role === Role.BUSINESS_OWNER) {
       return true;
     }
