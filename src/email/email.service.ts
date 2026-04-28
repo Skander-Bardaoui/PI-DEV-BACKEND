@@ -276,4 +276,169 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
     console.log(`Payment schedule approval email sent to ${to}`);
   }
+
+  // ─── Send Trial Expiry Warning Email ────────────────────────────────────
+  async sendTrialExpiryWarning(to: string, userName: string, trialEndsAt: Date): Promise<void> {
+    const daysLeft = Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+    const mailOptions = {
+      from: `"NovEntra" <${this.configService.get<string>('GMAIL_USER')}>`,
+      to,
+      subject: `⏰ Votre essai gratuit expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px 20px; border-radius: 20px;">
+          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; margin: 0;">NovEntra</h1>
+            </div>
+            <h2 style="color: #333; margin-bottom: 20px;">⏰ Votre essai expire bientôt</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">Bonjour ${userName},</p>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
+              Votre essai gratuit de NovEntra expire dans <strong>${daysLeft} jour${daysLeft > 1 ? 's' : ''}</strong> (le ${trialEndsAt.toLocaleDateString('fr-FR')}).
+            </p>
+            <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 20px; margin: 30px 0;">
+              <h3 style="color: #92400e; margin-top: 0;">Ne perdez pas vos données !</h3>
+              <p style="color: #92400e; margin-bottom: 0;">
+                Choisissez un plan pour continuer à utiliser NovEntra et conserver tous vos clients, factures et données.
+              </p>
+            </div>
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${this.configService.get<string>('FRONTEND_URL')}/app/settings/billing" 
+                 style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: bold; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);">
+                Choisir un plan
+              </a>
+            </div>
+            <p style="color: #999; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+              Des questions ? Contactez notre équipe de support.
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    await this.transporter.sendMail(mailOptions);
+    console.log(`Trial expiry warning sent to ${to}`);
+  }
+
+  // ─── Send Payment Reminder Email ────────────────────────────────────────
+  async sendPaymentReminder(to: string, userName: string, periodEnd: Date): Promise<void> {
+    const mailOptions = {
+      from: `"NovEntra" <${this.configService.get<string>('GMAIL_USER')}>`,
+      to,
+      subject: '💳 Paiement en retard - Action requise',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 40px 20px; border-radius: 20px;">
+          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; margin: 0;">NovEntra</h1>
+            </div>
+            <h2 style="color: #333; margin-bottom: 20px;">💳 Paiement en retard</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">Bonjour ${userName},</p>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
+              Votre abonnement NovEntra est en retard de paiement depuis le ${periodEnd.toLocaleDateString('fr-FR')}. 
+              Votre compte sera suspendu si le paiement n'est pas effectué rapidement.
+            </p>
+            <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-radius: 12px; padding: 20px; margin: 30px 0;">
+              <h3 style="color: #991b1b; margin-top: 0;">Action requise</h3>
+              <p style="color: #991b1b; margin-bottom: 0;">
+                Mettez à jour votre méthode de paiement pour éviter l'interruption de service.
+              </p>
+            </div>
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${this.configService.get<string>('FRONTEND_URL')}/app/settings/billing" 
+                 style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: bold; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">
+                Effectuer le paiement
+              </a>
+            </div>
+            <p style="color: #999; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+              Besoin d'aide ? Contactez notre équipe de support.
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    await this.transporter.sendMail(mailOptions);
+    console.log(`Payment reminder sent to ${to}`);
+  }
+
+  // ─── Send Data Deletion Warning Email ───────────────────────────────────
+  async sendDataDeletionWarning(to: string, userName: string, suspendedAt: Date): Promise<void> {
+    const mailOptions = {
+      from: `"NovEntra" <${this.configService.get<string>('GMAIL_USER')}>`,
+      to,
+      subject: '⚠️ URGENT: Suppression des données dans 7 jours',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #7c2d12 0%, #991b1b 100%); padding: 40px 20px; border-radius: 20px;">
+          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="background: linear-gradient(135deg, #7c2d12 0%, #991b1b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; margin: 0;">NovEntra</h1>
+            </div>
+            <h2 style="color: #333; margin-bottom: 20px;">⚠️ URGENT: Suppression des données</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">Bonjour ${userName},</p>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
+              Votre compte NovEntra est suspendu depuis le ${suspendedAt.toLocaleDateString('fr-FR')} (plus de 30 jours).
+              <strong>Toutes vos données seront définitivement supprimées dans 7 jours</strong> si aucune action n'est entreprise.
+            </p>
+            <div style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-radius: 12px; padding: 20px; margin: 30px 0; color: white;">
+              <h3 style="color: white; margin-top: 0;">⚠️ Dernière chance</h3>
+              <p style="color: #fecaca; margin-bottom: 0;">
+                Cette suppression est irréversible. Toutes vos factures, clients et données seront perdues à jamais.
+              </p>
+            </div>
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${this.configService.get<string>('FRONTEND_URL')}/app/settings/billing" 
+                 style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: bold; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.4);">
+                Sauver mes données
+              </a>
+            </div>
+            <p style="color: #999; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+              Contactez immédiatement notre équipe de support si vous avez des questions.
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    await this.transporter.sendMail(mailOptions);
+    console.log(`Data deletion warning sent to ${to}`);
+  }
+
+  // ─── Send Tenant Rejection Email ────────────────────────────────────────
+  async sendTenantRejectionEmail(to: string, userName: string, reason: string): Promise<void> {
+    const mailOptions = {
+      from: `"NovEntra" <${this.configService.get<string>('GMAIL_USER')}>`,
+      to,
+      subject: 'Votre demande d\'inscription a été refusée',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 40px 20px; border-radius: 20px;">
+          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; margin: 0;">NovEntra</h1>
+            </div>
+            <h2 style="color: #333; margin-bottom: 20px;">Demande d'inscription refusée</h2>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">Bonjour ${userName},</p>
+            <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
+              Nous regrettons de vous informer que votre demande d'inscription à NovEntra a été refusée.
+            </p>
+            <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-radius: 12px; padding: 20px; margin: 30px 0;">
+              <h3 style="color: #991b1b; margin-top: 0;">Raison du refus:</h3>
+              <p style="color: #991b1b; margin-bottom: 0;">
+                ${reason}
+              </p>
+            </div>
+            <p style="color: #666; line-height: 1.6; margin-top: 30px;">
+              Si vous pensez qu'il s'agit d'une erreur ou si vous avez des questions, n'hésitez pas à contacter notre équipe de support.
+            </p>
+            <p style="color: #999; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+              Merci de votre compréhension.
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    await this.transporter.sendMail(mailOptions);
+    console.log(`Tenant rejection email sent to ${to}`);
+  }
 }

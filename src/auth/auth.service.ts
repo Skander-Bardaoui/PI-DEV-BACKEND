@@ -19,6 +19,7 @@ import { Tenant } from '../tenants/entities/tenant.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { TaxRate } from '../businesses/entities/tax-rate.entity';
+import { TenantRegistrationService } from '../platform-admin/services/tenant-registration.service';
 
 @Injectable()
 export class AuthService {
@@ -42,6 +43,7 @@ constructor(
   private readonly businessMembersRepository: Repository<BusinessMember>,
   @InjectRepository(TaxRate)
   private readonly taxRatesRepository: Repository<TaxRate>,
+  private readonly tenantRegistrationService: TenantRegistrationService,
 ) {}
 
   // ─── Called by LocalStrategy during login ─────────────────────────────────
@@ -65,6 +67,12 @@ async validateUser(email: string, password: string): Promise<User | null> {
     if (!passwordMatches) {
       console.log('Returning null — password mismatch');
       return null;
+    }
+
+    // Check if user is suspended AFTER password validation
+    if (user.is_suspended) {
+      console.log('Throwing exception — user is suspended');
+      throw new UnauthorizedException('Your account has been suspended. Please contact support for assistance.');
     }
 
     console.log('Returning user — success');
@@ -156,11 +164,14 @@ async register(registerDto: RegisterDto, res: Response) {
     // 7. Commit transaction
     await queryRunner.commitTransaction();
 
-    // 8. Send verification email (after commit, so we don't send email if transaction fails)
+    // 8. Create tenant approval and subscription
+    await this.tenantRegistrationService.createTenantApprovalAndSubscription(tenant.id);
+
+    // 9. Send verification email (after commit, so we don't send email if transaction fails)
     const fullName = `${user.firstName} ${user.lastName}`;
     await this.emailService.sendVerificationEmail(user.email, verificationToken, fullName);
 
-    // 9. Return success response WITHOUT generating tokens
+    // 10. Return success response WITHOUT generating tokens
     // User must log in manually to get tokens
     return {
       message: 'Registration successful. Please log in with your credentials.',
@@ -186,6 +197,22 @@ async register(registerDto: RegisterDto, res: Response) {
   // ─── Login ───────────────────────────────────────────────────────────────
   // This is called AFTER LocalStrategy already validated the user
   async login(user: User, res: Response): Promise<{ message: string; user: any }> {
+    // Check tenant login permission (approval and subscription status)
+    if (user.role !== 'PLATFORM_ADMIN') {
+      // Find user's tenant
+      const tenant = await this.tenantsRepository.findOne({
+        where: { ownerId: user.id },
+      });
+
+      if (tenant) {
+        const loginCheck = await this.tenantRegistrationService.checkTenantLoginPermission(tenant.id);
+        
+        if (!loginCheck.canLogin) {
+          throw new UnauthorizedException(loginCheck.message);
+        }
+      }
+    }
+
     await this.generateTokensAndSetCookies(user, res);
     
     return {
