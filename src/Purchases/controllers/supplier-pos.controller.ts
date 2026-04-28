@@ -17,7 +17,7 @@ import { PoAiGeneratorService } from '../services/po-ai-generator.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles }      from '../../auth/decorators/roles.decorators';
 import { Role }       from '../../users/enums/role.enum';
-import { CreateSupplierPODto, UpdateSupplierPODto, AiPOGeneratorDto } from '../schemas/purchases.schemas';
+import { CreateSupplierPODto, UpdateSupplierPODto } from '../schemas/purchases.schemas';
 
 @Controller('businesses/:businessId/supplier-pos')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -36,9 +36,18 @@ export class SupplierPOsController {
   @HttpCode(HttpStatus.OK)
   async generateFromText(
     @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Body() dto: AiPOGeneratorDto,
+    @Body() body: Record<string, any>,
   ): Promise<any> {
-    return this.aiGenerator.generateFromText(businessId, dto.text);
+    // Lire le texte directement depuis le body brut pour éviter les transformations Zod
+    const text = body?.text ?? body?.['text'];
+    
+    console.log('🔍 [Controller] generateFromText appelé');
+    console.log('🔍 [Controller] businessId:', businessId);
+    console.log('🔍 [Controller] body reçu:', JSON.stringify(body));
+    console.log('🔍 [Controller] text extrait:', text);
+    console.log('🔍 [Controller] type de text:', typeof text);
+    
+    return this.aiGenerator.generateFromText(businessId, text);
   }
 
   // POST /businesses/:businessId/supplier-pos

@@ -41,6 +41,9 @@ export class PurchaseInvoicesService {
 
   // ─── CREATE ───────────────────────────────────────────────────────────────────
   async create(businessId: string, dto: CreatePurchaseInvoiceDto): Promise<PurchaseInvoice> {
+    // Générer automatiquement le numéro de facture INTERNE
+    const invoiceNumber = await this.generateInvoiceNumber(businessId);
+    
     const timbre    = dto.timbre_fiscal ?? 1.000;
     const net       = this.round(dto.subtotal_ht + dto.tax_amount + timbre);
     const dueDelta  = 30; // jours par défaut — à lire depuis Supplier.payment_terms si dispo
@@ -49,13 +52,10 @@ export class PurchaseInvoicesService {
       ? new Date(dto.due_date)
       : new Date(new Date(dto.invoice_date).getTime() + dueDelta * 86_400_000);
 
-    // Générer automatiquement le numéro de facture interne (invoice_number)
-    const invoiceNumber = await this.generateInvoiceNumber(businessId);
-
     const inv = this.invRepo.create({
       ...dto,
-      invoice_number: invoiceNumber, // Numéro interne auto-généré (requis)
-      invoice_number_supplier: dto.invoice_number_supplier || null, // Numéro fournisseur (optionnel)
+      invoice_number: invoiceNumber, // Numéro interne auto-généré
+      invoice_number_supplier: dto.invoice_number_supplier || null, // Numéro fournisseur optionnel
       business_id:   businessId,
       timbre_fiscal: timbre,
       net_amount:    net,
@@ -68,26 +68,30 @@ export class PurchaseInvoicesService {
   }
 
   // ─── GENERATE INVOICE NUMBER ──────────────────────────────────────────────────
-  // Génère le numéro de facture INTERNE (invoice_number) au format FACT-{year}-{sequence}
   private async generateInvoiceNumber(businessId: string): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `FACT-${year}-`;
     
-    // Trouver le dernier numéro pour cette année
+    // Trouver le dernier numéro de facture pour cette année
     const lastInvoice = await this.invRepo
       .createQueryBuilder('inv')
       .where('inv.business_id = :businessId', { businessId })
       .andWhere('inv.invoice_number LIKE :prefix', { prefix: `${prefix}%` })
-      .orderBy('inv.invoice_number', 'DESC')
+      .orderBy('inv.created_at', 'DESC')
       .getOne();
-
+    
     let nextNumber = 1;
     if (lastInvoice && lastInvoice.invoice_number) {
-      const lastNumber = lastInvoice.invoice_number.replace(prefix, '');
-      nextNumber = parseInt(lastNumber, 10) + 1;
+      // Extraire le numéro de la dernière facture (ex: FACT-2026-0042 → 42)
+      const match = lastInvoice.invoice_number.match(/FACT-\d{4}-(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
+      }
     }
-
-    return `${prefix}${String(nextNumber).padStart(4, '0')}`;
+    
+    // Formater avec des zéros (ex: 0001, 0042, 1234)
+    const paddedNumber = String(nextNumber).padStart(4, '0');
+    return `${prefix}${paddedNumber}`;
   }
   // ─── FIND ALL (avec tri côté backend) ─────────────────────────────────────────
   async findAll(businessId: string, query: any) {

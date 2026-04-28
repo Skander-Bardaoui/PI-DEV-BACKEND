@@ -335,7 +335,7 @@ export class PermissionUtil {
     permissions: Record<string, boolean> | undefined,
     permissionKey: string,
   ): boolean {
-    return permissions?.[permissionKey] === true;
+    return permissions?.[permissionKey] ?? false;
   }
 
   /**
