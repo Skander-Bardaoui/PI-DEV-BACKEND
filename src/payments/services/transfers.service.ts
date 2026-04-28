@@ -15,6 +15,7 @@ import { Business } from '../../businesses/entities/business.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Role } from '../../users/enums/role.enum';
 import { PermissionUtil } from '../../businesses/utils/permission.util';
+import { TransactionsService } from './transactions.service';
 
 @Injectable()
 export class TransfersService {
@@ -38,6 +39,7 @@ export class TransfersService {
     private readonly tenantRepo: Repository<Tenant>,
 
     private readonly dataSource: DataSource,
+    private readonly transactionsService: TransactionsService,
   ) {}
 
   // Check if user has payment permission
@@ -147,39 +149,35 @@ export class TransfersService {
 
       const description = `Virement de ${fromAccount.name} vers ${toAccount.name}`;
 
-      // 6. Créer transaction DECAISSEMENT sur compte source
-      const debit = manager.create(Transaction, {
+      // 6. Créer transaction DECAISSEMENT sur compte source avec fraud detection
+      const debit = await this.transactionsService.create({
         business_id: businessId,
         account_id: dto.from_account_id,
         type: TransactionType.DECAISSEMENT,
         amount: dto.amount,
-        transaction_date: dto.transfer_date,
+        transaction_date: new Date(dto.transfer_date),
         description,
         reference: dto.reference ?? null,
         notes: dto.notes ?? null,
         related_entity_type: 'Transfer',
         related_entity_id: dto.to_account_id,
-        is_reconciled: false,
         created_by: userId,
       });
-      await manager.save(Transaction, debit);
 
       // 7. Créer transaction ENCAISSEMENT sur compte destination
-      const credit = manager.create(Transaction, {
+      const credit = await this.transactionsService.create({
         business_id: businessId,
         account_id: dto.to_account_id,
         type: TransactionType.ENCAISSEMENT,
         amount: dto.amount,
-        transaction_date: dto.transfer_date,
+        transaction_date: new Date(dto.transfer_date),
         description,
         reference: dto.reference ?? null,
         notes: dto.notes ?? null,
         related_entity_type: 'Transfer',
         related_entity_id: dto.from_account_id,
-        is_reconciled: false,
         created_by: userId,
       });
-      await manager.save(Transaction, credit);
 
       return { debit, credit };
     });
