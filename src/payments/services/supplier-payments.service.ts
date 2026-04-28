@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { SupplierPayment }  from '../entities/supplier-payment.entity';
+import { TransactionsService } from './transactions.service';
 
 import { Account }          from '../../payments/entities/account.entity';
 import { Transaction }      from '../../payments/entities/transaction.entity';
@@ -48,6 +49,7 @@ export class SupplierPaymentsService {
     private readonly tenantRepo: Repository<Tenant>,
 
     private readonly dataSource: DataSource,
+    private readonly transactionsService: TransactionsService,
   ) {}
 
   // Check if user has payment permission
@@ -207,26 +209,24 @@ export class SupplierPaymentsService {
       account.current_balance = Number(account.current_balance) - dto.amount;
       await manager.save(Account, account);
 
-      // 7. Créer la transaction DECAISSEMENT
+      // 7. Créer la transaction DECAISSEMENT avec fraud detection
       const description = invoice
         ? `Paiement fournisseur facture ${invoice.invoice_number_supplier}`
         : `Paiement fournisseur ${payment_number}`;
 
-      const transaction = manager.create(Transaction, {
+      await this.transactionsService.create({
         business_id: businessId,
         account_id: dto.account_id,
         type: TransactionType.DECAISSEMENT,
         amount: dto.amount,
-        transaction_date: dto.payment_date,
+        transaction_date: new Date(dto.payment_date),
         description,
         reference: dto.reference ?? null,
         notes: dto.notes ?? null,
         related_entity_type: 'SupplierPayment',
         related_entity_id: saved.id,
-        is_reconciled: false,
         created_by: userId,
       });
-      await manager.save(Transaction, transaction);
 
       return manager.findOne(SupplierPayment, {
         where: { id: saved.id },

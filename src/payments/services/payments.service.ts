@@ -18,6 +18,7 @@ import { Business } from '../../businesses/entities/business.entity';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Role } from '../../users/enums/role.enum';
 import { PermissionUtil } from '../../businesses/utils/permission.util';
+import { TransactionsService } from './transactions.service';
 
 @Injectable()
 export class PaymentsService {
@@ -47,6 +48,7 @@ export class PaymentsService {
     private readonly tenantRepo: Repository<Tenant>,
 
     private readonly dataSource: DataSource,
+    private readonly transactionsService: TransactionsService,
   ) {}
 
   // Check if user has payment permission
@@ -183,22 +185,20 @@ export class PaymentsService {
       account.current_balance = Number(account.current_balance) + dto.amount;
       await manager.save(account);
 
-      // 8. Créer la transaction
-      const transaction = manager.create(Transaction, {
+      // 8. Créer la transaction avec fraud detection
+      await this.transactionsService.create({
         business_id: businessId,
         account_id: dto.account_id,
         type: TransactionType.ENCAISSEMENT,
         amount: dto.amount,
-        transaction_date: dto.payment_date,
+        transaction_date: new Date(dto.payment_date),
         description: `Paiement facture ${invoice.invoice_number}`,
         reference: dto.reference,
         notes: dto.notes,
         related_entity_type: 'Payment',
         related_entity_id: payment.id,
-        is_reconciled: false,
         created_by: userId,
       });
-      await manager.save(transaction);
 
       return payment;
     });
