@@ -69,6 +69,14 @@ describe('PurchaseInvoicesService', () => {
         timbre_fiscal: 1,
       };
 
+      // Mock createQueryBuilder pour la génération du numéro de facture
+      const mockQueryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      jest.spyOn(invoiceRepo, 'createQueryBuilder').mockReturnValue(mockQueryBuilder as any);
       jest.spyOn(invoiceRepo, 'create').mockReturnValue(mockInvoice as PurchaseInvoice);
       jest.spyOn(invoiceRepo, 'save').mockResolvedValue(mockInvoice as PurchaseInvoice);
 
@@ -91,6 +99,14 @@ describe('PurchaseInvoicesService', () => {
 
       const expectedNetAmount = 1191; // 1000 + 190 + 1
 
+      // Mock createQueryBuilder pour la génération du numéro de facture
+      const mockQueryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+      jest.spyOn(invoiceRepo, 'createQueryBuilder').mockReturnValue(mockQueryBuilder as any);
       jest.spyOn(invoiceRepo, 'create').mockImplementation((dto: any) => {
         expect(dto.net_amount).toBe(expectedNetAmount);
         return mockInvoice as PurchaseInvoice;

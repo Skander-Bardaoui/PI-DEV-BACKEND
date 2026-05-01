@@ -267,8 +267,8 @@ describe('Purchases Schemas Validation', () => {
       expect(result.success).toBe(true);
     });
 
-    it('devrait rejeter une facture sans numéro', () => {
-      const invalidInvoice = {
+    it('devrait accepter une facture sans numéro fournisseur (auto-généré)', () => {
+      const validInvoice = {
         invoice_number_supplier: '',
         supplier_id: '123e4567-e89b-12d3-a456-426614174000',
         invoice_date: '2024-01-15',
@@ -276,11 +276,8 @@ describe('Purchases Schemas Validation', () => {
         tax_amount: 190,
       };
 
-      const result = createPurchaseInvoiceSchema.safeParse(invalidInvoice);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0].message).toContain('obligatoire');
-      }
+      const result = createPurchaseInvoiceSchema.safeParse(validInvoice);
+      expect(result.success).toBe(true);
     });
 
     it('devrait rejeter une date invalide', () => {
