@@ -36,6 +36,11 @@ import { Supplier }                   from '../Purchases/entities/supplier.entit
 import { SupplierSchedulePublicController } from './controllers/supplier-schedule-public.controller';
 import { SalaryPermissionGuard }      from './guards/salary-permission.guard';
 import { FraudDetectionService }      from './services/fraud-detection.service';
+import { RecurringInvoicePaymentsController } from './controllers/recurring-invoice-payments.controller';
+import { RecurringInvoicePaymentsService }    from './services/recurring-invoice-payments.service';
+import { RecurringInvoice }           from '../sales/entities/recurring-invoice.entity';
+import { DepositsController }         from './controllers/deposits.controller';
+import { DepositsService }            from './services/deposits.service';
 
 @Module({
   imports: [
@@ -55,6 +60,7 @@ import { FraudDetectionService }      from './services/fraud-detection.service';
       Tenant,
       SalaryProposal,
       Supplier,
+      RecurringInvoice,
     ]),
     forwardRef(() => PurchasesModule),
     EmailModule,
@@ -69,6 +75,8 @@ import { FraudDetectionService }      from './services/fraud-detection.service';
     SalaryController,
     ForecastController,
     SupplierSchedulePublicController,
+    RecurringInvoicePaymentsController,
+    DepositsController,
   ],
   providers: [
     AccountsService,
@@ -81,6 +89,8 @@ import { FraudDetectionService }      from './services/fraud-detection.service';
     ForecastService,
     SalaryPermissionGuard,
     FraudDetectionService,
+    RecurringInvoicePaymentsService,
+    DepositsService,
   ],
   exports: [
     AccountsService,
