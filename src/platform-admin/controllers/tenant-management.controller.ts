@@ -11,6 +11,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { TenantManagementService } from '../services/tenant-management.service';
@@ -67,10 +68,75 @@ export class TenantManagementController {
     return this.tenantService.unsuspendTenant(id);
   }
 
-  // ─── Delete Tenant ───────────────────────────────────────────────────────
+  // ─── Export Tenant Data ──────────────────────────────────────────────────
+  @Get(':id/export')
+  async exportTenantData(
+    @Param('id') id: string,
+    @Query('format') format?: 'json' | 'csv' | 'excel' | 'sql',
+  ) {
+    return this.tenantService.exportTenantData(id, format || 'json');
+  }
+
+  // ─── Delete Tenant (Secure with Password + Export) ──────────────────────
+  @Post(':id/delete-secure')
+  @HttpCode(HttpStatus.OK)
+  async deleteTenantSecure(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    console.log('[Controller] Secure delete request received');
+    console.log('[Controller] Tenant ID:', id);
+    console.log('[Controller] User from request:', req.user);
+    console.log('[Controller] Body:', body);
+    
+    const { adminPassword, exportToken } = body || {};
+    
+    if (!adminPassword || !exportToken) {
+      console.log('[Controller] Missing required fields');
+      throw new BadRequestException({
+        message: 'Admin password and export token are required',
+        received: {
+          hasAdminPassword: !!adminPassword,
+          hasExportToken: !!exportToken,
+          bodyKeys: Object.keys(body || {}),
+        }
+      });
+    }
+    
+    console.log('[Controller] Calling service with admin ID:', req.user.id);
+    return this.tenantService.deleteTenantSecure(id, req.user.id, adminPassword, exportToken);
+  }
+
+  // ─── Delete Tenant (Legacy - kept for backward compatibility) ────────────
   @Delete(':id')
-  async deleteTenant(@Param('id') id: string) {
-    return this.tenantService.deleteTenant(id);
+  async deleteTenant(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    console.log('[Controller] Delete request received (legacy endpoint)');
+    console.log('[Controller] Request method:', req.method);
+    console.log('[Controller] Request body:', req.body);
+    console.log('[Controller] Body param:', body);
+    console.log('[Controller] adminPassword:', body?.adminPassword);
+    console.log('[Controller] exportToken:', body?.exportToken);
+    console.log('[Controller] Keys in body:', Object.keys(body || {}));
+    
+    const { adminPassword, exportToken } = body || {};
+    
+    if (!adminPassword || !exportToken) {
+      console.log('[Controller] Missing required fields');
+      throw new BadRequestException({
+        message: 'Admin password and export token are required',
+        received: {
+          hasAdminPassword: !!adminPassword,
+          hasExportToken: !!exportToken,
+          bodyKeys: Object.keys(body || {}),
+        }
+      });
+    }
+    return this.tenantService.deleteTenantSecure(id, req.user.id, adminPassword, exportToken);
   }
 
   // ─── Impersonate Tenant ──────────────────────────────────────────────────

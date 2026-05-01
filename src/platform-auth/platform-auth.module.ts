@@ -19,11 +19,26 @@ import { TenantManagementController } from '../platform-admin/controllers/tenant
 import { TenantManagementService } from '../platform-admin/services/tenant-management.service';
 import { TenantApproval } from '../platform-admin/entities/tenant-approval.entity';
 import { ImpersonationLog } from '../platform-admin/entities/impersonation-log.entity';
+import { TenantExportToken } from '../platform-admin/entities/tenant-export-token.entity';
+
+// Subscription Payment (Public)
+import { SubscriptionPaymentController } from '../platform-admin/controllers/subscription-payment.controller';
+import { SubscriptionPaymentService } from '../platform-admin/services/subscription-payment.service';
+import { StripeWebhookController } from '../platform-admin/controllers/stripe-webhook.controller';
 
 // Subscription Management
 import { SubscriptionManagementController } from '../platform-admin/controllers/subscription-management.controller';
 import { SubscriptionManagementService } from '../platform-admin/services/subscription-management.service';
 import { Subscription } from '../platform-admin/entities/subscription.entity';
+
+// Payment Management
+import { PaymentManagementController } from '../platform-admin/controllers/payment-management.controller';
+import { PaymentManagementService } from '../platform-admin/services/payment-management.service';
+import { Payment } from '../platform-admin/entities/payment.entity';
+
+// Public Controllers (No Auth)
+import { PublicPlansController } from '../platform-admin/controllers/public-plans.controller';
+import { PublicPaymentController } from '../platform-admin/controllers/public-payment.controller';
 
 // Plan Management
 import { PlanManagementController } from '../platform-admin/controllers/plan-management.controller';
@@ -75,8 +90,10 @@ import { EmailModule } from '../email/email.module';
       // Tenant Management
       TenantApproval,
       ImpersonationLog,
+      TenantExportToken,
       Subscription,
       Plan,
+      Payment,
       
       // Analytics & Audit
       PlatformAuditLog,
@@ -98,17 +115,23 @@ import { EmailModule } from '../email/email.module';
     PlatformAuthController,
     TenantManagementController,
     SubscriptionManagementController,
+    PaymentManagementController,
     PlanManagementController,
     DashboardController,
     AuditLogController,
     SystemHealthController,
     SupportTicketController,
+    PublicPlansController,
+    PublicPaymentController,
+    SubscriptionPaymentController,
+    StripeWebhookController,
   ],
   providers: [
     PlatformAuthService,
     PlatformJwtStrategy,
     TenantManagementService,
     SubscriptionManagementService,
+    PaymentManagementService,
     PlanManagementService,
     SubscriptionSchedulerService,
     TenantRegistrationService,
@@ -117,6 +140,7 @@ import { EmailModule } from '../email/email.module';
     SystemHealthService,
     SupportTicketService,
     PlatformSeederService, // Add seeder service
+    SubscriptionPaymentService,
   ],
   exports: [
     PlatformAuthService,

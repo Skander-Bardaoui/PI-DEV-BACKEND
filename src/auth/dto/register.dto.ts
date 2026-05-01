@@ -11,11 +11,14 @@ import {
   Min, 
   Max, 
   Matches,
-  IsBoolean 
+  IsBoolean,
+  IsEnum,
+  IsUUID
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { IsValidInternationalPhone } from '../../common/validators/phone-number.validator';
 import { IsPostalCodeMatchingCity } from '../../common/validators/address.validator';
+import { BillingCycle } from '../../platform-admin/enums/billing-cycle.enum';
 
 // Nested DTOs (unchanged)
 class TenantInfoDto {
@@ -137,4 +140,11 @@ export class RegisterDto {
   @ValidateNested()
   @Type(() => TaxRateInfoDto)
   taxRate!: TaxRateInfoDto;
+
+  // Plan Selection
+  @IsUUID()
+  planId!: string;
+
+  @IsEnum(BillingCycle)
+  billingCycle!: BillingCycle;
 }

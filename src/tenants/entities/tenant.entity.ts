@@ -39,7 +39,7 @@ export class Tenant {
   })
   status: TenantStatus;
 
-  @Column()
+  @Column({ nullable: true })
   ownerId: string; // References a User (BUSINESS_OWNER)
 
   @ManyToOne(() => User)

@@ -1,16 +1,21 @@
 // src/platform-admin/services/tenant-management.service.ts
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, IsNull, Not } from 'typeorm';
+import { Repository, Like, IsNull, Not, In, LessThan } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { TenantApproval } from '../entities/tenant-approval.entity';
 import { Subscription } from '../entities/subscription.entity';
 import { ImpersonationLog } from '../entities/impersonation-log.entity';
+import { SupportTicket } from '../entities/support-ticket.entity';
+import { TenantExportToken } from '../entities/tenant-export-token.entity';
 import { User } from '../../users/entities/user.entity';
 import { BusinessMember } from '../../businesses/entities/business-member.entity';
 import { Business } from '../../businesses/entities/business.entity';
+import { PlatformAdmin } from '../../platform-auth/entities/platform-admin.entity';
 import { EmailService } from '../../email/email.service';
 import { TenantQueryDto } from '../dto/tenant-query.dto';
 import { RejectTenantDto } from '../dto/reject-tenant.dto';
@@ -28,12 +33,18 @@ export class TenantManagementService {
     private readonly subscriptionRepo: Repository<Subscription>,
     @InjectRepository(ImpersonationLog)
     private readonly impersonationLogRepo: Repository<ImpersonationLog>,
+    @InjectRepository(SupportTicket)
+    private readonly supportTicketRepo: Repository<SupportTicket>,
+    @InjectRepository(TenantExportToken)
+    private readonly exportTokenRepo: Repository<TenantExportToken>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(BusinessMember)
     private readonly businessMemberRepo: Repository<BusinessMember>,
     @InjectRepository(Business)
     private readonly businessRepo: Repository<Business>,
+    @InjectRepository(PlatformAdmin)
+    private readonly platformAdminRepo: Repository<PlatformAdmin>,
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -246,11 +257,51 @@ export class TenantManagementService {
     approval.reviewed_at = new Date();
     await this.approvalRepo.save(approval);
 
-    // Send welcome email
-    const fullName = `${tenant.owner.firstName} ${tenant.owner.lastName}`;
-    await this.emailService.sendWelcomeEmail(tenant.owner.email, fullName);
+    // Get subscription to check payment status
+    const subscription = await this.subscriptionRepo.findOne({
+      where: { tenant_id: tenantId },
+      relations: ['plan'],
+    });
 
-    return { message: 'Tenant approved successfully' };
+    if (subscription) {
+      // Check if subscription is already paid
+      if (subscription.status === SubscriptionStatus.ACTIVE || subscription.status === SubscriptionStatus.TRIAL) {
+        // Already paid or in trial - tenant can access immediately
+        return { 
+          message: 'Tenant approved successfully. Subscription is active.',
+          requiresPayment: false
+        };
+      }
+
+      // Subscription not paid yet - send payment link email
+      if (subscription.payment_token) {
+        // Calculate amount based on billing cycle
+        const amount =
+          subscription.billing_cycle === 'monthly'
+            ? subscription.plan.price_monthly
+            : subscription.plan.price_annual;
+
+        // Send approval email with payment link
+        await this.emailService.sendTenantApprovalEmail(
+         tenant.owner.email, // Send to business owner email
+          tenant.name,
+          subscription.plan.name,
+          subscription.billing_cycle,
+          amount,
+          subscription.payment_token,
+        );
+
+        return { 
+          message: 'Tenant approved successfully. Payment link sent to tenant email.',
+          requiresPayment: true
+        };
+      }
+    }
+
+    return { 
+      message: 'Tenant approved successfully',
+      requiresPayment: false
+    };
   }
 
   // ─── Reject Tenant ───────────────────────────────────────────────────────
@@ -315,21 +366,41 @@ export class TenantManagementService {
       .where('tenant_id = :tenantId', { tenantId })
       .execute();
 
-    // Suspend all business members under this tenant (in business_members table)
-    await this.businessMemberRepo
-      .createQueryBuilder('bm')
-      .update(BusinessMember)
-      .set({ is_active: false })
-      .where('business_id IN (SELECT id FROM businesses WHERE tenant_id = :tenantId)', { tenantId })
-      .execute();
+    // Get all businesses under this tenant first
+    const businesses = await this.businessRepo.find({
+      where: { tenant_id: tenantId },
+      select: ['id'],
+    });
 
-    // Suspend all users who are members of businesses under this tenant (in users table)
-    await this.userRepo
-      .createQueryBuilder('u')
-      .update(User)
-      .set({ is_suspended: true })
-      .where('id IN (SELECT user_id FROM business_members WHERE business_id IN (SELECT id FROM businesses WHERE tenant_id = :tenantId))', { tenantId })
-      .execute();
+    const businessIds = businesses.map(b => b.id);
+
+    if (businessIds.length > 0) {
+      // Suspend all business members under this tenant (in business_members table)
+      await this.businessMemberRepo
+        .createQueryBuilder()
+        .update(BusinessMember)
+        .set({ is_active: false })
+        .where('business_id IN (:...businessIds)', { businessIds })
+        .execute();
+
+      // Get all user IDs from business members
+      const businessMembers = await this.businessMemberRepo.find({
+        where: { business_id: In(businessIds) },
+        select: ['user_id'],
+      });
+
+      const userIds = businessMembers.map(bm => bm.user_id);
+
+      // Suspend all users who are members of businesses under this tenant (in users table)
+      if (userIds.length > 0) {
+        await this.userRepo
+          .createQueryBuilder()
+          .update(User)
+          .set({ is_suspended: true })
+          .where('id IN (:...userIds)', { userIds })
+          .execute();
+      }
+    }
 
     return { message: 'Tenant, all businesses, and all business members suspended successfully' };
   }
@@ -361,26 +432,46 @@ export class TenantManagementService {
       .where('tenant_id = :tenantId', { tenantId })
       .execute();
 
-    // Reactivate all business members under this tenant (in business_members table)
-    await this.businessMemberRepo
-      .createQueryBuilder('bm')
-      .update(BusinessMember)
-      .set({ is_active: true })
-      .where('business_id IN (SELECT id FROM businesses WHERE tenant_id = :tenantId)', { tenantId })
-      .execute();
+    // Get all businesses under this tenant first
+    const businesses = await this.businessRepo.find({
+      where: { tenant_id: tenantId },
+      select: ['id'],
+    });
 
-    // Unsuspend all users who are members of businesses under this tenant (in users table)
-    await this.userRepo
-      .createQueryBuilder('u')
-      .update(User)
-      .set({ is_suspended: false })
-      .where('id IN (SELECT user_id FROM business_members WHERE business_id IN (SELECT id FROM businesses WHERE tenant_id = :tenantId))', { tenantId })
-      .execute();
+    const businessIds = businesses.map(b => b.id);
+
+    if (businessIds.length > 0) {
+      // Reactivate all business members under this tenant (in business_members table)
+      await this.businessMemberRepo
+        .createQueryBuilder()
+        .update(BusinessMember)
+        .set({ is_active: true })
+        .where('business_id IN (:...businessIds)', { businessIds })
+        .execute();
+
+      // Get all user IDs from business members
+      const businessMembers = await this.businessMemberRepo.find({
+        where: { business_id: In(businessIds) },
+        select: ['user_id'],
+      });
+
+      const userIds = businessMembers.map(bm => bm.user_id);
+
+      // Unsuspend all users who are members of businesses under this tenant (in users table)
+      if (userIds.length > 0) {
+        await this.userRepo
+          .createQueryBuilder()
+          .update(User)
+          .set({ is_suspended: false })
+          .where('id IN (:...userIds)', { userIds })
+          .execute();
+      }
+    }
 
     return { message: 'Tenant, all businesses, and all business members unsuspended successfully' };
   }
 
-  // ─── Delete Tenant (Soft Delete) ─────────────────────────────────────────
+  // ─── Delete Tenant (Hard Delete - Complete Removal) ─────────────────────────────────────────
   async deleteTenant(tenantId: string) {
     const tenant = await this.tenantRepo.findOne({
       where: { id: tenantId },
@@ -390,19 +481,139 @@ export class TenantManagementService {
       throw new NotFoundException('Tenant not found');
     }
 
-    // Soft delete
-    tenant.deleted_at = new Date();
-    await this.tenantRepo.save(tenant);
+    // Get all businesses under this tenant
+    const businesses = await this.businessRepo.find({
+      where: { tenant_id: tenantId },
+      select: ['id'],
+    });
 
-    // Also soft delete related businesses
-    await this.businessRepo
+    const businessIds = businesses.map(b => b.id);
+    let deletedMembersCount = 0;
+    let deletedUsersCount = 0;
+
+    if (businessIds.length > 0) {
+      // Get all user IDs associated with these businesses (including business members)
+      const businessMembers = await this.businessMemberRepo.find({
+        where: { business_id: In(businessIds) },
+        select: ['user_id', 'id'],
+      });
+
+      const userIds = [...new Set(businessMembers.map(bm => bm.user_id))]; // Remove duplicates
+      deletedMembersCount = businessMembers.length;
+
+      // HARD DELETE all business members
+      await this.businessMemberRepo
+        .createQueryBuilder()
+        .delete()
+        .from(BusinessMember)
+        .where('business_id IN (:...businessIds)', { businessIds })
+        .execute();
+
+      // HARD DELETE all users who are members of these businesses
+      if (userIds.length > 0) {
+        await this.userRepo
+          .createQueryBuilder()
+          .delete()
+          .from(User)
+          .where('id IN (:...userIds)', { userIds })
+          .execute();
+        
+        deletedUsersCount = userIds.length;
+      }
+
+      // HARD DELETE all businesses under this tenant
+      // Note: Due to CASCADE delete constraints, this will automatically delete:
+      // - Products, Warehouses, Stock Movements, Product Categories
+      // - Suppliers, Purchase Orders, Purchase Invoices, Goods Receipts
+      // - Clients, Quotes, Sales Orders, Invoices, Delivery Notes
+      // - Accounts, Transactions, Payments
+      // - Business Settings, Tax Rates, Audit Logs
+      // - All portal tokens and other related data
+      await this.businessRepo
+        .createQueryBuilder()
+        .delete()
+        .from(Business)
+        .where('tenant_id = :tenantId', { tenantId })
+        .execute();
+    }
+
+    // HARD DELETE the tenant owner (business owner)
+    // IMPORTANT: Must be done AFTER deleting the tenant to avoid FK constraint
+    const ownerId = tenant.ownerId;
+
+    // HARD DELETE tenant approval record
+    await this.approvalRepo
       .createQueryBuilder()
-      .update(Business)
-      .set({ deleted_at: new Date() })
+      .delete()
+      .from(TenantApproval)
       .where('tenant_id = :tenantId', { tenantId })
       .execute();
 
-    return { message: 'Tenant deleted successfully' };
+    // HARD DELETE subscription record
+    await this.subscriptionRepo
+      .createQueryBuilder()
+      .delete()
+      .from(Subscription)
+      .where('tenant_id = :tenantId', { tenantId })
+      .execute();
+
+    // HARD DELETE impersonation logs
+    await this.impersonationLogRepo
+      .createQueryBuilder()
+      .delete()
+      .from(ImpersonationLog)
+      .where('tenant_id = :tenantId', { tenantId })
+      .execute();
+
+    // HARD DELETE support tickets
+    await this.supportTicketRepo
+      .createQueryBuilder()
+      .delete()
+      .from(SupportTicket)
+      .where('tenant_id = :tenantId', { tenantId })
+      .execute();
+
+    // Remove owner reference from tenant BEFORE deleting tenant
+    if (ownerId) {
+      console.log(`[Delete] Removing owner reference from tenant...`);
+      await this.tenantRepo
+        .createQueryBuilder()
+        .update(Tenant)
+        .set({ ownerId: undefined })
+        .where('id = :tenantId', { tenantId })
+        .execute();
+      console.log(`[Delete] ✅ Owner reference removed`);
+    }
+
+    // HARD DELETE the tenant itself
+    console.log(`[Delete] Deleting tenant record...`);
+    await this.tenantRepo
+      .createQueryBuilder()
+      .delete()
+      .from(Tenant)
+      .where('id = :tenantId', { tenantId })
+      .execute();
+    console.log(`[Delete] ✅ Tenant record deleted`);
+
+    // NOW delete the owner user (after tenant is deleted)
+    if (ownerId) {
+      console.log(`[Delete] Deleting tenant owner...`);
+      await this.userRepo
+        .createQueryBuilder()
+        .delete()
+        .from(User)
+        .where('id = :ownerId', { ownerId })
+        .execute();
+      console.log(`[Delete] ✅ Tenant owner deleted`);
+    }
+
+    return { 
+      message: 'Tenant and all related data permanently deleted from database',
+      deletedBusinesses: businessIds.length,
+      deletedMembers: deletedMembersCount,
+      deletedUsers: deletedUsersCount,
+      note: 'All related data (products, invoices, orders, payments, etc.) has been cascade deleted'
+    };
   }
 
   // ─── Impersonate Tenant ──────────────────────────────────────────────────
@@ -467,4 +678,329 @@ export class TenantManagementService {
       expiresAt,
     };
   }
+
+  // ─── Export Tenant Data ──────────────────────────────────────────────────
+  async exportTenantData(tenantId: string, format: 'json' | 'csv' | 'excel' | 'sql' = 'json') {
+    const tenant = await this.tenantRepo.findOne({
+      where: { id: tenantId },
+      relations: ['owner'],
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    // Get all related data (ONLY TENANT METADATA - NO CONFIDENTIAL BUSINESS DATA)
+    const businesses = await this.businessRepo.find({
+      where: { tenant_id: tenantId },
+      select: ['id', 'name', 'email', 'phone', 'tax_id', 'currency', 'is_suspended', 'created_at'],
+    });
+
+    const businessIds = businesses.map(b => b.id);
+
+    // Get all business members (ONLY MEMBERSHIP INFO - NO BUSINESS DATA)
+    let businessMembers: BusinessMember[] = [];
+    let users: User[] = [];
+    if (businessIds.length > 0) {
+      businessMembers = await this.businessMemberRepo.find({
+        where: { business_id: In(businessIds) },
+        select: ['id', 'business_id', 'user_id', 'role', 'is_active', 'joined_at', 'created_at'],
+      });
+
+      const userIds = [...new Set(businessMembers.map(bm => bm.user_id))];
+      if (userIds.length > 0) {
+        users = await this.userRepo.find({
+          where: { id: In(userIds) },
+          select: ['id', 'email', 'firstName', 'lastName', 'role', 'phone', 'jobTitle', 'is_verified', 'is_suspended', 'created_at'],
+        });
+      }
+    }
+
+    // Get subscription and approval
+    const subscription = await this.subscriptionRepo.findOne({
+      where: { tenant_id: tenantId },
+      relations: ['plan'],
+    });
+
+    const approval = await this.approvalRepo.findOne({
+      where: { tenant_id: tenantId },
+      relations: ['reviewed_by'],
+    });
+
+    const supportTickets = await this.supportTicketRepo.find({
+      where: { tenant_id: tenantId },
+      select: ['id', 'subject', 'status', 'priority', 'created_at'],
+    });
+
+    // Generate export token (valid for 30 minutes)
+    const exportToken = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+
+    console.log(`[Export] ========== GENERATING EXPORT TOKEN ==========`);
+    console.log(`[Export] Tenant ID: ${tenantId}`);
+    console.log(`[Export] Token: ${exportToken}`);
+    console.log(`[Export] Expires at: ${expiresAt.toISOString()}`);
+
+    // Save token to database
+    try {
+      const savedToken = await this.exportTokenRepo.save({
+        tenant_id: tenantId,
+        token: exportToken,
+        expires_at: expiresAt,
+      });
+      console.log(`[Export] ✅ Token saved to database successfully`);
+      console.log(`[Export] Saved token ID: ${savedToken.id}`);
+    } catch (err: any) {
+      console.error(`[Export] ❌ Failed to save token to database:`, err?.message);
+      throw err;
+    }
+
+    // Clean up expired tokens
+    await this.cleanupExpiredTokens();
+
+    console.log(`[Export] ========== EXPORT TOKEN READY ==========`);
+
+    // Prepare export data (ONLY TENANT METADATA)
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      exportToken,
+      format,
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        domain: tenant.domain,
+        status: tenant.status,
+        billingPlan: tenant.billingPlan,
+        contactEmail: tenant.contactEmail,
+        description: tenant.description,
+        createdAt: tenant.createdAt,
+        updatedAt: tenant.updatedAt,
+        owner: tenant.owner ? {
+          id: tenant.owner.id,
+          email: tenant.owner.email,
+          firstName: tenant.owner.firstName,
+          lastName: tenant.owner.lastName,
+          role: tenant.owner.role,
+          phone: tenant.owner.phone,
+        } : null,
+      },
+      approval: approval ? {
+        status: approval.status,
+        reviewed_at: approval.reviewed_at,
+        rejection_reason: approval.rejection_reason,
+        reviewed_by: approval.reviewed_by ? {
+          email: approval.reviewed_by.email,
+        } : null,
+      } : null,
+      subscription: subscription ? {
+        status: subscription.status,
+        billing_cycle: subscription.billing_cycle,
+        current_period_start: subscription.current_period_start,
+        current_period_end: subscription.current_period_end,
+        trial_ends_at: subscription.trial_ends_at,
+        cancelled_at: subscription.cancelled_at,
+        suspended_at: subscription.suspended_at,
+        plan: subscription.plan ? {
+          name: subscription.plan.name,
+          slug: subscription.plan.slug,
+          price_monthly: subscription.plan.price_monthly,
+          price_annual: subscription.plan.price_annual,
+        } : null,
+      } : null,
+      businesses: businesses.map(b => ({
+        id: b.id,
+        name: b.name,
+        tax_id: b.tax_id,
+        email: b.email,
+        phone: b.phone,
+        currency: b.currency,
+        is_suspended: b.is_suspended,
+        created_at: b.created_at,
+      })),
+      users: users.map(u => ({
+        id: u.id,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        role: u.role,
+        phone: u.phone,
+        jobTitle: u.jobTitle,
+        is_verified: u.is_verified,
+        is_suspended: u.is_suspended,
+        created_at: u.created_at,
+      })),
+      businessMembers: businessMembers.map(bm => ({
+        id: bm.id,
+        business_id: bm.business_id,
+        user_id: bm.user_id,
+        role: bm.role,
+        is_active: bm.is_active,
+        joined_at: bm.joined_at,
+        created_at: bm.created_at,
+      })),
+      supportTickets: supportTickets.map(st => ({
+        id: st.id,
+        subject: st.subject,
+        status: st.status,
+        priority: st.priority,
+        created_at: st.created_at,
+      })),
+      statistics: {
+        totalBusinesses: businesses.length,
+        totalUsers: users.length,
+        totalMembers: businessMembers.length,
+        totalSupportTickets: supportTickets.length,
+      },
+    };
+
+    return {
+      message: 'Tenant data exported successfully',
+      exportToken,
+      expiresAt,
+      format,
+      data: exportData,
+    };
+  }
+
+  // ─── Verify Admin Password ───────────────────────────────────────────────
+  async verifyAdminPassword(adminId: string, password: string): Promise<boolean> {
+    console.log(`[VerifyPassword] Looking up admin with ID: ${adminId}`);
+    
+    const admin = await this.platformAdminRepo.findOne({
+      where: { id: adminId },
+    });
+
+    if (!admin) {
+      console.log(`[VerifyPassword] Admin not found with ID: ${adminId}`);
+      throw new NotFoundException('Admin not found');
+    }
+
+    console.log(`[VerifyPassword] Admin found: ${admin.email}`);
+    console.log(`[VerifyPassword] Has password hash: ${!!admin.password_hash}`);
+    
+    const isPasswordValid = await bcrypt.compare(password, admin.password_hash);
+    console.log(`[VerifyPassword] Password valid: ${isPasswordValid}`);
+    
+    return isPasswordValid;
+  }
+
+  // ─── Verify Export Token ─────────────────────────────────────────────────
+  private async verifyExportToken(exportToken: string, tenantId: string): Promise<boolean> {
+    console.log(`[Delete] Verifying token ${exportToken} for tenant ${tenantId}`);
+    
+    const tokenRecord = await this.exportTokenRepo.findOne({
+      where: { token: exportToken },
+    });
+
+    if (!tokenRecord) {
+      console.log(`[Delete] Token not found in database`);
+      return false;
+    }
+
+    // Check if token is expired
+    const now = new Date();
+    if (now > tokenRecord.expires_at) {
+      console.log(`[Delete] Token expired. Now: ${now.toISOString()}, Expires: ${tokenRecord.expires_at.toISOString()}`);
+      await this.exportTokenRepo.delete({ id: tokenRecord.id });
+      return false;
+    }
+
+    // Check if token matches tenant
+    if (tokenRecord.tenant_id !== tenantId) {
+      console.log(`[Delete] Token tenant mismatch. Expected: ${tenantId}, Got: ${tokenRecord.tenant_id}`);
+      return false;
+    }
+
+    console.log(`[Delete] Token verified successfully`);
+    return true;
+  }
+
+  // ─── Clean Up Expired Tokens ─────────────────────────────────────────────
+  private async cleanupExpiredTokens(): Promise<void> {
+    const now = new Date();
+    await this.exportTokenRepo.delete({
+      expires_at: LessThan(now),
+    });
+  }
+
+  // ─── Delete Tenant with Security (Password + Export Required) ────────────
+  async deleteTenantSecure(tenantId: string, adminId: string, adminPassword: string, exportToken: string) {
+    try {
+      console.log(`[Delete] ========== STARTING SECURE DELETE ==========`);
+      console.log(`[Delete] Tenant ID: ${tenantId}`);
+      console.log(`[Delete] Admin ID: ${adminId}`);
+      console.log(`[Delete] Password provided: ${!!adminPassword} (length: ${adminPassword?.length})`);
+      console.log(`[Delete] Token provided: ${!!exportToken} (length: ${exportToken?.length})`);
+      console.log(`[Delete] Token value: ${exportToken}`);
+      
+      // 1. Verify admin password
+      console.log(`[Delete] Step 1: Verifying admin password...`);
+      let isPasswordValid = false;
+      try {
+        isPasswordValid = await this.verifyAdminPassword(adminId, adminPassword);
+      } catch (err: any) {
+        console.error(`[Delete] Password verification error:`, err?.message);
+        console.error(`[Delete] Error stack:`, err?.stack);
+        throw err;
+      }
+      
+      if (!isPasswordValid) {
+        console.log(`[Delete] ❌ Invalid password for admin ${adminId}`);
+        throw new UnauthorizedException('Invalid admin password');
+      }
+      console.log(`[Delete] ✅ Password verified successfully`);
+
+      // 2. Verify export token
+      console.log(`[Delete] Step 2: Verifying export token...`);
+      console.log(`[Delete] Looking for token in database: ${exportToken}`);
+      
+      // Check if token exists in database
+      const tokenRecord = await this.exportTokenRepo.findOne({
+        where: { token: exportToken },
+      });
+      
+      console.log(`[Delete] Token record found:`, tokenRecord ? 'YES' : 'NO');
+      if (tokenRecord) {
+        console.log(`[Delete] Token details:`, {
+          id: tokenRecord.id,
+          tenant_id: tokenRecord.tenant_id,
+          expires_at: tokenRecord.expires_at,
+          created_at: tokenRecord.created_at,
+        });
+      }
+      
+      const isExportValid = await this.verifyExportToken(exportToken, tenantId);
+      if (!isExportValid) {
+        console.log(`[Delete] ❌ Export token validation failed`);
+        
+        // List all tokens for this tenant for debugging
+        const allTokens = await this.exportTokenRepo.find({
+          where: { tenant_id: tenantId },
+        });
+        console.log(`[Delete] All tokens for tenant ${tenantId}:`, allTokens);
+        
+        throw new BadRequestException('Invalid or expired export token. Please export tenant data again.');
+      }
+      console.log(`[Delete] ✅ Export token verified successfully`);
+
+      // 3. Delete the export token (one-time use)
+      console.log(`[Delete] Step 3: Deleting export token...`);
+      await this.exportTokenRepo.delete({ token: exportToken });
+      console.log(`[Delete] ✅ Export token deleted (one-time use)`);
+
+      // 4. Proceed with deletion
+      console.log(`[Delete] Step 4: Proceeding with tenant deletion...`);
+      const result = await this.deleteTenant(tenantId);
+      console.log(`[Delete] ✅ Tenant deleted successfully`);
+      console.log(`[Delete] ========== DELETE COMPLETED ==========`);
+      return result;
+    } catch (error: any) {
+      console.error(`[Delete] ========== DELETE FAILED ==========`);
+      console.error(`[Delete] Error:`, error?.message);
+      console.error(`[Delete] Stack:`, error?.stack);
+      throw error;
+    }
+  }
 }
+

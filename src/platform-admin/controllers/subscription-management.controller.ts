@@ -45,4 +45,39 @@ export class SubscriptionManagementController {
   async markAsPaid(@Param('id') id: string) {
     return this.subscriptionService.markAsPaid(id);
   }
+
+  // ─── Resend Payment Email ────────────────────────────────────────────────
+  @Post(':id/resend-payment-email')
+  @HttpCode(HttpStatus.OK)
+  async resendPaymentEmail(@Param('id') id: string) {
+    return this.subscriptionService.resendPaymentEmail(id);
+  }
+
+  // ─── Cancel Subscription ─────────────────────────────────────────────────
+  @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  async cancelSubscription(@Param('id') id: string) {
+    return this.subscriptionService.cancelSubscription(id);
+  }
+
+  // ─── Reactivate Subscription ─────────────────────────────────────────────
+  @Post(':id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivateSubscription(@Param('id') id: string) {
+    return this.subscriptionService.reactivateSubscription(id);
+  }
+
+  // ─── Suspend Subscription ────────────────────────────────────────────────
+  @Post(':id/suspend')
+  @HttpCode(HttpStatus.OK)
+  async suspendSubscription(@Param('id') id: string) {
+    return this.subscriptionService.suspendSubscription(id);
+  }
+
+  // ─── Unsuspend Subscription ──────────────────────────────────────────────
+  @Post(':id/unsuspend')
+  @HttpCode(HttpStatus.OK)
+  async unsuspendSubscription(@Param('id') id: string) {
+    return this.subscriptionService.unsuspendSubscription(id);
+  }
 }

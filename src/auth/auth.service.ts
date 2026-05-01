@@ -69,9 +69,9 @@ async validateUser(email: string, password: string): Promise<User | null> {
       return null;
     }
 
-    // Check if user is suspended AFTER password validation
+    // Check if user is suspended at the user level (tenant suspension)
     if (user.is_suspended) {
-      console.log('Throwing exception — user is suspended');
+      console.log('Throwing exception — user account is suspended (tenant suspension)');
       throw new UnauthorizedException('Your account has been suspended. Please contact support for assistance.');
     }
 
@@ -138,6 +138,18 @@ async register(registerDto: RegisterDto, res: Response) {
     });
     await queryRunner.manager.save(business);
 
+    // 4.5. Add the business owner as a member in business_members table
+    const businessMember = queryRunner.manager.create(BusinessMember, {
+      business_id: business.id,
+      user_id: user.id,
+      role: Role.BUSINESS_OWNER,
+      is_active: true,
+      joined_at: new Date(),
+      collaboration_permissions: {},
+      stock_permissions: {},
+    });
+    await queryRunner.manager.save(businessMember);
+
     // 5. Create the default tax rate
     const taxRate = queryRunner.manager.create(TaxRate, {
       business_id: business.id,
@@ -165,7 +177,11 @@ async register(registerDto: RegisterDto, res: Response) {
     await queryRunner.commitTransaction();
 
     // 8. Create tenant approval and subscription
-    await this.tenantRegistrationService.createTenantApprovalAndSubscription(tenant.id);
+    await this.tenantRegistrationService.createTenantApprovalAndSubscription(
+      tenant.id,
+      registerDto.planId,
+      registerDto.billingCycle
+    );
 
     // 9. Send verification email (after commit, so we don't send email if transaction fails)
     const fullName = `${user.firstName} ${user.lastName}`;
@@ -199,16 +215,41 @@ async register(registerDto: RegisterDto, res: Response) {
   async login(user: User, res: Response): Promise<{ message: string; user: any }> {
     // Check tenant login permission (approval and subscription status)
     if (user.role !== 'PLATFORM_ADMIN') {
-      // Find user's tenant
+      // Find user's tenant (if they're a business owner)
       const tenant = await this.tenantsRepository.findOne({
         where: { ownerId: user.id },
       });
 
       if (tenant) {
+        // User is a tenant owner - check tenant approval and subscription
         const loginCheck = await this.tenantRegistrationService.checkTenantLoginPermission(tenant.id);
         
         if (!loginCheck.canLogin) {
           throw new UnauthorizedException(loginCheck.message);
+        }
+      } else {
+        // User is not a tenant owner, check if they're a business member
+        const membership = await this.businessMembersRepository.findOne({
+          where: { 
+            user_id: user.id,
+            is_active: true,
+          },
+        });
+
+        // If no active membership found, check if they have an inactive one
+        if (!membership) {
+          const inactiveMembership = await this.businessMembersRepository.findOne({
+            where: { 
+              user_id: user.id,
+              is_active: false,
+            },
+          });
+
+          // If they have an inactive membership, this is a subscription issue
+          // (not a tenant suspension, because user.is_suspended would have been caught earlier)
+          if (inactiveMembership) {
+            throw new UnauthorizedException('Your subscription has been suspended or cancelled. Please contact support for assistance.');
+          }
         }
       }
     }

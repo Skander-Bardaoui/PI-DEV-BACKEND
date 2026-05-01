@@ -73,6 +73,9 @@ export class Subscription {
   @Column({ type: 'text', nullable: true })
   notes?: string;
 
+  @Column({ type: 'uuid', unique: true, nullable: true })
+  payment_token?: string;
+
   @CreateDateColumn()
   created_at!: Date;
 

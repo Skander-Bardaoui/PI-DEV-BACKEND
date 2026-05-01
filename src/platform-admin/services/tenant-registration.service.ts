@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 import { TenantApproval } from '../entities/tenant-approval.entity';
 import { Subscription } from '../entities/subscription.entity';
 import { Plan } from '../entities/plan.entity';
@@ -21,7 +22,7 @@ export class TenantRegistrationService {
   ) {}
 
   // ─── Create Approval and Subscription for New Tenant ────────────────────
-  async createTenantApprovalAndSubscription(tenantId: string) {
+  async createTenantApprovalAndSubscription(tenantId: string, planId: string, billingCycle: BillingCycle) {
     // Create tenant approval with pending status
     const approval = this.approvalRepo.create({
       tenant_id: tenantId,
@@ -29,29 +30,30 @@ export class TenantRegistrationService {
     });
     await this.approvalRepo.save(approval);
 
-    // Find the free plan
-    const freePlan = await this.planRepo.findOne({
-      where: { slug: 'free', is_active: true },
+    // Validate the selected plan
+    const selectedPlan = await this.planRepo.findOne({
+      where: { id: planId, is_active: true },
     });
 
-    if (!freePlan) {
-      throw new Error('Free plan not found. Please create a free plan first.');
+    if (!selectedPlan) {
+      throw new Error('Selected plan not found or inactive');
     }
 
-    // Create trial subscription
+    // Create subscription with pending_payment status
     const now = new Date();
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 14); // 14-day trial
+    trialEnd.setDate(trialEnd.getDate() + 14); // 14-day grace period
 
     const subscription = this.subscriptionRepo.create({
       tenant_id: tenantId,
-      plan_id: freePlan.id,
-      status: SubscriptionStatus.TRIAL,
-      billing_cycle: BillingCycle.MONTHLY,
+      plan_id: selectedPlan.id,
+      status: SubscriptionStatus.PENDING_PAYMENT,
+      billing_cycle: billingCycle,
       current_period_start: now,
       current_period_end: trialEnd,
       trial_ends_at: trialEnd,
       next_billing_at: trialEnd,
+      payment_token: uuidv4(), // Generate payment token
     });
 
     await this.subscriptionRepo.save(subscription);
@@ -85,17 +87,35 @@ export class TenantRegistrationService {
       };
     }
 
+    // ⚠️ PRIORITY 1: Check if account is suspended (highest priority)
     if (subscription.status === SubscriptionStatus.SUSPENDED) {
       return {
         canLogin: false,
-        message: 'Account suspended. Contact support.',
+        message: 'Your subscription has been suspended. Please contact support for assistance.',
       };
     }
 
+    // ⚠️ PRIORITY 2: Check if subscription is cancelled
     if (subscription.status === SubscriptionStatus.CANCELLED) {
       return {
         canLogin: false,
-        message: 'Subscription cancelled.',
+        message: 'Your subscription has been cancelled. Please contact support to reactivate your account.',
+      };
+    }
+
+    // ⚠️ PRIORITY 3: Check if payment is pending
+    if (subscription.status === SubscriptionStatus.PENDING_PAYMENT) {
+      return {
+        canLogin: false,
+        message: 'Please complete your subscription payment to activate your account.',
+      };
+    }
+
+    // ⚠️ PRIORITY 4: Check if payment is submitted but not verified
+    if (subscription.status === SubscriptionStatus.PAYMENT_SUBMITTED) {
+      return {
+        canLogin: false,
+        message: 'Your payment is being verified. You will receive an email once approved.',
       };
     }
 
