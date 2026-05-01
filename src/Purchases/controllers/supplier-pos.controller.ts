@@ -18,9 +18,11 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles }      from '../../auth/decorators/roles.decorators';
 import { Role }       from '../../users/enums/role.enum';
 import { CreateSupplierPODto, UpdateSupplierPODto } from '../schemas/purchases.schemas';
+import { PurchasePermissionGuard } from '../guards/purchase-permission.guard';
+import { RequirePurchasePermission } from '../decorators/purchase-permission.decorator';
 
 @Controller('businesses/:businessId/supplier-pos')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, PurchasePermissionGuard)
 export class SupplierPOsController {
 
   constructor(
@@ -52,7 +54,8 @@ export class SupplierPOsController {
 
   // POST /businesses/:businessId/supplier-pos
   @Post()
-  @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('create_purchase_order')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
@@ -92,7 +95,8 @@ export class SupplierPOsController {
 
   // PATCH /businesses/:businessId/supplier-pos/:id
   @Patch(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('update_purchase_order')
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -103,7 +107,8 @@ export class SupplierPOsController {
 
   // POST /businesses/:businessId/supplier-pos/:id/send  → DRAFT → SENT
   @Post(':id/send')
-  @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('send_purchase_order')
   send(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -113,7 +118,8 @@ export class SupplierPOsController {
 
   // POST /businesses/:businessId/supplier-pos/:id/confirm  → SENT → CONFIRMED
   @Post(':id/confirm')
-  @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('confirm_purchase_order')
   confirm(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -123,7 +129,8 @@ export class SupplierPOsController {
 
   // POST /businesses/:businessId/supplier-pos/:id/cancel
   @Post(':id/cancel')
-  @Roles(Role.BUSINESS_OWNER)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('confirm_purchase_order')
   cancel(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,

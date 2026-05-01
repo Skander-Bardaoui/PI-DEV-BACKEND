@@ -71,6 +71,8 @@ import { DisputeResolutionService } from './services/dispute-resolution.service'
 import { DisputeResolutionController } from './controllers/dispute-resolution.controller';
 import { MlPredictionService } from './services/ml-prediction.service';
 import { MlPredictionController } from './controllers/ml-prediction.controller';
+import { PurchasePermissionGuard } from './guards/purchase-permission.guard';
+import { BusinessMember } from '../businesses/entities/business-member.entity';
  
 @Module({
   imports: [
@@ -78,7 +80,7 @@ import { MlPredictionController } from './controllers/ml-prediction.controller';
       GoodsReceipt, GoodsReceiptItem, PurchaseInvoice,
       SupplierPOItem, SupplierPO, Supplier,
       PurchaseAlert, DisputeResponse, MLRecommendationAction, Business, Tenant, User,
-      StockMovement, Product, SupplierPayment,
+      StockMovement, Product, SupplierPayment, BusinessMember,
       // Product, // Module pas encore implémenté
       // SupplierPortalToken temporairement retiré pour éviter les erreurs de synchronisation
     ]),
@@ -137,6 +139,7 @@ import { MlPredictionController } from './controllers/ml-prediction.controller';
     SupplierRecommendationService,
     PurchaseAiAssistantService,
     MlPredictionService,
+    PurchasePermissionGuard,
   ],
  
   exports: [

@@ -20,10 +20,12 @@ import { UpdateSupplierDto, QuerySuppliersDto } from '../dto/update-supplier.dto
 import { SuppliersService } from '../services/suppliers.service';
 import { SupplierRecommendationService } from '../services/supplier-recommendation.service';
 import { Role } from '../../users/enums/role.enum';
+import { PurchasePermissionGuard } from '../guards/purchase-permission.guard';
+import { RequirePurchasePermission } from '../decorators/purchase-permission.decorator';
 
 
 @Controller('businesses/:businessId/suppliers')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, PurchasePermissionGuard)
 export class SuppliersController {
 
   constructor(
@@ -33,7 +35,8 @@ export class SuppliersController {
 
   // POST /businesses/:businessId/suppliers
   @Post()
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('create_supplier')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
@@ -64,7 +67,8 @@ findAll(
 
   // PATCH /businesses/:businessId/suppliers/:id
   @Patch(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('update_supplier')
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -75,7 +79,8 @@ findAll(
 
   // DELETE /businesses/:businessId/suppliers/:id  → soft delete
   @Delete(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('delete_supplier')
   @HttpCode(HttpStatus.OK)
   archive(
     @Param('businessId', ParseUUIDPipe) businessId: string,
@@ -86,7 +91,7 @@ findAll(
 
   // PATCH /businesses/:businessId/suppliers/:id/restore
   @Patch(':id/restore')
-  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   restore(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
