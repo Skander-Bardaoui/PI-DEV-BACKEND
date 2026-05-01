@@ -10,8 +10,13 @@ import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { AuthGuard }        from '@nestjs/passport';
 import { OcrService } from '../services/ocr.service';
 import * as fs from 'fs';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorators';
+import { Role } from '../../users/enums/role.enum';
+import { PurchasePermissionGuard } from '../guards/purchase-permission.guard';
+import { RequirePurchasePermission } from '../decorators/purchase-permission.decorator';
 
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), RolesGuard, PurchasePermissionGuard)
 @Controller('businesses/:businessId/ocr')
 export class OcrController {
 
@@ -20,6 +25,8 @@ export class OcrController {
   // POST /businesses/:bId/ocr/extract
   // Upload un fichier et extrait les données de la facture
   @Post('extract')
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('create_purchase_invoice')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
