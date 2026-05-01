@@ -23,14 +23,17 @@ import { CreateRecurringInvoiceDto } from '../dto/create-recurring-invoice.dto';
 import { UpdateRecurringInvoiceDto } from '../dto/update-recurring-invoice.dto';
 import { QueryRecurringInvoicesDto } from '../dto/query-recurring-invoices.dto';
 import { BulkUpdateRecurringInvoicesDto } from '../dto/bulk-update-recurring-invoices.dto';
+import { SalesPermissionGuard } from '../guards/sales-permission.guard';
+import { RequireSalesPermission } from '../decorators/sales-permission.decorator';
 
 @Controller('businesses/:businessId/recurring-invoices')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, SalesPermissionGuard)
 export class RecurringInvoicesController {
   constructor(private readonly service: RecurringInvoicesService) {}
 
   @Post()
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('create_recurring')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
@@ -65,6 +68,7 @@ export class RecurringInvoicesController {
 
   @Patch(':id')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('update_recurring')
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -75,6 +79,7 @@ export class RecurringInvoicesController {
 
   @Delete(':id')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @RequireSalesPermission('delete_recurring')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @Param('businessId', ParseUUIDPipe) businessId: string,
@@ -85,6 +90,7 @@ export class RecurringInvoicesController {
 
   @Post(':id/activate')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('update_recurring')
   activate(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -94,6 +100,7 @@ export class RecurringInvoicesController {
 
   @Post(':id/deactivate')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('update_recurring')
   deactivate(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -103,6 +110,7 @@ export class RecurringInvoicesController {
 
   @Post(':id/pause')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('update_recurring')
   pause(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -112,6 +120,7 @@ export class RecurringInvoicesController {
 
   @Post(':id/resume')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('update_recurring')
   resume(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -121,6 +130,7 @@ export class RecurringInvoicesController {
 
   @Patch('bulk')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('update_recurring')
   bulkUpdate(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: BulkUpdateRecurringInvoicesDto,
