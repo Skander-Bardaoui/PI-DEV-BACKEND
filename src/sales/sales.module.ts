@@ -57,10 +57,12 @@ import {
 } from './controllers/client-onboarding.controller';
 import { Client } from './entities/client.entity';
 import { Business } from '../businesses/entities/business.entity';
+import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { BusinessesModule } from '../businesses/businesses.module';
 import { StockModule } from '../stock/stock.module';
 import { StockMovement } from '../stock/entities/stock-movement.entity';
 import { Product } from '../stock/entities/product.entity';
+import { SalesPermissionGuard } from './guards/sales-permission.guard';
 
 @Module({
   imports: [
@@ -89,6 +91,7 @@ import { Product } from '../stock/entities/product.entity';
       RecurringSubscriptionToken,
       Client,
       Business,
+      BusinessMember,
       StockMovement,
       Product,
     ]),
@@ -115,6 +118,7 @@ import { Product } from '../stock/entities/product.entity';
     ClientsService,
     ClientOnboardingService,
     SalesMLService,
+    SalesPermissionGuard,
   ],
   controllers: [
     QuotesController,

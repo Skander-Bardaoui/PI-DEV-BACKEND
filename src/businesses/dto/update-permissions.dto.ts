@@ -25,4 +25,8 @@ export class UpdatePermissionsDto {
   @IsOptional()
   @IsObject({ message: 'Salary permissions must be an object' })
   salary_permissions?: Record<string, boolean>;
+
+  @IsOptional()
+  @IsObject({ message: 'Sales permissions must be an object' })
+  sales_permissions?: Record<string, boolean>;
 }

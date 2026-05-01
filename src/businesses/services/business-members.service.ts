@@ -47,6 +47,118 @@ export class BusinessMembersService {
   }
 
   /**
+   * Get default sales permissions based on role
+   */
+  private getRoleDefaultSalesPermissions(role: Role): Record<string, boolean> {
+    if (role === Role.BUSINESS_OWNER || role === Role.PLATFORM_ADMIN) {
+      return {
+        create_client: true,
+        update_client: true,
+        delete_client: true,
+        invite_client: true,
+        create_quote: true,
+        update_quote: true,
+        delete_quote: true,
+        send_quote: true,
+        convert_quote: true,
+        create_order: true,
+        update_order: true,
+        cancel_order: true,
+        create_delivery: true,
+        update_delivery: true,
+        cancel_delivery: true,
+        create_invoice: true,
+        update_invoice: true,
+        delete_invoice: true,
+        send_invoice: true,
+        create_recurring: true,
+        update_recurring: true,
+        delete_recurring: true,
+      };
+    }
+    
+    if (role === Role.BUSINESS_ADMIN) {
+      return {
+        create_client: true,
+        update_client: true,
+        delete_client: false,
+        invite_client: true,
+        create_quote: true,
+        update_quote: true,
+        delete_quote: false,
+        send_quote: true,
+        convert_quote: true,
+        create_order: true,
+        update_order: true,
+        cancel_order: false,
+        create_delivery: true,
+        update_delivery: true,
+        cancel_delivery: false,
+        create_invoice: true,
+        update_invoice: true,
+        delete_invoice: false,
+        send_invoice: true,
+        create_recurring: true,
+        update_recurring: true,
+        delete_recurring: false,
+      };
+    }
+    
+    if (role === Role.ACCOUNTANT) {
+      return {
+        create_client: true,
+        update_client: true,
+        delete_client: false,
+        invite_client: false,
+        create_quote: true,
+        update_quote: true,
+        delete_quote: false,
+        send_quote: true,
+        convert_quote: false,
+        create_order: false,
+        update_order: false,
+        cancel_order: false,
+        create_delivery: false,
+        update_delivery: false,
+        cancel_delivery: false,
+        create_invoice: true,
+        update_invoice: false,
+        delete_invoice: false,
+        send_invoice: true,
+        create_recurring: false,
+        update_recurring: false,
+        delete_recurring: false,
+      };
+    }
+    
+    // TEAM_MEMBER and others have minimal permissions
+    return {
+      create_client: false,
+      update_client: false,
+      delete_client: false,
+      invite_client: false,
+      create_quote: true,
+      update_quote: false,
+      delete_quote: false,
+      send_quote: false,
+      convert_quote: false,
+      create_order: false,
+      update_order: false,
+      cancel_order: false,
+      create_delivery: false,
+      update_delivery: false,
+      cancel_delivery: false,
+      create_invoice: false,
+      update_invoice: false,
+      delete_invoice: false,
+      send_invoice: false,
+      create_recurring: false,
+      update_recurring: false,
+      delete_recurring: false,
+    };
+  }
+
+  /**
    * Get all businesses accessible by a user
    */
   async getUserBusinesses(userId: string): Promise<Business[]> {
@@ -155,6 +267,7 @@ export class BusinessMembersService {
     const defaultStockPermissions = PermissionUtil.getRoleDefaultStockPermissions(role);
     const defaultPaymentPermissions = PermissionUtil.getRoleDefaultPaymentPermissions(role);
     const defaultSalaryPermissions = this.getRoleDefaultSalaryPermissions(role);
+    const defaultSalesPermissions = this.getRoleDefaultSalesPermissions(role);
 
     // Create membership with role-based default permissions
     const member = this.businessMemberRepository.create({
@@ -165,6 +278,7 @@ export class BusinessMembersService {
       stock_permissions: defaultStockPermissions,
       payment_permissions: defaultPaymentPermissions,
       salary_permissions: defaultSalaryPermissions,
+      sales_permissions: defaultSalesPermissions,
       invited_by: invitedBy,
       invited_at: new Date(),
       joined_at: new Date(),
@@ -275,6 +389,8 @@ export class BusinessMembersService {
       member.collaboration_permissions = PermissionUtil.getRoleDefaultCollaborationPermissions(newRole);
       member.stock_permissions = PermissionUtil.getRoleDefaultStockPermissions(newRole);
       member.payment_permissions = PermissionUtil.getRoleDefaultPaymentPermissions(newRole);
+      member.salary_permissions = this.getRoleDefaultSalaryPermissions(newRole);
+      member.sales_permissions = this.getRoleDefaultSalesPermissions(newRole);
       console.log('Promoting to BUSINESS_OWNER, setting full permissions');
     }
     // Note: When demoting from BUSINESS_OWNER, permissions are preserved (requirement 7.6)
@@ -363,7 +479,7 @@ export class BusinessMembersService {
 
   /**
    * Update member permissions with enhanced validation and error handling
-   * Supports updating collaboration, stock, payment, and salary permissions independently or together
+   * Supports updating collaboration, stock, payment, salary, and sales permissions independently or together
    */
   async updateMemberPermissions(
     businessId: string,
@@ -372,11 +488,12 @@ export class BusinessMembersService {
     stock_permissions?: Record<string, boolean>,
     payment_permissions?: Record<string, boolean>,
     salary_permissions?: Record<string, boolean>,
+    sales_permissions?: Record<string, boolean>,
   ): Promise<BusinessMember> {
     // At least one permission field must be provided
-    if (!collaboration_permissions && !stock_permissions && !payment_permissions && !salary_permissions) {
+    if (!collaboration_permissions && !stock_permissions && !payment_permissions && !salary_permissions && !sales_permissions) {
       throw new BadRequestException(
-        'At least one permission field (collaboration_permissions, stock_permissions, payment_permissions, or salary_permissions) must be provided'
+        'At least one permission field (collaboration_permissions, stock_permissions, payment_permissions, salary_permissions, or sales_permissions) must be provided'
       );
     }
 
@@ -418,6 +535,7 @@ export class BusinessMembersService {
     const previousStockPermissions = member.stock_permissions;
     const previousPaymentPermissions = member.payment_permissions;
     const previousSalaryPermissions = member.salary_permissions;
+    const previousSalesPermissions = member.sales_permissions;
 
     // Update collaboration permissions if provided
     if (collaboration_permissions) {
@@ -438,6 +556,11 @@ export class BusinessMembersService {
     if (salary_permissions) {
       member.salary_permissions = salary_permissions;
     }
+
+    // Update sales permissions if provided
+    if (sales_permissions) {
+      member.sales_permissions = sales_permissions;
+    }
     
     try {
       const updatedMember = await this.businessMemberRepository.save(member);
@@ -454,6 +577,8 @@ export class BusinessMembersService {
         newPaymentPermissions: member.payment_permissions,
         previousSalaryPermissions,
         newSalaryPermissions: member.salary_permissions,
+        previousSalesPermissions,
+        newSalesPermissions: member.sales_permissions,
         updatedAt: new Date().toISOString()
       });
 
