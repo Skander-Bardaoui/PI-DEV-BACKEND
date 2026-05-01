@@ -23,6 +23,25 @@ async function bootstrap() {
 
   // Enable cookie parsing
   app.use(cookieParser());
+  
+  // Configure body parsing with raw body for Stripe webhook
+  app.use((req, res, next) => {
+    if (req.originalUrl === '/webhooks/stripe') {
+      next();
+    } else {
+      require('express').json()(req, res, next);
+    }
+  });
+  
+  app.use((req, res, next) => {
+    if (req.originalUrl === '/webhooks/stripe') {
+      require('express').raw({ type: 'application/json' })(req, res, next);
+    } else {
+      next();
+    }
+  });
+  
+  app.use(require('express').urlencoded({ extended: true }));
 
   // Serve static files (for uploaded avatars)
   app.useStaticAssets(join(__dirname, '..', 'public'), {

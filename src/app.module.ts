@@ -41,6 +41,12 @@ import { PresenceModule } from './presence/presence.module';
 // Common Module
 import { CommonModule } from './common/common.module';
 
+// Platform Auth Module
+import { PlatformAuthModule } from './platform-auth/platform-auth.module';
+
+// Support Module
+import { SupportModule } from './support/support.module';
+
 // Core Entities
 import { User } from './users/entities/user.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
@@ -92,6 +98,17 @@ import { Activity } from './activities/entities/activity.entity';
 
 // Common Entities
 import { AuditLog } from './common/entities/audit-log.entity';
+
+// Platform Auth Entities
+import { PlatformAdmin } from './platform-auth/entities/platform-admin.entity';
+import { PlatformRefreshToken } from './platform-auth/entities/platform-refresh-token.entity';
+import { PlatformLoginAttempt } from './platform-auth/entities/platform-login-attempt.entity';
+import { TenantApproval } from './platform-admin/entities/tenant-approval.entity';
+import { Subscription } from './platform-admin/entities/subscription.entity';
+import { Plan } from './platform-admin/entities/plan.entity';
+import { ImpersonationLog } from './platform-admin/entities/impersonation-log.entity';
+import { PlatformAuditLog } from './platform-admin/entities/platform-audit-log.entity';
+import { SupportTicket } from './platform-admin/entities/support-ticket.entity';
 
 // Purchases Entities
 import { Supplier } from './Purchases/entities/supplier.entity';
@@ -190,6 +207,17 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
           // Common
           AuditLog,
+
+          // Platform Auth
+          PlatformAdmin,
+          PlatformRefreshToken,
+          PlatformLoginAttempt,
+          TenantApproval,
+          Subscription,
+          Plan,
+          ImpersonationLog,
+          PlatformAuditLog,
+          SupportTicket,
         ],
       }),
       inject: [ConfigService],
@@ -235,6 +263,12 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
 
     // Presence
     PresenceModule,
+
+    // Platform Auth
+    PlatformAuthModule,
+
+    // Support
+    SupportModule,
   ],
   controllers: [],
   providers: [

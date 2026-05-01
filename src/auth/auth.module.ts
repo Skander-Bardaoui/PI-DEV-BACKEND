@@ -15,12 +15,14 @@ import { Tenant } from '../tenants/entities/tenant.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { TaxRate } from '../businesses/entities/tax-rate.entity';
+import { PlatformAuthModule } from '../platform-auth/platform-auth.module';
 
 @Module({
   imports: [
     ConfigModule,
     UsersModule,
     EmailModule,
+    PlatformAuthModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

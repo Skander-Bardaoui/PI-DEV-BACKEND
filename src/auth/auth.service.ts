@@ -19,6 +19,7 @@ import { Tenant } from '../tenants/entities/tenant.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { TaxRate } from '../businesses/entities/tax-rate.entity';
+import { TenantRegistrationService } from '../platform-admin/services/tenant-registration.service';
 
 @Injectable()
 export class AuthService {
@@ -42,6 +43,7 @@ constructor(
   private readonly businessMembersRepository: Repository<BusinessMember>,
   @InjectRepository(TaxRate)
   private readonly taxRatesRepository: Repository<TaxRate>,
+  private readonly tenantRegistrationService: TenantRegistrationService,
 ) {}
 
   // ─── Called by LocalStrategy during login ─────────────────────────────────
@@ -65,6 +67,12 @@ async validateUser(email: string, password: string): Promise<User | null> {
     if (!passwordMatches) {
       console.log('Returning null — password mismatch');
       return null;
+    }
+
+    // Check if user is suspended at the user level (tenant suspension)
+    if (user.is_suspended) {
+      console.log('Throwing exception — user account is suspended (tenant suspension)');
+      throw new UnauthorizedException('Your account has been suspended. Please contact support for assistance.');
     }
 
     console.log('Returning user — success');
@@ -130,6 +138,18 @@ async register(registerDto: RegisterDto, res: Response) {
     });
     await queryRunner.manager.save(business);
 
+    // 4.5. Add the business owner as a member in business_members table
+    const businessMember = queryRunner.manager.create(BusinessMember, {
+      business_id: business.id,
+      user_id: user.id,
+      role: Role.BUSINESS_OWNER,
+      is_active: true,
+      joined_at: new Date(),
+      collaboration_permissions: {},
+      stock_permissions: {},
+    });
+    await queryRunner.manager.save(businessMember);
+
     // 5. Create the default tax rate
     const taxRate = queryRunner.manager.create(TaxRate, {
       business_id: business.id,
@@ -156,11 +176,18 @@ async register(registerDto: RegisterDto, res: Response) {
     // 7. Commit transaction
     await queryRunner.commitTransaction();
 
-    // 8. Send verification email (after commit, so we don't send email if transaction fails)
+    // 8. Create tenant approval and subscription
+    await this.tenantRegistrationService.createTenantApprovalAndSubscription(
+      tenant.id,
+      registerDto.planId,
+      registerDto.billingCycle
+    );
+
+    // 9. Send verification email (after commit, so we don't send email if transaction fails)
     const fullName = `${user.firstName} ${user.lastName}`;
     await this.emailService.sendVerificationEmail(user.email, verificationToken, fullName);
 
-    // 9. Return success response WITHOUT generating tokens
+    // 10. Return success response WITHOUT generating tokens
     // User must log in manually to get tokens
     return {
       message: 'Registration successful. Please log in with your credentials.',
@@ -186,6 +213,47 @@ async register(registerDto: RegisterDto, res: Response) {
   // ─── Login ───────────────────────────────────────────────────────────────
   // This is called AFTER LocalStrategy already validated the user
   async login(user: User, res: Response): Promise<{ message: string; user: any }> {
+    // Check tenant login permission (approval and subscription status)
+    if (user.role !== 'PLATFORM_ADMIN') {
+      // Find user's tenant (if they're a business owner)
+      const tenant = await this.tenantsRepository.findOne({
+        where: { ownerId: user.id },
+      });
+
+      if (tenant) {
+        // User is a tenant owner - check tenant approval and subscription
+        const loginCheck = await this.tenantRegistrationService.checkTenantLoginPermission(tenant.id);
+        
+        if (!loginCheck.canLogin) {
+          throw new UnauthorizedException(loginCheck.message);
+        }
+      } else {
+        // User is not a tenant owner, check if they're a business member
+        const membership = await this.businessMembersRepository.findOne({
+          where: { 
+            user_id: user.id,
+            is_active: true,
+          },
+        });
+
+        // If no active membership found, check if they have an inactive one
+        if (!membership) {
+          const inactiveMembership = await this.businessMembersRepository.findOne({
+            where: { 
+              user_id: user.id,
+              is_active: false,
+            },
+          });
+
+          // If they have an inactive membership, this is a subscription issue
+          // (not a tenant suspension, because user.is_suspended would have been caught earlier)
+          if (inactiveMembership) {
+            throw new UnauthorizedException('Your subscription has been suspended or cancelled. Please contact support for assistance.');
+          }
+        }
+      }
+    }
+
     await this.generateTokensAndSetCookies(user, res);
     
     return {

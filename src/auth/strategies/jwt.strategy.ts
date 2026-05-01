@@ -1,16 +1,21 @@
 // src/auth/strategies/jwt.strategy.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { UsersService } from '../../users/users.service';
+import { BusinessMember } from '../../businesses/entities/business-member.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    @InjectRepository(BusinessMember)
+    private readonly businessMemberRepository: Repository<BusinessMember>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -34,6 +39,28 @@ async validate(payload: { sub: string; email: string; role: string; business_id:
   const user = await this.usersService.findById(payload.sub);
   if (!user) {
     return null;
+  }
+  
+  // Check if user is suspended at the user level (tenant suspension by admin)
+  if (user.is_suspended) {
+    throw new UnauthorizedException('Your account has been suspended. Please contact support for assistance.');
+  }
+  
+  // If user has a business_id in JWT, check if they're an active business member
+  // This check is for subscription-related blocks (not tenant suspension)
+  if (payload.business_id) {
+    const membership = await this.businessMemberRepository.findOne({
+      where: {
+        business_id: payload.business_id,
+        user_id: user.id,
+      },
+    });
+    
+    // If membership exists but is_active is false, this is a subscription issue
+    // (not a tenant suspension, because user.is_suspended would be true for that)
+    if (membership && !membership.is_active) {
+      throw new UnauthorizedException('Your subscription has been suspended or cancelled. Please contact support for assistance.');
+    }
   }
   
   // Return user object with business_id from JWT payload
