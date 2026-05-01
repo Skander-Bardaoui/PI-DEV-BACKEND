@@ -10,6 +10,7 @@ import { SubscriptionStatus } from '../enums/subscription-status.enum';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PaymentMethod } from '../enums/payment-method.enum';
 import { EmailService } from '../../email/email.service';
+import { Business } from '../../businesses/entities/business.entity';
 
 @Injectable()
 export class SubscriptionPaymentService {
@@ -20,6 +21,8 @@ export class SubscriptionPaymentService {
     private readonly subscriptionRepo: Repository<Subscription>,
     @InjectRepository(Payment)
     private readonly paymentRepo: Repository<Payment>,
+    @InjectRepository(Business)
+    private readonly businessRepo: Repository<Business>,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
   ) {
@@ -159,8 +162,14 @@ export class SubscriptionPaymentService {
     subscription.payment_method = 'CARTE';
     await this.subscriptionRepo.save(subscription);
 
+    // Get the first business for this tenant (for business_id requirement)
+    const business = await this.businessRepo.findOne({
+      where: { tenant_id: subscription.tenant_id },
+      order: { created_at: 'ASC' },
+    });
+
     // Create payment record
-    await this.paymentRepo.save({
+    const paymentData: any = {
       subscription_id: subscription.id,
       amount,
       currency: 'TND',
@@ -170,7 +179,14 @@ export class SubscriptionPaymentService {
       submitted_at: now,
       payer_name: `${subscription.tenant.owner.firstName} ${subscription.tenant.owner.lastName}`,
       payer_phone: subscription.tenant.owner.phone || 'N/A',
-    });
+    };
+
+    // Add business_id if business exists
+    if (business?.id) {
+      paymentData.business_id = business.id;
+    }
+
+    await this.paymentRepo.save(paymentData);
 
     // Send activation email
     await this.sendActivationEmail(subscription);

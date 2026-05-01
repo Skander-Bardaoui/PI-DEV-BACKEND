@@ -24,6 +24,9 @@ export class Payment {
   @JoinColumn({ name: 'subscription_id' })
   subscription!: Subscription;
 
+  @Column({ nullable: true })
+  business_id?: string;
+
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount!: number;
 
