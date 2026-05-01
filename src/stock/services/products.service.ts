@@ -218,11 +218,13 @@ export class ProductsService {
   }
 
   async create(businessId: string, dto: CreateProductDto, userId?: string): Promise<Product> {
-    // Check stock CREATE permission
+    // Check stock CREATE permission based on product type
     if (userId) {
-      const hasPermission = await this.hasStockPermission(userId, businessId, 'create_product');
+      const isService = dto.type === ProductType.SERVICE;
+      const permissionKey = isService ? 'create_service' : 'create_product';
+      const hasPermission = await this.hasStockPermission(userId, businessId, permissionKey);
       if (!hasPermission) {
-        throw new ForbiddenException('You do not have permission to create products');
+        throw new ForbiddenException(`You do not have permission to create ${isService ? 'services' : 'products'}`);
       }
     }
 
@@ -259,15 +261,18 @@ export class ProductsService {
   }
 
   async update(businessId: string, id: string, dto: UpdateProductDto, userId?: string): Promise<Product> {
-    // Check stock UPDATE permission
+    const product = await this.findOne(businessId, id);
+    
+    // Check stock UPDATE permission based on product type
     if (userId) {
-      const hasPermission = await this.hasStockPermission(userId, businessId, 'update_product');
+      const isService = product.type === ProductType.SERVICE;
+      const permissionKey = isService ? 'update_service' : 'update_product';
+      const hasPermission = await this.hasStockPermission(userId, businessId, permissionKey);
       if (!hasPermission) {
-        throw new ForbiddenException('You do not have permission to update products');
+        throw new ForbiddenException(`You do not have permission to update ${isService ? 'services' : 'products'}`);
       }
     }
 
-    const product = await this.findOne(businessId, id);
     const oldValue = { ...product };
 
     if (dto.type === ProductType.SERVICE || dto.type === ProductType.DIGITAL) {
@@ -307,13 +312,15 @@ export class ProductsService {
   }
 
   async softDelete(businessId: string, id: string, userId: string): Promise<Product> {
-    // Check stock DELETE permission
-    const hasPermission = await this.hasStockPermission(userId, businessId, 'delete_product');
-    if (!hasPermission) {
-      throw new ForbiddenException('You do not have permission to delete products');
-    }
-
     const product = await this.findOne(businessId, id);
+    
+    // Check stock DELETE permission based on product type
+    const isService = product.type === ProductType.SERVICE;
+    const permissionKey = isService ? 'delete_service' : 'delete_product';
+    const hasPermission = await this.hasStockPermission(userId, businessId, permissionKey);
+    if (!hasPermission) {
+      throw new ForbiddenException(`You do not have permission to delete ${isService ? 'services' : 'products'}`);
+    }
 
     product.deleted_at = new Date();
     product.deleted_by = userId;

@@ -82,6 +82,20 @@ export class ProductsController {
       delete backendDto.is_stockable;
     }
 
+    // Convert empty strings to null for UUID fields to avoid PostgreSQL validation errors
+    if (backendDto.warehouse_id === '') {
+      backendDto.warehouse_id = null;
+    }
+    if (backendDto.category_id === '') {
+      backendDto.category_id = null;
+    }
+    if (backendDto.default_supplier_id === '') {
+      backendDto.default_supplier_id = null;
+    }
+    if (backendDto.barcode === '') {
+      backendDto.barcode = null;
+    }
+
     return backendDto;
   }
 

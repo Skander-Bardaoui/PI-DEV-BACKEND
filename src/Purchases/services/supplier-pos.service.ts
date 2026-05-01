@@ -160,8 +160,12 @@ export class SupplierPOsService {
 
     return this.dataSource.transaction(async (manager) => {
 
-      if (dto.expected_delivery !== undefined)
-        po.expected_delivery = new Date(dto.expected_delivery);
+      if (dto.expected_delivery !== undefined) {
+        // Handle empty string or null by setting to null
+        po.expected_delivery = dto.expected_delivery && dto.expected_delivery.trim() !== '' 
+          ? new Date(dto.expected_delivery) 
+          : null;
+      }
       if (dto.notes !== undefined)
         po.notes = dto.notes;
 

@@ -34,37 +34,83 @@ export class PurchasePermissionGuard implements CanActivate {
     const user = request.user;
     const businessId = request.params.businessId;
 
+    console.log('🔍 PurchasePermissionGuard - Debug:', {
+      requiredPermission,
+      userId: user?.id,
+      userRole: user?.role,
+      businessId,
+      hasUser: !!user,
+      hasBusinessId: !!businessId,
+    });
+
     if (!user || !businessId) {
+      console.error('❌ User or business not found');
       throw new ForbiddenException('User or business not found');
     }
 
-    // BUSINESS_OWNER bypasses all checks
-    if (user.role === Role.BUSINESS_OWNER) {
+    // BUSINESS_OWNER and PLATFORM_ADMIN bypass all checks
+    if (user.role === Role.BUSINESS_OWNER || user.role === Role.PLATFORM_ADMIN) {
+      console.log('✅ Bypassing permission check for BUSINESS_OWNER/PLATFORM_ADMIN');
       return true;
     }
 
-    // Find member in business
-    const member = await this.businessMemberRepo.findOne({
-      where: {
-        business_id: businessId,
-        user_id: user.id,
-        is_active: true,
-      },
-    });
+    try {
+      // Find member in business
+      const member = await this.businessMemberRepo.findOne({
+        where: {
+          business_id: businessId,
+          user_id: user.id,
+          is_active: true,
+        },
+      });
 
-    if (!member) {
-      throw new ForbiddenException('Not a member of this business');
+      console.log('🔍 Member found:', {
+        memberId: member?.id,
+        memberRole: member?.role,
+        hasPurchasePermissions: !!member?.purchase_permissions,
+        purchasePermissions: member?.purchase_permissions,
+      });
+
+      if (!member) {
+        console.error('❌ Not a member of this business');
+        throw new ForbiddenException('Not a member of this business');
+      }
+
+      // Check specific permission (default to false if key is missing)
+      // If purchase_permissions is null or undefined, default to empty object
+      const permissions = member.purchase_permissions || {};
+      const hasPermission = permissions[requiredPermission] === true;
+
+      console.log('🔍 Permission check result:', {
+        requiredPermission,
+        hasPermission,
+        allPermissions: permissions,
+      });
+
+      if (!hasPermission) {
+        console.log('❌ Permission denied:', {
+          userId: user.id,
+          businessId,
+          requiredPermission,
+          userPermissions: permissions,
+          memberRole: member.role,
+        });
+        throw new ForbiddenException(
+          `Missing required permission: ${requiredPermission}`,
+        );
+      }
+
+      console.log('✅ Permission granted');
+      return true;
+    } catch (error) {
+      console.error('❌ PurchasePermissionGuard error:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+      // Log the actual error before throwing generic message
+      console.error('Unexpected error type:', typeof error, error);
+      throw new ForbiddenException('Permission check failed');
     }
-
-    // Check specific permission (default to false if key is missing)
-    const hasPermission = member.purchase_permissions?.[requiredPermission] === true;
-
-    if (!hasPermission) {
-      throw new ForbiddenException(
-        `Missing required permission: ${requiredPermission}`,
-      );
-    }
-
-    return true;
   }
 }
