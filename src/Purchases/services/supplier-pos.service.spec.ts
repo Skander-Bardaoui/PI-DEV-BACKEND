@@ -7,6 +7,9 @@ import { Supplier } from '../entities/supplier.entity';
 import { Product } from '../../stock/entities/product.entity';
 import { StockMovement } from '../../stock/entities/stock-movement.entity';
 import { PurchaseMailService } from './purchase-mail.service';
+import { SuppliersService } from './suppliers.service';
+import { MlPredictionService } from './ml-prediction.service';
+import { StockMovementsService } from '../../stock/services/stock-movements/stock-movements.service';
 import { DataSource } from 'typeorm';
 
 describe('SupplierPOsService', () => {
@@ -48,14 +51,17 @@ describe('SupplierPOsService', () => {
   const mockSuppliersService = {
     findOne: jest.fn(),
     findAll: jest.fn(),
+    findOneOrFail: jest.fn(),
   };
 
   const mockMlPredictionService = {
     predict: jest.fn(),
+    markAsProcessed: jest.fn(),
   };
 
   const mockStockMovementsService = {
     create: jest.fn(),
+    createManual: jest.fn(),
     findAll: jest.fn(),
   };
 
@@ -84,15 +90,15 @@ describe('SupplierPOsService', () => {
           useValue: mockRepository,
         },
         {
-          provide: 'SuppliersService',
+          provide: SuppliersService,
           useValue: mockSuppliersService,
         },
         {
-          provide: 'MlPredictionService',
+          provide: MlPredictionService,
           useValue: mockMlPredictionService,
         },
         {
-          provide: 'StockMovementsService',
+          provide: StockMovementsService,
           useValue: mockStockMovementsService,
         },
         {
