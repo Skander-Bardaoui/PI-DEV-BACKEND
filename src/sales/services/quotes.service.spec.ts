@@ -64,6 +64,14 @@ describe('QuotesService', () => {
           useValue: mockRepository,
         },
         {
+          provide: 'InvoiceRepository',
+          useValue: mockRepository,
+        },
+        {
+          provide: 'InvoiceItemRepository',
+          useValue: mockRepository,
+        },
+        {
           provide: DataSource,
           useValue: mockDataSource,
         },

@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { RecurringInvoicesService } from './recurring-invoices.service';
 import { RecurringInvoice } from '../entities/recurring-invoice.entity';
 import { Client } from '../entities/client.entity';
+import { Invoice } from '../entities/invoice.entity';
 
 describe('RecurringInvoicesService', () => {
   let service: RecurringInvoicesService;
@@ -32,6 +33,10 @@ describe('RecurringInvoicesService', () => {
         },
         {
           provide: getRepositoryToken(Client),
+          useValue: mockRepository,
+        },
+        {
+          provide: 'InvoiceRepository',
           useValue: mockRepository,
         },
       ],

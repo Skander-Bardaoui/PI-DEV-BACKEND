@@ -45,6 +45,20 @@ describe('SupplierPOsService', () => {
     })),
   };
 
+  const mockSuppliersService = {
+    findOne: jest.fn(),
+    findAll: jest.fn(),
+  };
+
+  const mockMlPredictionService = {
+    predict: jest.fn(),
+  };
+
+  const mockStockMovementsService = {
+    create: jest.fn(),
+    findAll: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -68,6 +82,18 @@ describe('SupplierPOsService', () => {
         {
           provide: getRepositoryToken(StockMovement),
           useValue: mockRepository,
+        },
+        {
+          provide: 'SuppliersService',
+          useValue: mockSuppliersService,
+        },
+        {
+          provide: 'MlPredictionService',
+          useValue: mockMlPredictionService,
+        },
+        {
+          provide: 'StockMovementsService',
+          useValue: mockStockMovementsService,
         },
         {
           provide: PurchaseMailService,

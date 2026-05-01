@@ -5,6 +5,7 @@ import { DeliveryNote } from '../entities/delivery-note.entity';
 import { DeliveryNoteItem } from '../entities/delivery-note-item.entity';
 import { SalesOrder } from '../entities/sales-order.entity';
 import { SalesOrderItem } from '../entities/sales-order-item.entity';
+import { DataSource } from 'typeorm';
 
 describe('DeliveryNotesService', () => {
   let service: DeliveryNotesService;
@@ -21,6 +22,19 @@ describe('DeliveryNotesService', () => {
       orderBy: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([]),
       getOne: jest.fn().mockResolvedValue(null),
+    })),
+  };
+
+  const mockDataSource = {
+    createQueryRunner: jest.fn(() => ({
+      connect: jest.fn(),
+      startTransaction: jest.fn(),
+      commitTransaction: jest.fn(),
+      rollbackTransaction: jest.fn(),
+      release: jest.fn(),
+      manager: {
+        save: jest.fn(),
+      },
     })),
   };
 
@@ -43,6 +57,10 @@ describe('DeliveryNotesService', () => {
         {
           provide: getRepositoryToken(SalesOrderItem),
           useValue: mockRepository,
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();
