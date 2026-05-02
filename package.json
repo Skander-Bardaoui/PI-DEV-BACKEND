@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+   "build": "nest build && tsc-alias",
     "start": "node dist/main.js",
     "start:dev": "ts-node -r tsconfig-paths/register src/main.ts",
     "start:prod": "node dist/main.js",
@@ -73,6 +73,7 @@
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
+    "tsc-alias": "^1.8.10",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@types/bcryptjs": "^2.4.6",
