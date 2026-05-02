@@ -1,31 +1,31 @@
-{
-  "name": "backend",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
-  "private": true,
-  "license": "UNLICENSED",
+ "license": "UNLICENSED",
 
   "scripts": {
-    "build": "nest build",
+    "build": "node node_modules/@nestjs/cli/bin/nest.js build",
+    "build": "npm install --include=dev && node node_modules/@nestjs/cli/bin/nest.js build",
     "start": "node dist/main.js",
-    "start:dev": "ts-node -r tsconfig-paths/register src/main.ts",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main.js",
+
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+
     "seed:permissions": "ts-node src/scripts/seed-member-permissions.ts",
-    "seed:plans": "ts-node src/scripts/seed-plans.ts",
     "check:permissions": "npm run build && node dist/scripts/check-member-permissions.js",
     "test:permission-utils": "npm run build && node dist/scripts/test-permission-utils.js",
     "fix:permissions": "npm run build && node dist/scripts/fix-permission-format.js"
   },
 
   "dependencies": {
+    "zod-validation-error": "^5.0.0",
+    "groq-sdk": "^1.1.2",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
@@ -39,9 +39,7 @@
     "@nestjs/schedule": "^6.1.1",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
-    "@types/express": "^5.0.0",
-    "@types/multer": "^2.0.0",
-    "@types/node": "^22.10.7",
+    "@nestjs/websockets": "^11.1.18",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "bwip-js": "^4.8.0",
@@ -50,95 +48,38 @@
     "class-validator": "^0.14.4",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
-    "groq-sdk": "^1.1.2",
     "helmet": "^8.1.0",
     "libphonenumber-js": "^1.12.41",
     "multer": "^2.0.2",
     "nestjs-zod": "^5.3.0",
-    "node-tesseract-ocr": "^2.2.1",
     "nodemailer": "^8.0.0",
     "passport": "^0.7.0",
-    "passport-github2": "^0.1.12",
-    "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-    "pdfjs-dist": "^5.5.207",
-    "pdfkit": "^0.17.2",
     "pg": "^8.18.0",
-    "qrcode": "^1.5.4",
-    "react-dropzone": "^15.0.0",
+    "pdfkit": "^0.17.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
-    "speakeasy": "^2.0.0",
     "stripe": "^21.0.1",
     "typeorm": "^0.3.28",
     "uuid": "^13.0.0",
-    "zod": "^4.3.6",
-    "zod-validation-error": "^5.0.0"
+    "zod": "^4.3.6"
   },
 
   "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/multer": "^2.0.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cron": "^2.4.3",
-    "@types/jest": "^30.0.0",
-    "@types/nodemailer": "^7.0.9",
-    "@types/passport-github2": "^1.2.9",
-    "@types/passport-google-oauth20": "^2.0.17",
-    "@types/passport-jwt": "^4.0.1",
-    "@types/passport-local": "^1.0.38",
-    "@types/qrcode": "^1.5.6",
-    "@types/speakeasy": "^2.0.10",
-    "@types/uuid": "^10.0.0",
-    "eslint": "^9.18.0",
-    "eslint-config-prettier": "^10.0.1",
-    "eslint-plugin-prettier": "^5.2.2",
-    "jest": "^30.0.0",
-    "prettier": "^3.4.2",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.2",
+    "@nestjs/testing": "^11.0.1",
+    "typescript": "^5.7.3",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3"
-  },
-
-  "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.{ts,js}",
-      "!**/*.spec.ts",
-      "!**/*.test.ts",
-      "!**/*.module.ts",
-      "!**/main.ts",
-      "!**/*.dto.ts",
-      "!**/*.entity.ts",
-      "!**/*.enum.ts",
-      "!**/node_modules/**",
-      "!**/dist/**"
-    ],
-    "coverageDirectory": "../coverage",
-    "coverageReporters": ["text", "text-summary", "html", "lcov", "json-summary"],
-    "coveragePathIgnorePatterns": [
-      "/node_modules/",
-      "/dist/",
-      ".module.ts$",
-      ".dto.ts$",
-      ".entity.ts$",
-      ".enum.ts$",
-      "main.ts$"
-    ],
-    "testEnvironment": "node",
-    "moduleNameMapper": {
-      "^src/(.*)$": "<rootDir>/$1"
-    }
+    "jest": "^30.0.0",
+    "ts-jest": "^29.2.5",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2"
   }
 }
