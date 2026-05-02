@@ -14,7 +14,7 @@ import { RegisterDto } from './dto/register.dto';
 import { PasswordResetToken, TokenType } from './entities/password-reset-token.entity';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { EmailService } from '../email/email.service';
-import { Role } from 'src/users/enums/role.enum';
+import { Role } from '../users/enums/role.enum';
 import { Tenant, TenantStatus } from '../tenants/entities/tenant.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
