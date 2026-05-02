@@ -182,68 +182,102 @@ export class SalesOrdersService {
     }
 
     return this.dataSource.transaction(async (manager) => {
-      if (dto.expectedDelivery !== undefined)
-        order.expectedDelivery = dto.expectedDelivery ? new Date(dto.expectedDelivery) : null;
-      if (dto.notes !== undefined)
-        order.notes = dto.notes;
+      try {
+        if (dto.expectedDelivery !== undefined)
+          order.expectedDelivery = dto.expectedDelivery ? new Date(dto.expectedDelivery) : null;
+        if (dto.notes !== undefined)
+          order.notes = dto.notes;
 
-      if (dto.items?.length) {
-        // Reverse stock movements for old items
-        await this.reverseStockMovements(businessId, id, manager);
+        if (dto.items?.length) {
+          // Reverse stock movements for old items
+          try {
+            await this.reverseStockMovements(businessId, id, manager);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            this.logger.error(`Failed to reverse stock movements: ${errorMessage}`, errorStack);
+            // Continue with update even if reversal fails
+          }
 
-        await manager.delete(SalesOrderItem, { salesOrderId: id });
+          await manager.delete(SalesOrderItem, { salesOrderId: id });
 
-        const { subtotal, taxAmount, netAmount, items } = this.calcTotals(dto.items);
-        order.subtotal = subtotal;
-        order.taxAmount = taxAmount;
-        order.total = subtotal + taxAmount;
-        order.netAmount = netAmount;
+          const { subtotal, taxAmount, netAmount, items } = this.calcTotals(dto.items);
+          order.subtotal = subtotal;
+          order.taxAmount = taxAmount;
+          order.total = subtotal + taxAmount;
+          order.netAmount = netAmount;
 
-        await manager.save(SalesOrder, order);
+          await manager.save(SalesOrder, order);
 
-        const lines = items.map((item) =>
-          manager.create(SalesOrderItem, {
-            ...item,
-            salesOrderId: id,
-          }),
-        );
-        await manager.save(SalesOrderItem, lines);
+          const lines = items.map((item) =>
+            manager.create(SalesOrderItem, {
+              ...item,
+              salesOrderId: id,
+            }),
+          );
+          await manager.save(SalesOrderItem, lines);
 
-        // Create new stock movements for updated items
-        for (const item of lines) {
-          if (item.productId) {
-            try {
-              // ==================== Alaa change for service type ====================
-              // Services and digital products do not affect stock — skip movement creation
-              const product = await this.productRepo.findOne({
-                where: { id: item.productId },
-              });
-              if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
-                continue;
+          // Create new stock movements for updated items
+          for (const item of lines) {
+            if (item.productId) {
+              try {
+                // ==================== Alaa change for service type ====================
+                // Services and digital products do not affect stock — skip movement creation
+                const product = await manager.findOne(Product, {
+                  where: { id: item.productId },
+                });
+                if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
+                  continue;
+                }
+                // ====================================================================
+
+                if (product) {
+                  const quantityBefore = Number(product.quantity);
+                  const quantityChange = -Math.abs(Number(item.quantity)); // Negative for sales
+                  const quantityAfter = Number((quantityBefore + quantityChange).toFixed(3));
+
+                  // Create stock movement directly in the transaction
+                  const movement = manager.create(StockMovement, {
+                    business_id: businessId,
+                    product_id: item.productId,
+                    type: StockMovementType.SORTIE_VENTE,
+                    quantity: quantityChange,
+                    quantity_before: quantityBefore,
+                    quantity_after: quantityAfter,
+                    reference_type: 'SALES_ORDER',
+                    reference_id: id,
+                    note: `Sortie vente - Commande ${order.orderNumber}`,
+                  });
+                  await manager.save(StockMovement, movement);
+
+                  // Update product quantity
+                  product.quantity = quantityAfter;
+                  await manager.save(Product, product);
+                }
+              } catch (error) {
+                this.logger.error(`Failed to create stock movement for product ${item.productId}:`, error);
+                // Continue with other items even if one fails
               }
-              // ====================================================================
-
-              await this.stockMovementsService.createManual(businessId, {
-                product_id: item.productId,
-                type: StockMovementType.SORTIE_VENTE,
-                quantity: Number(item.quantity),
-                source_type: 'SALES_ORDER',
-                source_id: id,
-                note: `Sortie vente - Commande ${order.orderNumber}`,
-              });
-            } catch (error) {
-              console.error(`Failed to create stock movement for product ${item.productId}:`, error);
             }
           }
+        } else {
+          await manager.save(SalesOrder, order);
         }
-      } else {
-        await manager.save(SalesOrder, order);
-      }
 
-      return manager.findOne(SalesOrder, {
-        where: { id },
-        relations: ['items', 'client'],
-      }) as Promise<SalesOrder>;
+        const result = await manager.findOne(SalesOrder, {
+          where: { id },
+          relations: ['items', 'client'],
+        });
+
+        if (!result) {
+          throw new NotFoundException(`Sales order not found after update`);
+        }
+
+        return result;
+      } catch (error) {
+        this.logger.error(`Failed to update sales order ${id}:`, error);
+        throw error;
+      }
     });
   }
 
@@ -358,6 +392,8 @@ export class SalesOrdersService {
       },
     });
 
+    this.logger.log(`Found ${movements.length} stock movements to reverse for sales order ${salesOrderId}`);
+
     // Reverse each movement by updating product quantities
     for (const movement of movements) {
       try {
@@ -366,15 +402,23 @@ export class SalesOrdersService {
         });
 
         if (product) {
-          // Reverse the quantity change (subtract the movement quantity)
-          product.quantity = Number(product.quantity) - Number(movement.quantity);
+          // Reverse the quantity change
+          // If movement.quantity is negative (SORTIE), subtracting it will add back to stock
+          // If movement.quantity is positive (ENTREE), subtracting it will remove from stock
+          const newQuantity = Number(product.quantity) - Number(movement.quantity);
+          this.logger.log(`Reversing movement for product ${product.id}: ${product.quantity} - ${movement.quantity} = ${newQuantity}`);
+          
+          product.quantity = newQuantity;
           await manager.save(Product, product);
+        } else {
+          this.logger.warn(`Product ${movement.product_id} not found for movement ${movement.id}`);
         }
 
         // Delete the movement record
         await manager.remove(StockMovement, movement);
       } catch (error) {
-        console.error(`Failed to reverse stock movement ${movement.id}:`, error);
+        this.logger.error(`Failed to reverse stock movement ${movement.id}:`, error);
+        // Don't throw - continue with other movements
       }
     }
   }

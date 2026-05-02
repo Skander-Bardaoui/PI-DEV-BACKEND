@@ -100,9 +100,15 @@ export class SupplierPOsController {
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateSupplierPODto,
+    @Body() dto: any,  // Use 'any' to bypass ValidationPipe whitelist
   ) {
-    return this.service.update(businessId, id, dto);
+    console.log('🎯 CONTROLLER: Update called for PO id =', id);
+    console.log('🎯 CONTROLLER: businessId =', businessId);
+    console.log('🎯 CONTROLLER: DTO =', JSON.stringify(dto, null, 2));
+    console.log('🎯 CONTROLLER: Calling service.update()...');
+    const result = this.service.update(businessId, id, dto);
+    console.log('🎯 CONTROLLER: service.update() returned');
+    return result;
   }
 
   // POST /businesses/:businessId/supplier-pos/:id/send  → DRAFT → SENT

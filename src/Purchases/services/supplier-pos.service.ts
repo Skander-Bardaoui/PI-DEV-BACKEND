@@ -150,59 +150,109 @@ export class SupplierPOsService {
   }
 
   async update(businessId: string, id: string, dto: UpdateSupplierPODto): Promise<SupplierPO> {
-    const po = await this.findOne(businessId, id);
+    this.logger.log(`🔍 UPDATE START: PO id=${id}`);
+    this.logger.log(`🔍 DTO received: ${JSON.stringify(dto, null, 2)}`);
+    
+    try {
+      const po = await this.findOne(businessId, id);
+      this.logger.log(`🔍 Current PO has ${po.items?.length || 0} items BEFORE update`);
 
-    if (po.status !== POStatus.DRAFT) {
-      throw new BadRequestException(
-        `Modification impossible. Statut actuel : ${po.status}. Requis : DRAFT.`,
-      );
-    }
+      if (po.status !== POStatus.DRAFT) {
+        throw new BadRequestException(
+          `Modification impossible. Statut actuel : ${po.status}. Requis : DRAFT.`,
+        );
+      }
 
-    return this.dataSource.transaction(async (manager) => {
-
+      // Update PO fields
       if (dto.expected_delivery !== undefined) {
-        // Handle empty string or null by setting to null
         po.expected_delivery = dto.expected_delivery && dto.expected_delivery.trim() !== '' 
           ? new Date(dto.expected_delivery) 
           : null;
       }
-      if (dto.notes !== undefined)
+      if (dto.notes !== undefined) {
         po.notes = dto.notes;
+      }
 
       if (dto.items?.length) {
-
-        await manager.delete(SupplierPOItem, { supplier_po_id: id });
-
+        this.logger.log(`🔍 DTO contains ${dto.items.length} items to save`);
+        
+        // Calculate totals
         const { subtotal_ht, tax_amount, net_amount, items } = this.calcTotals(dto.items);
         po.subtotal_ht = subtotal_ht;
         po.tax_amount  = tax_amount;
         po.net_amount  = net_amount;
 
-        po.items = [];
+        // Delete existing items using repository delete method
+        this.logger.log(`🔍 Deleting existing items for PO ${id}`);
+        try {
+          const deleteResult = await this.itemRepo.delete({ supplier_po_id: id });
+          this.logger.log(`🔍 Items deleted, affected: ${deleteResult.affected}`);
+        } catch (deleteError) {
+          this.logger.error(`❌ Error deleting items:`, deleteError);
+          throw deleteError;
+        }
 
-        await manager.save(SupplierPO, po);
-
-        const lines = items.map((item, i) => {
-          const { id: _ignored, ...itemWithoutId } = item as any;
-          return manager.create(SupplierPOItem, {
-            ...itemWithoutId,
+        // Create new items
+        const newItems = items.map((item, i) => {
+          const itemEntity = this.itemRepo.create({
             supplier_po_id: id,
-            sort_order:     itemWithoutId.sort_order ?? i,
+            product_id: (item as any).product_id || null,
+            description: item.description,
+            quantity_ordered: item.quantity_ordered,
+            quantity_received: 0,
+            unit_price_ht: item.unit_price_ht,
+            tax_rate_value: item.tax_rate_value,
+            line_total_ht: (item as any).line_total_ht,
+            line_tax: (item as any).line_tax,
+            sort_order: item.sort_order ?? i,
           });
+          
+          this.logger.log(`🔍   Creating new item ${i}: desc="${itemEntity.description}", qty=${itemEntity.quantity_ordered}`);
+          return itemEntity;
         });
 
-        await manager.save(SupplierPOItem, lines);
-
-      } else {
-        po.items = [];
-        await manager.save(SupplierPO, po);
+        this.logger.log(`🔍 Saving ${newItems.length} new items`);
+        try {
+          await this.itemRepo.save(newItems);
+          this.logger.log(`🔍 Items saved successfully`);
+        } catch (saveError) {
+          this.logger.error(`❌ Error saving items:`, saveError);
+          throw saveError;
+        }
       }
 
-      return manager.findOne(SupplierPO, {
-        where:     { id },
+      // Save the PO
+      this.logger.log(`🔍 Saving PO`);
+      try {
+        await this.poRepo.save(po);
+        this.logger.log(`🔍 PO saved successfully`);
+      } catch (saveError) {
+        this.logger.error(`❌ Error saving PO:`, saveError);
+        throw saveError;
+      }
+      
+      // Fetch fresh data to confirm
+      this.logger.log(`🔍 Fetching updated PO with relations`);
+      const result = await this.poRepo.findOne({
+        where: { id, business_id: businessId },
         relations: ['items', 'supplier'],
-      }) as Promise<SupplierPO>;
-    });
+      });
+      
+      if (!result) {
+        this.logger.error(`❌ Could not find PO after update`);
+        throw new NotFoundException(`BC introuvable après mise à jour (id: ${id})`);
+      }
+      
+      this.logger.log(`🔍 UPDATE COMPLETE: Returning PO with ${result.items?.length || 0} items`);
+      result.items?.forEach((item, idx) => {
+        this.logger.log(`🔍   Final Item ${idx}: id=${item.id}, desc="${item.description}", qty=${item.quantity_ordered}`);
+      });
+      
+      return result;
+    } catch (error) {
+      this.logger.error(`❌ UPDATE FAILED:`, error);
+      throw error;
+    }
   }
 
 async send(businessId: string, id: string) {

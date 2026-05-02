@@ -12,7 +12,7 @@ import { Subscription } from './subscription.entity';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PaymentMethod } from '../enums/payment-method.enum';
 
-@Entity('payments')
+@Entity('subscription_payments')
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

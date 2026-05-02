@@ -109,6 +109,7 @@ import { Plan } from './platform-admin/entities/plan.entity';
 import { ImpersonationLog } from './platform-admin/entities/impersonation-log.entity';
 import { PlatformAuditLog } from './platform-admin/entities/platform-audit-log.entity';
 import { SupportTicket } from './platform-admin/entities/support-ticket.entity';
+import { Payment as SubscriptionPayment } from './platform-admin/entities/payment.entity';
 
 // Purchases Entities
 import { Supplier } from './Purchases/entities/supplier.entity';
@@ -218,6 +219,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           ImpersonationLog,
           PlatformAuditLog,
           SupportTicket,
+          SubscriptionPayment,
         ],
       }),
       inject: [ConfigService],
