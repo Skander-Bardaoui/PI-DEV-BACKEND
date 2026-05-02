@@ -27,6 +27,9 @@ export class Payment {
   @Column({ nullable: true })
   business_id?: string;
 
+  @Column({ nullable: true })
+  invoice_id?: string;
+
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount!: number;
 
