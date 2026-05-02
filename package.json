@@ -43,7 +43,7 @@
     "@nestjs/schedule": "^6.1.1",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
-
+    "@types/multer": "^2.0.0",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "bwip-js": "^4.8.0",
@@ -89,7 +89,6 @@
     "@types/cron": "^2.4.3",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
-    "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
     "@types/nodemailer": "^7.0.9",
     "@types/passport-github2": "^1.2.9",
