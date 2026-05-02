@@ -1,0 +1,45 @@
+name: Build and Push Dist
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install --include=dev
+
+      - name: Build
+        run: node --max-old-space-size=4096 ./node_modules/.bin/nest build
+
+      - name: Verify dist exists
+        run: ls -la dist/ && echo "main.js exists:" && ls dist/main.js
+
+      - name: Remove dist from gitignore
+        run: |
+          sed -i '/^dist/d' .gitignore
+          cat .gitignore
+
+      - name: Commit and push dist
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add -f dist/
+          git status
+          git commit -m "chore: add compiled dist [skip ci]" || echo "Nothing to commit"
+          git push origin main
