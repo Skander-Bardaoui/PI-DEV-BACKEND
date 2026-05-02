@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
 
   "scripts": {
-    "build": "npx @nestjs/cli build",
+    "build": "npm install --include=dev && node node_modules/@nestjs/cli/bin/nest.js build",
     "start": "node dist/main.js",
     "start:dev": "ts-node -r tsconfig-paths/register src/main.ts",
     "start:prod": "node dist/main.js",
