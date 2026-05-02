@@ -28,7 +28,6 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@nestjs/axios": "^4.0.1",
-    "@nestjs/cli": "^11.0.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -81,6 +80,7 @@
   },
 
   "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cron": "^2.4.3",
@@ -126,13 +126,7 @@
       "!**/dist/**"
     ],
     "coverageDirectory": "../coverage",
-    "coverageReporters": [
-      "text",
-      "text-summary",
-      "html",
-      "lcov",
-      "json-summary"
-    ],
+    "coverageReporters": ["text", "text-summary", "html", "lcov", "json-summary"],
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "/dist/",
