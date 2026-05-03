@@ -232,8 +232,7 @@ export const createSupplierPOItemSchema = z.object({
   product_id: z
     .string()
     .uuid('Produit invalide')
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'Le produit est obligatoire pour le suivi des stocks'), // ✅ Made REQUIRED
 
   description: z
     .string()

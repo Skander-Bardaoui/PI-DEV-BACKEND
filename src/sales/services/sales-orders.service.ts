@@ -75,6 +75,17 @@ export class SalesOrdersService {
   ) {}
 
   async create(businessId: string, dto: CreateSalesOrderDto): Promise<SalesOrder> {
+    // ✅ CRITICAL VALIDATION: Ensure all items have productId
+    for (let i = 0; i < dto.items.length; i++) {
+      const item = dto.items[i];
+      if (!item.productId || item.productId.trim() === '') {
+        throw new BadRequestException(
+          `Ligne ${i + 1}: Le produit est obligatoire pour le suivi des stocks. ` +
+          `Description: "${item.description}". Veuillez sélectionner un produit du catalogue.`
+        );
+      }
+    }
+
     return this.dataSource.transaction(async (manager) => {
       const orderNumber = await this.generateNumber(businessId, manager);
       const { items: itemsDto, ...rest } = dto;
@@ -108,34 +119,8 @@ export class SalesOrdersService {
         relations: ['items', 'client'],
       }) as SalesOrder;
 
-      // Create stock movements for each item with productId when order is confirmed
-      for (const item of lines) {
-        if (item.productId) {
-          try {
-            // ==================== Alaa change for service type ====================
-            // Services and digital products do not affect stock — skip movement creation
-            const product = await this.productRepo.findOne({
-              where: { id: item.productId },
-            });
-            if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
-              continue;
-            }
-            // ====================================================================
-
-            await this.stockMovementsService.createManual(businessId, {
-              product_id: item.productId,
-              type: StockMovementType.SORTIE_VENTE,
-              quantity: Number(item.quantity),
-              source_type: 'SALES_ORDER',
-              source_id: saved.id,
-              note: `Sortie vente - Commande ${orderNumber}`,
-            });
-          } catch (error) {
-            console.error(`Failed to create stock movement for product ${item.productId}:`, error);
-            // Continue with other items even if one fails
-          }
-        }
-      }
+      // DO NOT create stock movements here - they should be created when order is DELIVERED
+      // Stock movements will be created in markDelivered() method
 
       return result;
     });
@@ -299,46 +284,89 @@ export class SalesOrdersService {
 
       const savedDeliveryNote = await manager.save(DeliveryNote, deliveryNote);
 
-      const deliveryNoteItems = order.items.map((item) =>
-        manager.create(DeliveryNoteItem, {
+      const deliveryNoteItems = order.items.map((item) => {
+        // Validate that productId is present
+        if (!item.productId) {
+          throw new Error(`Product ID is required for item: ${item.description}`);
+        }
+        
+        return manager.create(DeliveryNoteItem, {
           deliveryNoteId: savedDeliveryNote.id,
+          productId: item.productId, // CRITICAL: Include productId from sales order item
           description: item.description,
           quantity: item.quantity,
           deliveredQuantity: 0,
-        }),
-      );
+        });
+      });
 
       await manager.save(DeliveryNoteItem, deliveryNoteItems);
 
       order.status = SalesOrderStatus.IN_PROGRESS;
       await manager.save(SalesOrder, order);
 
-      // Create stock movements for each item with productId
-      for (const item of order.items) {
-        if (item.productId) {
-          try {
-            await this.stockMovementsService.createManual(businessId, {
-              product_id: item.productId,
-              type: StockMovementType.SORTIE_VENTE,
-              quantity: Number(item.quantity),
-              source_type: 'SALES_ORDER',
-              source_id: order.id,
-              note: `Sortie vente - Commande ${order.orderNumber}`,
-            });
-          } catch (error) {
-            console.error(`Failed to create stock movement for product ${item.productId}:`, error);
-            // Continue with other items even if one fails
-          }
-        }
-      }
+      // DO NOT create stock movements here - they should be created when order is DELIVERED
+      // Stock movements will be created in markDelivered() method
 
       return this.findOne(businessId, id);
     });
   }
 
   async markDelivered(businessId: string, id: string) {
-    return this.transition(businessId, id, SalesOrderStatus.DELIVERED, (o) => {
-      o.deliveryDate = new Date();
+    const order = await this.findOne(businessId, id);
+    
+    return this.dataSource.transaction(async (manager) => {
+      // Update order status
+      order.status = SalesOrderStatus.DELIVERED;
+      order.deliveryDate = new Date();
+      await manager.save(SalesOrder, order);
+
+      // Create stock movements for each item with productId when order is DELIVERED
+      for (const item of order.items) {
+        if (item.productId) {
+          try {
+            // Check if product is physical (not service or digital)
+            const product = await manager.findOne(Product, {
+              where: { id: item.productId },
+            });
+            
+            if (product && (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL)) {
+              this.logger.log(`Skipping stock movement for service/digital product ${item.productId}`);
+              continue;
+            }
+
+            if (product) {
+              const quantityBefore = Number(product.quantity);
+              const quantityChange = -Math.abs(Number(item.quantity)); // Negative for sales
+              const quantityAfter = Number((quantityBefore + quantityChange).toFixed(3));
+
+              // Create stock movement
+              const movement = manager.create(StockMovement, {
+                business_id: businessId,
+                product_id: item.productId,
+                type: StockMovementType.SORTIE_VENTE,
+                quantity: quantityChange,
+                quantity_before: quantityBefore,
+                quantity_after: quantityAfter,
+                reference_type: 'SALES_ORDER',
+                reference_id: order.id,
+                note: `Sortie vente - Commande ${order.orderNumber} livrée`,
+              });
+              await manager.save(StockMovement, movement);
+
+              // Update product quantity
+              product.quantity = quantityAfter;
+              await manager.save(Product, product);
+              
+              this.logger.log(`Stock movement created for product ${item.productId}: ${quantityBefore} -> ${quantityAfter}`);
+            }
+          } catch (error) {
+            this.logger.error(`Failed to create stock movement for product ${item.productId}:`, error);
+            // Continue with other items even if one fails
+          }
+        }
+      }
+
+      return this.findOne(businessId, id);
     });
   }
 

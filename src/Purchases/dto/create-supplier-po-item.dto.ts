@@ -2,9 +2,9 @@ import { Type } from 'class-transformer';
 import { IsUUID, IsDate, IsArray, ArrayMinSize, ArrayMaxSize, IsInt, IsPositive, IsOptional, IsString, IsNotEmpty, MaxLength, IsNumber, Min, Max, ValidateNested } from 'class-validator';
  
 export class CreateSupplierPOItemDto {
-  @IsOptional() 
+  @IsNotEmpty({ message: 'Le produit est obligatoire pour le suivi des stocks' })
   @IsUUID('4', { message: 'Produit invalide' }) 
-  product_id?: string;
+  product_id: string; // ✅ Made REQUIRED
  
   @IsString({ message: 'La description doit être une chaîne de caractères' })
   @IsNotEmpty({ message: 'La description de la ligne est obligatoire' })

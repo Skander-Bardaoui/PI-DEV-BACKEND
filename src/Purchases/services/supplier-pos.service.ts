@@ -62,6 +62,20 @@ export class SupplierPOsService {
     this.logger.debug(`Creating PO with DTO: ${JSON.stringify(dto)}`);
     this.logger.debug(`Items received: ${dto.items ? dto.items.length : 'undefined'}`);
     this.logger.debug(`ML Product ID: ${dto.ml_product_id || 'none'}`);
+    
+    // Log each item's product_id
+    dto.items?.forEach((item, idx) => {
+      this.logger.debug(`Item ${idx}: product_id=${item.product_id || 'NULL'}, description="${item.description}"`);
+    });
+    
+    // ⚠️ VALIDATION: Warn if items don't have product_id (stock won't be tracked)
+    const itemsWithoutProduct = dto.items.filter(item => !item.product_id);
+    if (itemsWithoutProduct.length > 0) {
+      this.logger.warn(
+        `⚠️ ${itemsWithoutProduct.length} item(s) without product_id. Stock movements will NOT be created for these items. ` +
+        `To track inventory, please select products from the catalog when creating purchase orders.`
+      );
+    }
 
     const ml_product_id = dto.ml_product_id; // Sauvegarder avant la transaction
 
@@ -82,13 +96,29 @@ export class SupplierPOsService {
       });
       const saved = await manager.save(SupplierPO, po);
 
-      const lines = items.map((item, i) =>
-        manager.create(SupplierPOItem, {
-          ...item,
+      const lines = items.map((item, i) => {
+        // Validate that product_id is present
+        if (!item.product_id) {
+          throw new Error(`Product ID is required for item: ${item.description}`);
+        }
+        
+        const poItem = manager.create(SupplierPOItem, {
           supplier_po_id: saved.id,
-          sort_order:     item.sort_order ?? i,
-        }),
-      );
+          product_id: item.product_id, // Required field
+          description: item.description,
+          quantity_ordered: item.quantity_ordered,
+          quantity_received: 0,
+          unit_price_ht: item.unit_price_ht,
+          tax_rate_value: item.tax_rate_value,
+          line_total_ht: item.line_total_ht,
+          line_tax: item.line_tax,
+          sort_order: item.sort_order ?? i,
+        });
+        
+        this.logger.debug(`Creating PO item ${i}: product_id=${poItem.product_id}, desc="${poItem.description}"`);
+        return poItem;
+      });
+      
       await manager.save(SupplierPOItem, lines);
 
       return manager.findOne(SupplierPO, {
@@ -194,20 +224,25 @@ export class SupplierPOsService {
 
         // Create new items
         const newItems = items.map((item, i) => {
+          // Validate that product_id is present
+          if (!item.product_id) {
+            throw new Error(`Product ID is required for item: ${item.description}`);
+          }
+          
           const itemEntity = this.itemRepo.create({
             supplier_po_id: id,
-            product_id: (item as any).product_id || null,
+            product_id: item.product_id, // Required field
             description: item.description,
             quantity_ordered: item.quantity_ordered,
             quantity_received: 0,
             unit_price_ht: item.unit_price_ht,
             tax_rate_value: item.tax_rate_value,
-            line_total_ht: (item as any).line_total_ht,
-            line_tax: (item as any).line_tax,
+            line_total_ht: item.line_total_ht,
+            line_tax: item.line_tax,
             sort_order: item.sort_order ?? i,
           });
           
-          this.logger.log(`🔍   Creating new item ${i}: desc="${itemEntity.description}", qty=${itemEntity.quantity_ordered}`);
+          this.logger.log(`🔍   Creating new item ${i}: product_id=${itemEntity.product_id}, desc="${itemEntity.description}", qty=${itemEntity.quantity_ordered}`);
           return itemEntity;
         });
 
@@ -331,15 +366,21 @@ async send(businessId: string, id: string) {
 
     await manager.save(SupplierPO, po);
 
-    // Create stock movements whenever items are received (PARTIALLY_RECEIVED or FULLY_RECEIVED)
-    if (po.status === POStatus.PARTIALLY_RECEIVED || po.status === POStatus.FULLY_RECEIVED) {
-      await this.createStockMovementsForReceivedItems(businessId, po, manager);
-    }
+    // NOTE: Stock movements are created in goods-receipts.service.ts, not here
+    // This prevents duplicate stock movements
   }
 
   /**
    * Helper method to create stock movements for received items
+   * 
+   * NOTE: This method is NO LONGER USED to prevent duplicate stock movements.
+   * Stock movements are now created ONLY in goods-receipts.service.ts
+   * when a goods receipt is created.
+   * 
+   * Keeping this method commented for reference in case we need to understand
+   * the old logic, but it should NOT be called anywhere.
    */
+  /*
   private async createStockMovementsForReceivedItems(
     businessId: string,
     po: SupplierPO,
@@ -416,6 +457,7 @@ async send(businessId: string, id: string) {
       }
     }
   }
+  */
 
   private async transition(
     businessId: string,
