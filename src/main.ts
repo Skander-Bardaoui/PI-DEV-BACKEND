@@ -1,5 +1,6 @@
 // src/main.ts
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED =
+  process.env.NODE_ENV !== 'production' ? '0' : undefined;
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
@@ -53,7 +54,8 @@ async function bootstrap() {
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
     setHeaders: (res) => {
-      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.setHeader('Access-Control-Allow-Origin', frontendUrl);
       res.setHeader('Access-Control-Allow-Methods', 'GET');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     },
@@ -114,8 +116,11 @@ async function bootstrap() {
     maxAge: 3600, // Cache preflight requests for 1 hour
   });
 
-  await app.listen(3001);
-  console.log('Backend running on http://localhost:3001');
+  const port = process.env.PORT || 3001;
+
+  await app.listen(port, '0.0.0.0');
+
+  console.log(`🚀 Backend running on port ${port}`);
 }
 
 bootstrap();
