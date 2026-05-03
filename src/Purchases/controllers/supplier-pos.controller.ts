@@ -20,6 +20,7 @@ import { Role }       from '../../users/enums/role.enum';
 import { CreateSupplierPODto, UpdateSupplierPODto } from '../schemas/purchases.schemas';
 import { PurchasePermissionGuard } from '../guards/purchase-permission.guard';
 import { RequirePurchasePermission } from '../decorators/purchase-permission.decorator';
+import { AiFeatureGuard } from '../../platform-admin/guards/ai-feature.guard';
 
 @Controller('businesses/:businessId/supplier-pos')
 @UseGuards(AuthGuard('jwt'), RolesGuard, PurchasePermissionGuard)
@@ -34,6 +35,7 @@ export class SupplierPOsController {
   // Génération de BC par IA à partir de texte naturel
   // IMPORTANT: Cette route doit être AVANT @Post() pour éviter les conflits
   @Post('generate-from-text')
+  @UseGuards(AiFeatureGuard)
   @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
   @HttpCode(HttpStatus.OK)
   async generateFromText(

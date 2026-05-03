@@ -17,6 +17,7 @@ import { Business } from '../businesses/entities/business.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { TaxRate } from '../businesses/entities/tax-rate.entity';
 import { PlatformAuthModule } from '../platform-auth/platform-auth.module';
+import { Subscription } from '../platform-admin/entities/subscription.entity';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PlatformAuthModule } from '../platform-auth/platform-auth.module';
       Business,
       BusinessMember,
       TaxRate,
+      Subscription,
     ]),
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy, GoogleStrategy],

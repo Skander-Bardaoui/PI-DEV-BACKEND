@@ -8,6 +8,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsersService } from '../../users/users.service';
 import { BusinessMember } from '../../businesses/entities/business-member.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
+import { Subscription } from '../../platform-admin/entities/subscription.entity';
+import { SubscriptionStatus } from '../../platform-admin/enums/subscription-status.enum';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -16,6 +19,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly usersService: UsersService,
     @InjectRepository(BusinessMember)
     private readonly businessMemberRepository: Repository<BusinessMember>,
+    @InjectRepository(Tenant)
+    private readonly tenantRepository: Repository<Tenant>,
+    @InjectRepository(Subscription)
+    private readonly subscriptionRepository: Repository<Subscription>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -44,6 +51,25 @@ async validate(payload: { sub: string; email: string; role: string; business_id:
   // Check if user is suspended at the user level (tenant suspension by admin)
   if (user.is_suspended) {
     throw new UnauthorizedException('Your account has been suspended. Please contact support for assistance.');
+  }
+  
+  // Check subscription status for expired free trials
+  // Find the tenant for this user
+  const tenant = await this.tenantRepository.findOne({
+    where: { ownerId: user.id },
+  });
+  
+  if (tenant) {
+    // Check if tenant has an expired subscription
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { tenant_id: tenant.id },
+      relations: ['plan'],
+      order: { created_at: 'DESC' },
+    });
+    
+    if (subscription && subscription.status === SubscriptionStatus.EXPIRED) {
+      throw new UnauthorizedException('Your free trial has expired. Please upgrade your plan.');
+    }
   }
   
   // If user has a business_id in JWT, check if they're an active business member

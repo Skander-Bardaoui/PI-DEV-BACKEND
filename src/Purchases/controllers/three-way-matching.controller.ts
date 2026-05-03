@@ -6,6 +6,7 @@ import {
 import { AuthGuard }              from '@nestjs/passport';
 import { ThreeWayMatchingService } from '../services/three-way-matching.service';
 import { PurchaseMailService } from '../services/purchase-mail.service';
+import { AiFeatureGuard } from '../../platform-admin/guards/ai-feature.guard';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('businesses/:businessId/three-way-matching')
@@ -19,6 +20,7 @@ export class ThreeWayMatchingController {
   // GET /businesses/:bId/three-way-matching/invoice/:invoiceId
   // Rapprochement d'une facture spécifique
   @Get('invoice/:invoiceId')
+  @UseGuards(AiFeatureGuard)
   matchInvoice(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('invoiceId',  ParseUUIDPipe) invoiceId:  string,
@@ -32,6 +34,7 @@ export class ThreeWayMatchingController {
   // POST /businesses/:bId/three-way-matching/invoice/:invoiceId/apply
   // Appliquer l'action automatique (approuver ou mettre en litige)
   @Post('invoice/:invoiceId/apply')
+  @UseGuards(AiFeatureGuard)
   applyMatch(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('invoiceId',  ParseUUIDPipe) invoiceId:  string,
@@ -44,6 +47,7 @@ export class ThreeWayMatchingController {
   // GET /businesses/:bId/three-way-matching/pending
   // Rapprochement de toutes les factures PENDING
   @Get('pending')
+  @UseGuards(AiFeatureGuard)
   matchAllPending(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Query('auto') auto?: string,
@@ -56,6 +60,7 @@ export class ThreeWayMatchingController {
   // POST /businesses/:bId/three-way-matching/invoice/:invoiceId/contact-supplier
   // Envoyer un email au fournisseur concernant les écarts
   @Post('invoice/:invoiceId/contact-supplier')
+  @UseGuards(AiFeatureGuard)
   async contactSupplier(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('invoiceId',  ParseUUIDPipe) invoiceId:  string,

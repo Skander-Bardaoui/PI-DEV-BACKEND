@@ -73,6 +73,8 @@ import { MlPredictionService } from './services/ml-prediction.service';
 import { MlPredictionController } from './controllers/ml-prediction.controller';
 import { PurchasePermissionGuard } from './guards/purchase-permission.guard';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
+import { Subscription } from '../platform-admin/entities/subscription.entity';
+import { AiFeatureGuard } from '../platform-admin/guards/ai-feature.guard';
  
 @Module({
   imports: [
@@ -80,7 +82,7 @@ import { BusinessMember } from '../businesses/entities/business-member.entity';
       GoodsReceipt, GoodsReceiptItem, PurchaseInvoice,
       SupplierPOItem, SupplierPO, Supplier,
       PurchaseAlert, DisputeResponse, MLRecommendationAction, Business, Tenant, User,
-      StockMovement, Product, SupplierPayment, BusinessMember,
+      StockMovement, Product, SupplierPayment, BusinessMember, Subscription,
       // Product, // Module pas encore implémenté
       // SupplierPortalToken temporairement retiré pour éviter les erreurs de synchronisation
     ]),
@@ -140,6 +142,7 @@ import { BusinessMember } from '../businesses/entities/business-member.entity';
     PurchaseAiAssistantService,
     MlPredictionService,
     PurchasePermissionGuard,
+    AiFeatureGuard,
   ],
  
   exports: [

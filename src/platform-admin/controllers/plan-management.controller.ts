@@ -13,18 +13,30 @@ import {
 } from '@nestjs/common';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { PlanManagementService } from '../services/plan-management.service';
+import { PlanSeedService } from '../services/plan-seed.service';
 import { CreatePlanDto } from '../dto/create-plan.dto';
 import { UpdatePlanDto } from '../dto/update-plan.dto';
 
-@Controller('platform/plans')
+@Controller('api/platform/plans')
 @UseGuards(PlatformAdminGuard)
 export class PlanManagementController {
-  constructor(private readonly planService: PlanManagementService) {}
+  constructor(
+    private readonly planService: PlanManagementService,
+    private readonly planSeedService: PlanSeedService,
+  ) {}
 
   // ─── List Plans ──────────────────────────────────────────────────────────
   @Get()
   async listPlans() {
     return this.planService.listPlans();
+  }
+
+  // ─── Seed Default Plans ──────────────────────────────────────────────────
+  @Post('seed')
+  @HttpCode(HttpStatus.OK)
+  async seedPlans() {
+    await this.planSeedService.seedDefaultPlans();
+    return { message: 'Default plans seeded successfully' };
   }
 
   // ─── Create Plan ─────────────────────────────────────────────────────────

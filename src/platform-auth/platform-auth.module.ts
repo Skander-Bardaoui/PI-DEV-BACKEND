@@ -43,7 +43,11 @@ import { PublicPaymentController } from '../platform-admin/controllers/public-pa
 // Plan Management
 import { PlanManagementController } from '../platform-admin/controllers/plan-management.controller';
 import { PlanManagementService } from '../platform-admin/services/plan-management.service';
+import { PlanSeedService } from '../platform-admin/services/plan-seed.service';
 import { Plan } from '../platform-admin/entities/plan.entity';
+
+// Subscription Expiry
+import { SubscriptionExpiryService } from '../platform-admin/services/subscription-expiry.service';
 
 // Dashboard & Analytics
 import { DashboardController } from '../platform-admin/controllers/dashboard.controller';
@@ -133,6 +137,8 @@ import { EmailModule } from '../email/email.module';
     SubscriptionManagementService,
     PaymentManagementService,
     PlanManagementService,
+    PlanSeedService,
+    SubscriptionExpiryService,
     SubscriptionSchedulerService,
     TenantRegistrationService,
     DashboardService,
@@ -146,6 +152,7 @@ import { EmailModule } from '../email/email.module';
     PlatformAuthService,
     TenantRegistrationService,
     AuditLogService,
+    TypeOrmModule, // Export TypeOrmModule so other modules can use Subscription entity for AiFeatureGuard
   ],
 })
 export class PlatformAuthModule {}

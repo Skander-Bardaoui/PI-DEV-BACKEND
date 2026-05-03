@@ -22,6 +22,7 @@ import { SupplierRecommendationService } from '../services/supplier-recommendati
 import { Role } from '../../users/enums/role.enum';
 import { PurchasePermissionGuard } from '../guards/purchase-permission.guard';
 import { RequirePurchasePermission } from '../decorators/purchase-permission.decorator';
+import { AiFeatureGuard } from '../../platform-admin/guards/ai-feature.guard';
 
 
 @Controller('businesses/:businessId/suppliers')
@@ -101,6 +102,7 @@ findAll(
 
   // GET /businesses/:businessId/suppliers/recommendations
   @Get('recommendations/ai')
+  @UseGuards(AiFeatureGuard)
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   async getRecommendations(
     @Param('businessId', ParseUUIDPipe) businessId: string,
