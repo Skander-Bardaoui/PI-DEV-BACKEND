@@ -643,7 +643,8 @@ export class SalesOrdersService {
       return { message: `Email de confirmation envoyé à ${order.client.email}` };
     } catch (error) {
       console.error('Error sending order confirmation email:', error);
-      throw new BadRequestException(`Erreur lors de l'envoi de l'email: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      throw new BadRequestException(`Erreur lors de l'envoi de l'email: ${errorMessage}`);
     }
   }
 

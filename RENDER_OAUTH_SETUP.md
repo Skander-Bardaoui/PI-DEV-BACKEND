@@ -11,7 +11,7 @@ Go to your backend service on Render dashboard and add these environment variabl
 
 ```
 GOOGLE_CALLBACK_URL=https://pi-dev-backend.onrender.com/auth/google/callback
-FRONTEND_URL=https://pi-dev-front.onrender.com
+FRONTEND_URL=https://novaentra.onrender.com
 ```
 
 ### Step 2: Update Google Cloud Console
@@ -77,7 +77,7 @@ After adding the environment variables in Render:
 - `GOOGLE_CLIENT_ID` - Your Google OAuth Client ID
 - `GOOGLE_CLIENT_SECRET` - Your Google OAuth Client Secret
 - `GOOGLE_CALLBACK_URL` - `https://pi-dev-backend.onrender.com/auth/google/callback`
-- `FRONTEND_URL` - `https://pi-dev-front.onrender.com`
+- `FRONTEND_URL` - `https://novaentra.onrender.com`
 - `JWT_ACCESS_SECRET` - Your JWT secret
 - `JWT_REFRESH_SECRET` - Your JWT refresh secret
 - `DATABASE_URL` - Your database connection string
