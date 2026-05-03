@@ -129,10 +129,15 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
       envFilePath: '.env',
     }),
 
-    // 🔐 Security: Rate Limiting
+    // 🔐 Security: Rate Limiting (HTTP only, skips WebSocket)
     ThrottlerModule.forRoot([{
       ttl: 60000,  // Time window: 60 seconds
       limit: 100,  // Max 100 requests per window
+      skipIf: (context) => {
+        // Skip throttling for WebSocket connections
+        const request = context.switchToHttp().getRequest();
+        return !request || request.url === undefined;
+      },
     }]),
 
    TypeOrmModule.forRootAsync({
@@ -277,7 +282,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
   ],
   controllers: [],
   providers: [
-    // 🔐 Security: Global rate limiting guard
+    // 🔐 Security: Global rate limiting guard (skips WebSocket connections)
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
