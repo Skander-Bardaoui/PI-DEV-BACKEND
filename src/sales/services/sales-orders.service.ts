@@ -638,9 +638,13 @@ export class SalesOrdersService {
       order.id,
     );
 
-    await this.sendEmailWithPortal(order, order.client.email, portalToken);
-
-    return { message: `Email de confirmation envoyé à ${order.client.email}` };
+    try {
+      await this.sendEmailWithPortal(order, order.client.email, portalToken);
+      return { message: `Email de confirmation envoyé à ${order.client.email}` };
+    } catch (error) {
+      console.error('Error sending order confirmation email:', error);
+      throw new BadRequestException(`Erreur lors de l'envoi de l'email: ${error.message}`);
+    }
   }
 
   private async sendEmailWithPortal(
@@ -649,11 +653,11 @@ export class SalesOrdersService {
     portalToken: string,
   ): Promise<void> {
     const nodemailer = require('nodemailer');
-    const frontendUrl = 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const portalUrl = `${frontendUrl}/client-portal?token=${portalToken}`;
 
     const businessName = order.business?.name || 'Votre Entreprise';
-    const businessEmail = order.business?.email || 'novaentra2026@gmail.com';
+    const businessEmail = order.business?.email || process.env.GMAIL_USER || 'novaentra2026@gmail.com';
     const businessPhone = order.business?.phone || '';
     const businessMF = order.business?.tax_id || '';
 
