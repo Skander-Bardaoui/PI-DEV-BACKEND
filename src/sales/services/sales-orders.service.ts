@@ -893,8 +893,8 @@ export class SalesOrdersService {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'novaentra2026@gmail.com',
-        pass: 'enrqztjhkqbryrar',
+        user: process.env.GMAIL_USER || 'novaentra2026@gmail.com',
+        pass: process.env.GMAIL_PASS || 'enrqztjhkqbryrar',
       },
     });
 
@@ -907,7 +907,7 @@ export class SalesOrdersService {
     ];
 
     await transporter.sendMail({
-      from: `"${businessName}" <novaentra2026@gmail.com>`,
+      from: `"${businessName}" <${process.env.GMAIL_USER || 'novaentra2026@gmail.com'}>`,
       to: recipientEmail,
       subject: `🧾 Commande ${order.orderNumber} — Confirmation requise`,
       html,
