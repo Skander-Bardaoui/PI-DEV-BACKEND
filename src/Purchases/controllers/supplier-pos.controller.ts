@@ -17,10 +17,12 @@ import { PoAiGeneratorService } from '../services/po-ai-generator.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles }      from '../../auth/decorators/roles.decorators';
 import { Role }       from '../../users/enums/role.enum';
-import { CreateSupplierPODto, UpdateSupplierPODto, AiPOGeneratorDto } from '../schemas/purchases.schemas';
+import { CreateSupplierPODto, UpdateSupplierPODto } from '../schemas/purchases.schemas';
+import { PurchasePermissionGuard } from '../guards/purchase-permission.guard';
+import { RequirePurchasePermission } from '../decorators/purchase-permission.decorator';
 
 @Controller('businesses/:businessId/supplier-pos')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, PurchasePermissionGuard)
 export class SupplierPOsController {
 
   constructor(
@@ -36,14 +38,24 @@ export class SupplierPOsController {
   @HttpCode(HttpStatus.OK)
   async generateFromText(
     @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Body() dto: AiPOGeneratorDto,
+    @Body() body: Record<string, any>,
   ): Promise<any> {
-    return this.aiGenerator.generateFromText(businessId, dto.text);
+    // Lire le texte directement depuis le body brut pour éviter les transformations Zod
+    const text = body?.text ?? body?.['text'];
+    
+    console.log('🔍 [Controller] generateFromText appelé');
+    console.log('🔍 [Controller] businessId:', businessId);
+    console.log('🔍 [Controller] body reçu:', JSON.stringify(body));
+    console.log('🔍 [Controller] text extrait:', text);
+    console.log('🔍 [Controller] type de text:', typeof text);
+    
+    return this.aiGenerator.generateFromText(businessId, text);
   }
 
   // POST /businesses/:businessId/supplier-pos
   @Post()
-  @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('create_purchase_order')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
@@ -83,18 +95,26 @@ export class SupplierPOsController {
 
   // PATCH /businesses/:businessId/supplier-pos/:id
   @Patch(':id')
-  @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('update_purchase_order')
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateSupplierPODto,
+    @Body() dto: any,  // Use 'any' to bypass ValidationPipe whitelist
   ) {
-    return this.service.update(businessId, id, dto);
+    console.log('🎯 CONTROLLER: Update called for PO id =', id);
+    console.log('🎯 CONTROLLER: businessId =', businessId);
+    console.log('🎯 CONTROLLER: DTO =', JSON.stringify(dto, null, 2));
+    console.log('🎯 CONTROLLER: Calling service.update()...');
+    const result = this.service.update(businessId, id, dto);
+    console.log('🎯 CONTROLLER: service.update() returned');
+    return result;
   }
 
   // POST /businesses/:businessId/supplier-pos/:id/send  → DRAFT → SENT
   @Post(':id/send')
-  @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('send_purchase_order')
   send(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -104,7 +124,8 @@ export class SupplierPOsController {
 
   // POST /businesses/:businessId/supplier-pos/:id/confirm  → SENT → CONFIRMED
   @Post(':id/confirm')
-  @Roles(Role.BUSINESS_OWNER, Role.ACCOUNTANT)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('confirm_purchase_order')
   confirm(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -114,7 +135,8 @@ export class SupplierPOsController {
 
   // POST /businesses/:businessId/supplier-pos/:id/cancel
   @Post(':id/cancel')
-  @Roles(Role.BUSINESS_OWNER)
+  @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
+  @RequirePurchasePermission('confirm_purchase_order')
   cancel(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,

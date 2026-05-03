@@ -148,8 +148,14 @@ export class ClientPortalService {
       );
 
       for (const item of orderItems) {
+        // Validate that productId is present
+        if (!item.productId) {
+          throw new Error(`Product ID is required for item: ${item.description}`);
+        }
+        
         const deliveryNoteItem = manager.create(DeliveryNoteItem, {
           deliveryNoteId: savedDeliveryNote.id,
+          productId: item.productId, // CRITICAL: Include productId from sales order item
           description: item.description,
           quantity: item.quantity,
           deliveredQuantity: 0,

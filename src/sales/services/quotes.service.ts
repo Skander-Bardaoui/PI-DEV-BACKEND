@@ -407,6 +407,7 @@ export class QuotesService {
           
           return manager.create(SalesOrderItem, {
             salesOrderId: savedOrder.id,
+            productId: item.productId, // ✅ Include productId from quote item
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,

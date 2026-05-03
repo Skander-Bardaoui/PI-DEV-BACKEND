@@ -160,4 +160,22 @@ export class AuthController {
     await this.authService.resetPassword(dto.token, dto.newPassword);
     return { message: 'Password reset successfully' };
   }
+
+  // ─── Google OAuth ────────────────────────────────────────────────────────
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {
+    // Initiates Google OAuth flow
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthCallback(@Request() req, @Response() res: ExpressResponse) {
+    // Handle Google OAuth callback
+    const result = await this.authService.handleOAuthLogin(req.user, res);
+    
+    // Redirect to frontend with success
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/app/dashboard`);
+  }
 }

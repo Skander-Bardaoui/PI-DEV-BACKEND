@@ -15,7 +15,7 @@ import { PasswordResetToken, TokenType } from './entities/password-reset-token.e
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { EmailService } from '../email/email.service';
 import { Role } from 'src/users/enums/role.enum';
-import { Tenant } from '../tenants/entities/tenant.entity';
+import { Tenant, TenantStatus } from '../tenants/entities/tenant.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { TaxRate } from '../businesses/entities/tax-rate.entity';
@@ -496,5 +496,90 @@ async register(registerDto: RegisterDto, res: Response) {
     });
 
     await this.resetTokenRepo.update(tokenRecord.id, { is_used: true });
+  }
+
+  // ─── OAuth Login Handler ─────────────────────────────────────────────────
+  async handleOAuthLogin(oauthUser: any, res: Response): Promise<{ message: string; user: any }> {
+    // Find or create user based on OAuth profile
+    let user = await this.usersService.findByEmail(oauthUser.email);
+
+    if (!user) {
+      // Create new user from OAuth profile
+      const hashedPassword = await bcrypt.hash(uuidv4(), 10); // Random password for OAuth users
+      
+      user = this.usersRepository.create({
+        email: oauthUser.email,
+        firstName: oauthUser.firstName,
+        lastName: oauthUser.lastName,
+        password_hash: hashedPassword,
+        role: Role.BUSINESS_OWNER, // Default role for new OAuth users
+        is_verified: true, // OAuth emails are pre-verified
+      });
+
+      user = await this.usersRepository.save(user);
+
+      // Create a basic tenant for the new user
+      const tenantData: Partial<Tenant> = {
+        ownerId: user.id,
+        name: `${user.firstName}'s Company`,
+        contactEmail: user.email,
+        billingPlan: 'free',
+        status: TenantStatus.ACTIVE,
+      };
+      const tenant = this.tenantsRepository.create(tenantData);
+      await this.tenantsRepository.save(tenant);
+
+      // Create a default business
+      const business = this.businessesRepository.create({
+        name: `${user.firstName}'s Business`,
+        tenant_id: tenant.id,
+        email: user.email,
+        currency: 'TND',
+      });
+      await this.businessesRepository.save(business);
+
+      // Add default tax rates
+      const defaultTaxRates = [
+        { business_id: business.id, name: 'TVA 19%', rate: 19, is_default: true },
+        { business_id: business.id, name: 'TVA 7%', rate: 7, is_default: false },
+        { business_id: business.id, name: 'TVA 13%', rate: 13, is_default: false },
+      ];
+      await this.taxRatesRepository.save(defaultTaxRates);
+
+      // Create business member
+      const member = this.businessMembersRepository.create({
+        business_id: business.id,
+        user_id: user.id,
+        role: Role.BUSINESS_OWNER,
+        is_active: true,
+        joined_at: new Date(),
+        collaboration_permissions: {},
+        stock_permissions: {},
+        payment_permissions: {},
+        salary_permissions: {},
+        sales_permissions: {},
+        purchase_permissions: {},
+      });
+      await this.businessMembersRepository.save(member);
+    }
+
+    // Check if user is suspended
+    if (user.is_suspended) {
+      throw new UnauthorizedException('Your account has been suspended. Please contact support for assistance.');
+    }
+
+    // Generate tokens and set cookies
+    await this.generateTokensAndSetCookies(user, res);
+
+    return {
+      message: 'OAuth login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
+    };
   }
 }

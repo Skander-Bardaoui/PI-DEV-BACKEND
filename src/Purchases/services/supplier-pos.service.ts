@@ -62,6 +62,20 @@ export class SupplierPOsService {
     this.logger.debug(`Creating PO with DTO: ${JSON.stringify(dto)}`);
     this.logger.debug(`Items received: ${dto.items ? dto.items.length : 'undefined'}`);
     this.logger.debug(`ML Product ID: ${dto.ml_product_id || 'none'}`);
+    
+    // Log each item's product_id
+    dto.items?.forEach((item, idx) => {
+      this.logger.debug(`Item ${idx}: product_id=${item.product_id || 'NULL'}, description="${item.description}"`);
+    });
+    
+    // ⚠️ VALIDATION: Warn if items don't have product_id (stock won't be tracked)
+    const itemsWithoutProduct = dto.items.filter(item => !item.product_id);
+    if (itemsWithoutProduct.length > 0) {
+      this.logger.warn(
+        `⚠️ ${itemsWithoutProduct.length} item(s) without product_id. Stock movements will NOT be created for these items. ` +
+        `To track inventory, please select products from the catalog when creating purchase orders.`
+      );
+    }
 
     const ml_product_id = dto.ml_product_id; // Sauvegarder avant la transaction
 
@@ -82,13 +96,29 @@ export class SupplierPOsService {
       });
       const saved = await manager.save(SupplierPO, po);
 
-      const lines = items.map((item, i) =>
-        manager.create(SupplierPOItem, {
-          ...item,
+      const lines = items.map((item, i) => {
+        // Validate that product_id is present
+        if (!item.product_id) {
+          throw new Error(`Product ID is required for item: ${item.description}`);
+        }
+        
+        const poItem = manager.create(SupplierPOItem, {
           supplier_po_id: saved.id,
-          sort_order:     item.sort_order ?? i,
-        }),
-      );
+          product_id: item.product_id, // Required field
+          description: item.description,
+          quantity_ordered: item.quantity_ordered,
+          quantity_received: 0,
+          unit_price_ht: item.unit_price_ht,
+          tax_rate_value: item.tax_rate_value,
+          line_total_ht: item.line_total_ht,
+          line_tax: item.line_tax,
+          sort_order: item.sort_order ?? i,
+        });
+        
+        this.logger.debug(`Creating PO item ${i}: product_id=${poItem.product_id}, desc="${poItem.description}"`);
+        return poItem;
+      });
+      
       await manager.save(SupplierPOItem, lines);
 
       return manager.findOne(SupplierPO, {
@@ -150,55 +180,114 @@ export class SupplierPOsService {
   }
 
   async update(businessId: string, id: string, dto: UpdateSupplierPODto): Promise<SupplierPO> {
-    const po = await this.findOne(businessId, id);
+    this.logger.log(`🔍 UPDATE START: PO id=${id}`);
+    this.logger.log(`🔍 DTO received: ${JSON.stringify(dto, null, 2)}`);
+    
+    try {
+      const po = await this.findOne(businessId, id);
+      this.logger.log(`🔍 Current PO has ${po.items?.length || 0} items BEFORE update`);
 
-    if (po.status !== POStatus.DRAFT) {
-      throw new BadRequestException(
-        `Modification impossible. Statut actuel : ${po.status}. Requis : DRAFT.`,
-      );
-    }
+      if (po.status !== POStatus.DRAFT) {
+        throw new BadRequestException(
+          `Modification impossible. Statut actuel : ${po.status}. Requis : DRAFT.`,
+        );
+      }
 
-    return this.dataSource.transaction(async (manager) => {
-
-      if (dto.expected_delivery !== undefined)
-        po.expected_delivery = new Date(dto.expected_delivery);
-      if (dto.notes !== undefined)
+      // Update PO fields
+      if (dto.expected_delivery !== undefined) {
+        po.expected_delivery = dto.expected_delivery && dto.expected_delivery.trim() !== '' 
+          ? new Date(dto.expected_delivery) 
+          : null;
+      }
+      if (dto.notes !== undefined) {
         po.notes = dto.notes;
+      }
 
       if (dto.items?.length) {
-
-        await manager.delete(SupplierPOItem, { supplier_po_id: id });
-
+        this.logger.log(`🔍 DTO contains ${dto.items.length} items to save`);
+        
+        // Calculate totals
         const { subtotal_ht, tax_amount, net_amount, items } = this.calcTotals(dto.items);
         po.subtotal_ht = subtotal_ht;
         po.tax_amount  = tax_amount;
         po.net_amount  = net_amount;
 
-        po.items = [];
+        // Delete existing items using repository delete method
+        this.logger.log(`🔍 Deleting existing items for PO ${id}`);
+        try {
+          const deleteResult = await this.itemRepo.delete({ supplier_po_id: id });
+          this.logger.log(`🔍 Items deleted, affected: ${deleteResult.affected}`);
+        } catch (deleteError) {
+          this.logger.error(`❌ Error deleting items:`, deleteError);
+          throw deleteError;
+        }
 
-        await manager.save(SupplierPO, po);
-
-        const lines = items.map((item, i) => {
-          const { id: _ignored, ...itemWithoutId } = item as any;
-          return manager.create(SupplierPOItem, {
-            ...itemWithoutId,
+        // Create new items
+        const newItems = items.map((item, i) => {
+          // Validate that product_id is present
+          if (!item.product_id) {
+            throw new Error(`Product ID is required for item: ${item.description}`);
+          }
+          
+          const itemEntity = this.itemRepo.create({
             supplier_po_id: id,
-            sort_order:     itemWithoutId.sort_order ?? i,
+            product_id: item.product_id, // Required field
+            description: item.description,
+            quantity_ordered: item.quantity_ordered,
+            quantity_received: 0,
+            unit_price_ht: item.unit_price_ht,
+            tax_rate_value: item.tax_rate_value,
+            line_total_ht: item.line_total_ht,
+            line_tax: item.line_tax,
+            sort_order: item.sort_order ?? i,
           });
+          
+          this.logger.log(`🔍   Creating new item ${i}: product_id=${itemEntity.product_id}, desc="${itemEntity.description}", qty=${itemEntity.quantity_ordered}`);
+          return itemEntity;
         });
 
-        await manager.save(SupplierPOItem, lines);
-
-      } else {
-        po.items = [];
-        await manager.save(SupplierPO, po);
+        this.logger.log(`🔍 Saving ${newItems.length} new items`);
+        try {
+          await this.itemRepo.save(newItems);
+          this.logger.log(`🔍 Items saved successfully`);
+        } catch (saveError) {
+          this.logger.error(`❌ Error saving items:`, saveError);
+          throw saveError;
+        }
       }
 
-      return manager.findOne(SupplierPO, {
-        where:     { id },
+      // Save the PO
+      this.logger.log(`🔍 Saving PO`);
+      try {
+        await this.poRepo.save(po);
+        this.logger.log(`🔍 PO saved successfully`);
+      } catch (saveError) {
+        this.logger.error(`❌ Error saving PO:`, saveError);
+        throw saveError;
+      }
+      
+      // Fetch fresh data to confirm
+      this.logger.log(`🔍 Fetching updated PO with relations`);
+      const result = await this.poRepo.findOne({
+        where: { id, business_id: businessId },
         relations: ['items', 'supplier'],
-      }) as Promise<SupplierPO>;
-    });
+      });
+      
+      if (!result) {
+        this.logger.error(`❌ Could not find PO after update`);
+        throw new NotFoundException(`BC introuvable après mise à jour (id: ${id})`);
+      }
+      
+      this.logger.log(`🔍 UPDATE COMPLETE: Returning PO with ${result.items?.length || 0} items`);
+      result.items?.forEach((item, idx) => {
+        this.logger.log(`🔍   Final Item ${idx}: id=${item.id}, desc="${item.description}", qty=${item.quantity_ordered}`);
+      });
+      
+      return result;
+    } catch (error) {
+      this.logger.error(`❌ UPDATE FAILED:`, error);
+      throw error;
+    }
   }
 
 async send(businessId: string, id: string) {
@@ -277,15 +366,21 @@ async send(businessId: string, id: string) {
 
     await manager.save(SupplierPO, po);
 
-    // Create stock movements whenever items are received (PARTIALLY_RECEIVED or FULLY_RECEIVED)
-    if (po.status === POStatus.PARTIALLY_RECEIVED || po.status === POStatus.FULLY_RECEIVED) {
-      await this.createStockMovementsForReceivedItems(businessId, po, manager);
-    }
+    // NOTE: Stock movements are created in goods-receipts.service.ts, not here
+    // This prevents duplicate stock movements
   }
 
   /**
    * Helper method to create stock movements for received items
+   * 
+   * NOTE: This method is NO LONGER USED to prevent duplicate stock movements.
+   * Stock movements are now created ONLY in goods-receipts.service.ts
+   * when a goods receipt is created.
+   * 
+   * Keeping this method commented for reference in case we need to understand
+   * the old logic, but it should NOT be called anywhere.
    */
+  /*
   private async createStockMovementsForReceivedItems(
     businessId: string,
     po: SupplierPO,
@@ -362,6 +457,7 @@ async send(businessId: string, id: string) {
       }
     }
   }
+  */
 
   private async transition(
     businessId: string,

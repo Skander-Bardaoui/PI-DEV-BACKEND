@@ -109,6 +109,7 @@ import { Plan } from './platform-admin/entities/plan.entity';
 import { ImpersonationLog } from './platform-admin/entities/impersonation-log.entity';
 import { PlatformAuditLog } from './platform-admin/entities/platform-audit-log.entity';
 import { SupportTicket } from './platform-admin/entities/support-ticket.entity';
+import { Payment as SubscriptionPayment } from './platform-admin/entities/payment.entity';
 
 // Purchases Entities
 import { Supplier } from './Purchases/entities/supplier.entity';
@@ -134,17 +135,20 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
       limit: 100,  // Max 100 requests per window
     }]),
 
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DB_HOST'),
-        port: +(configService.get<number>('DB_PORT') ?? 5432),
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_NAME'),
-        synchronize: true,
-        autoLoadEntities: true,
+   TypeOrmModule.forRootAsync({
+  imports: [ConfigModule],
+  useFactory: (configService: ConfigService) => ({
+    type: 'postgres',
+    host: configService.get<string>('DB_HOST'),
+    port: +(configService.get<number>('DB_PORT') ?? 5432),
+    username: configService.get<string>('DB_USERNAME'),
+    password: configService.get<string>('DB_PASSWORD'),
+    database: configService.get<string>('DB_NAME'),
+    ssl: configService.get('NODE_ENV') === 'production'
+      ? { rejectUnauthorized: false }
+      : false,
+    synchronize: true,
+    autoLoadEntities: true,
         entities: [
           // Core
           User,
@@ -218,6 +222,7 @@ import { SupplierPortalToken } from './Purchases/entities/supplier-portal-token.
           ImpersonationLog,
           PlatformAuditLog,
           SupportTicket,
+          SubscriptionPayment,
         ],
       }),
       inject: [ConfigService],

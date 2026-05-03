@@ -34,6 +34,9 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorators';
 import { Role } from '../../users/enums/role.enum';
 import { BusinessMember } from '../../businesses/entities/business-member.entity';
+import { User } from '../../users/entities/user.entity';
+import { Business } from '../../businesses/entities/business.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 import type { Response } from 'express';
 
 @Controller('businesses/:businessId/products')
@@ -43,6 +46,12 @@ export class ProductsController {
     private readonly productsService: ProductsService,
     @InjectRepository(BusinessMember)
     private readonly businessMemberRepository: Repository<BusinessMember>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Business)
+    private readonly businessRepository: Repository<Business>,
+    @InjectRepository(Tenant)
+    private readonly tenantRepository: Repository<Tenant>,
   ) {}
 
   private transformFrontendDto(frontendDto: any): any {
@@ -73,6 +82,20 @@ export class ProductsController {
       delete backendDto.is_stockable;
     }
 
+    // Convert empty strings to null for UUID fields to avoid PostgreSQL validation errors
+    if (backendDto.warehouse_id === '') {
+      backendDto.warehouse_id = null;
+    }
+    if (backendDto.category_id === '') {
+      backendDto.category_id = null;
+    }
+    if (backendDto.default_supplier_id === '') {
+      backendDto.default_supplier_id = null;
+    }
+    if (backendDto.barcode === '') {
+      backendDto.barcode = null;
+    }
+
     return backendDto;
   }
 
@@ -100,18 +123,50 @@ export class ProductsController {
     productType: string,
     operation: 'create' | 'update' | 'delete',
   ): Promise<void> {
-    // BUSINESS_OWNER bypasses all checks
-    if (userRole === Role.BUSINESS_OWNER) {
+    // Get user to check role
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new ForbiddenException('User not found');
+    }
+
+    // PLATFORM_ADMIN always has full access
+    if (user.role === Role.PLATFORM_ADMIN) {
       return;
     }
 
-    // Get member permissions
+    // BUSINESS_OWNER: Check if they own the tenant that owns this business
+    if (user.role === Role.BUSINESS_OWNER) {
+      const tenant = await this.tenantRepository.findOne({
+        where: { ownerId: userId },
+      });
+
+      if (tenant) {
+        const business = await this.businessRepository.findOne({
+          where: { id: businessId },
+        });
+
+        // If the business belongs to the tenant owned by this user, they have full access
+        if (business && business.tenant_id === tenant.id) {
+          return;
+        }
+      }
+    }
+
+    // Get member permissions for other roles
     const member = await this.businessMemberRepository.findOne({
       where: { business_id: businessId, user_id: userId, is_active: true },
     });
 
     if (!member) {
       throw new ForbiddenException('Not a member of this business');
+    }
+
+    // BUSINESS_OWNER role in business_members also has full access
+    if (member.role === Role.BUSINESS_OWNER) {
+      return;
     }
 
     // Determine permission key based on product type

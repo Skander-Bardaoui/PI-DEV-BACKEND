@@ -20,14 +20,17 @@ import { ClientsService } from '../services/clients.service';
 import { CreateClientDto } from '../dto/create-client.dto';
 import { UpdateClientDto } from '../dto/update-client.dto';
 import { QueryClientsDto } from '../dto/query-clients.dto';
+import { SalesPermissionGuard } from '../guards/sales-permission.guard';
+import { RequireSalesPermission } from '../decorators/sales-permission.decorator';
 
 @Controller('businesses/:businessId/sales/clients')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), RolesGuard, SalesPermissionGuard)
 export class SalesClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Post()
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('create_client')
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() createClientDto: CreateClientDto,
@@ -55,6 +58,7 @@ export class SalesClientsController {
 
   @Patch(':id')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
+  @RequireSalesPermission('update_client')
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -65,6 +69,7 @@ export class SalesClientsController {
 
   @Delete(':id')
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN)
+  @RequireSalesPermission('delete_client')
   remove(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,

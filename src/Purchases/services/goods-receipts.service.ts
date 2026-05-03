@@ -13,6 +13,8 @@
   import { POStatus }           from '../enum/po-status.enum';
   import { CreateGoodsReceiptDto } from '../dto/create-goods-receipt.dto';
   import { StockMovementsService } from '../../stock/services/stock-movements/stock-movements.service';
+  import { StockMovementType } from '../../stock/enums/stock-movement-type.enum';
+  import { Product, ProductType } from '../../stock/entities/product.entity';
 
   @Injectable()
   export class GoodsReceiptsService {
@@ -25,6 +27,9 @@
 
       @InjectRepository(GoodsReceiptItem)
       private readonly grItemRepo: Repository<GoodsReceiptItem>,
+
+      @InjectRepository(Product)
+      private readonly productRepo: Repository<Product>,
 
       private readonly supplierPOsService: SupplierPOsService,
       private readonly dataSource: DataSource,
@@ -148,7 +153,8 @@
       await qr.commitTransaction();
       this.logger.log(`Successfully created goods receipt ${gr_number}`);
 
-    //  await this.updateStock(businessId, grItems, userId);
+      // Update stock after successful transaction
+      await this.updateStock(businessId, grItems, userId);
 
       return this.findOne(businessId, savedGR.id);
 
@@ -232,7 +238,7 @@
       return `${prefix}${seq}`;
     }
 
-    /*private async updateStock(
+    private async updateStock(
       businessId: string,
       items: GoodsReceiptItem[],
       userId: string,
@@ -242,7 +248,7 @@
         return;
       }
       
-      // ANOMALIE 7 FIX: Implémentation de la mise à jour du stock
+      // Create stock movements for all received items
       for (const item of items) {
         if (!item.product_id) {
           this.logger.debug(`Ligne BR sans product_id, stock non mis à jour`);
@@ -250,19 +256,34 @@
         }
         
         try {
-          await this.stockMovementsService.createMovement({
-            business_id: businessId,
-            product_id: item.product_id,
-            movement_type: 'IN',
-            quantity: Number(item.quantity_received),
-            reference_type: 'GOODS_RECEIPT',
-            reference_id: item.gr_id,
-            notes: `Réception marchandise - BR ${item.gr_id}`,
-            created_by: userId,
+          // Check if product is physical (not service or digital)
+          const product = await this.productRepo.findOne({
+            where: { id: item.product_id },
           });
+          
+          if (!product) {
+            this.logger.warn(`Product ${item.product_id} not found, skipping stock movement`);
+            continue;
+          }
+          
+          if (product.type === ProductType.SERVICE || product.type === ProductType.DIGITAL) {
+            this.logger.debug(`Product ${item.product_id} is a service or digital product, skipping stock movement`);
+            continue;
+          }
+          
+          await this.stockMovementsService.createManual(businessId, {
+            product_id: item.product_id,
+            type: StockMovementType.ENTREE_ACHAT,
+            quantity: Number(item.quantity_received),
+            source_type: 'GOODS_RECEIPT',
+            source_id: item.gr_id,
+            note: `Réception marchandise - BR ${item.gr_id}`,
+          });
+          this.logger.log(`✅ Stock movement created for product ${item.product_id}, quantity: ${item.quantity_received}`);
         } catch (err: any) {
           this.logger.error(`Erreur mise à jour stock produit ${item.product_id}: ${err.message}`);
+          // Don't throw - continue with other items
         }
       }
-    }*/
+    }
   }

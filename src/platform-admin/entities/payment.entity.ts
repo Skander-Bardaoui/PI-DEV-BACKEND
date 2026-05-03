@@ -12,7 +12,7 @@ import { Subscription } from './subscription.entity';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PaymentMethod } from '../enums/payment-method.enum';
 
-@Entity('payments')
+@Entity('subscription_payments')
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -23,6 +23,12 @@ export class Payment {
   @ManyToOne(() => Subscription)
   @JoinColumn({ name: 'subscription_id' })
   subscription!: Subscription;
+
+  @Column({ nullable: true })
+  business_id?: string;
+
+  @Column({ nullable: true })
+  invoice_id?: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount!: number;
