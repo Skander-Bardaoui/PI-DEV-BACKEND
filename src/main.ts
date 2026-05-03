@@ -19,6 +19,7 @@ async function bootstrap() {
   app.use(helmet({
     contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   }));
 
   // Enable cookie parsing
@@ -43,9 +44,19 @@ async function bootstrap() {
   
   app.use(require('express').urlencoded({ extended: true }));
 
-  // Serve static files (for uploaded avatars)
+  // Serve static files (for uploaded avatars and message files)
   app.useStaticAssets(join(__dirname, '..', 'public'), {
     prefix: '/',
+  });
+
+  // Serve uploads folder for message files - use process.cwd() for reliability
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+    setHeaders: (res) => {
+      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+      res.setHeader('Access-Control-Allow-Methods', 'GET');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    },
   });
 
   // Configuration globale pour Zod et class-validator (compatibilité)

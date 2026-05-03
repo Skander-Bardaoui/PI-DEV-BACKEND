@@ -33,7 +33,8 @@ export class MessagesController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (req, file, cb) => {
-          const uploadPath = './public/uploads/messages';
+          // Use process.cwd() to save to project root, not inside dist/
+          const uploadPath = path.join(process.cwd(), 'uploads', 'messages');
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
           }
@@ -70,6 +71,9 @@ export class MessagesController {
       req.user.id,
     );
 
+    console.log('📤 Message created, broadcasting to room:', `task-${createMessageDto.taskId}`);
+    console.log('📤 Message ID:', message.id);
+
     // If this is a reply, emit newReply event
     if (createMessageDto.parentMessageId) {
       const parentMessage = await this.messagesService.findMessageById(
@@ -84,12 +88,14 @@ export class MessagesController {
             parentMessageId: createMessageDto.parentMessageId,
             newReplyCount: parentMessage.replyCount + 1,
           });
+        console.log('✅ Broadcasted newReply event');
       }
     } else {
-      // Broadcast regular message via socket
+      // Broadcast regular message via socket to ALL clients in the room
       this.messagesGateway.server
         .to(`task-${createMessageDto.taskId}`)
         .emit('newMessage', message);
+      console.log('✅ Broadcasted newMessage event to all clients in room');
     }
 
     return message;
