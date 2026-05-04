@@ -53,6 +53,10 @@ import { SubscriptionExpiryService } from '../platform-admin/services/subscripti
 import { DashboardController } from '../platform-admin/controllers/dashboard.controller';
 import { DashboardService } from '../platform-admin/services/dashboard.service';
 
+// AI Pricing
+import { AiPricingController } from '../platform-admin/controllers/ai-pricing.controller';
+import { AiPricingService } from '../platform-admin/services/ai-pricing.service';
+
 // Audit Log
 import { AuditLogController } from '../platform-admin/controllers/audit-log.controller';
 import { AuditLogService } from '../platform-admin/services/audit-log.service';
@@ -122,6 +126,7 @@ import { EmailModule } from '../email/email.module';
     PaymentManagementController,
     PlanManagementController,
     DashboardController,
+    AiPricingController,
     AuditLogController,
     SystemHealthController,
     SupportTicketController,
@@ -142,6 +147,7 @@ import { EmailModule } from '../email/email.module';
     SubscriptionSchedulerService,
     TenantRegistrationService,
     DashboardService,
+    AiPricingService,
     AuditLogService,
     SystemHealthService,
     SupportTicketService,
