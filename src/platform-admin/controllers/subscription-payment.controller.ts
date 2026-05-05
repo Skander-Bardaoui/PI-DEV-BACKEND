@@ -34,8 +34,9 @@ export class SubscriptionPaymentController {
   @Post(':token/confirm')
   async confirmPayment(
     @Param('token') token: string,
-    @Body('paymentIntentId') paymentIntentId: string,
+    @Body('paymentIntentId') paymentIntentId?: string,
+    @Body('freeActivation') freeActivation?: boolean,
   ) {
-    return this.subscriptionPaymentService.confirmPayment(token, paymentIntentId);
+    return this.subscriptionPaymentService.confirmPayment(token, paymentIntentId, freeActivation);
   }
 }

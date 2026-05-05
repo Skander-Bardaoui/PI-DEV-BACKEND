@@ -14,7 +14,7 @@ pipeline {
     environment {
         IMAGE_NAME           = 'imen077/pi-dev-backend'
         IMAGE_TAG            = "${params.BUILD_NUMBER ?: env.BUILD_NUMBER}"
-        DOCKER_CREDENTIALS_ID = 'docker-credentials'  // ID exact dans Jenkins
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'  // ID exact dans Jenkins
         NAMESPACE            = 'production'
         DEPLOYMENT_NAME      = 'backend'
         ROLLOUT_TIMEOUT      = '10m'

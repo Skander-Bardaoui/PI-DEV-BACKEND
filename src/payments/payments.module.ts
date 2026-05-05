@@ -41,6 +41,8 @@ import { RecurringInvoicePaymentsService }    from './services/recurring-invoice
 import { RecurringInvoice }           from '../sales/entities/recurring-invoice.entity';
 import { DepositsController }         from './controllers/deposits.controller';
 import { DepositsService }            from './services/deposits.service';
+import { Subscription }               from '../platform-admin/entities/subscription.entity';
+import { AiFeatureGuard }             from '../platform-admin/guards/ai-feature.guard';
 
 @Module({
   imports: [
@@ -61,6 +63,7 @@ import { DepositsService }            from './services/deposits.service';
       SalaryProposal,
       Supplier,
       RecurringInvoice,
+      Subscription,
     ]),
     forwardRef(() => PurchasesModule),
     EmailModule,
@@ -91,6 +94,7 @@ import { DepositsService }            from './services/deposits.service';
     FraudDetectionService,
     RecurringInvoicePaymentsService,
     DepositsService,
+    AiFeatureGuard,
   ],
   exports: [
     AccountsService,

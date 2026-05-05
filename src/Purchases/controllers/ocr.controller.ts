@@ -15,6 +15,7 @@ import { Roles } from '../../auth/decorators/roles.decorators';
 import { Role } from '../../users/enums/role.enum';
 import { PurchasePermissionGuard } from '../guards/purchase-permission.guard';
 import { RequirePurchasePermission } from '../decorators/purchase-permission.decorator';
+import { AiFeatureGuard } from '../../platform-admin/guards/ai-feature.guard';
 
 @UseGuards(AuthGuard('jwt'), RolesGuard, PurchasePermissionGuard)
 @Controller('businesses/:businessId/ocr')
@@ -25,6 +26,7 @@ export class OcrController {
   // POST /businesses/:bId/ocr/extract
   // Upload un fichier et extrait les données de la facture
   @Post('extract')
+  @UseGuards(AiFeatureGuard)
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT, Role.TEAM_MEMBER)
   @RequirePurchasePermission('create_purchase_invoice')
   @UseInterceptors(

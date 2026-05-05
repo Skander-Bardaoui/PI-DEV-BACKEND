@@ -7,6 +7,10 @@ import { Tenant } from '../tenants/entities/tenant.entity';
 import { Role } from '../users/enums/role.enum';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { BusinessAccessGuard } from './guards/business-access.guard';
+import { PermissionGuard } from './guards/permission.guard';
 
 describe('BusinessesController', () => {
   let controller: BusinessesController;
@@ -49,6 +53,12 @@ describe('BusinessesController', () => {
     },
   };
 
+  // Mock Guards
+  const mockAuthGuard = { canActivate: jest.fn(() => true) };
+  const mockRolesGuard = { canActivate: jest.fn(() => true) };
+  const mockBusinessAccessGuard = { canActivate: jest.fn(() => true) };
+  const mockPermissionGuard = { canActivate: jest.fn(() => true) };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BusinessesController],
@@ -66,7 +76,16 @@ describe('BusinessesController', () => {
           useValue: mockTenantRepository,
         },
       ],
-    }).compile();
+    })
+    .overrideGuard(AuthGuard('jwt'))
+    .useValue(mockAuthGuard)
+    .overrideGuard(RolesGuard)
+    .useValue(mockRolesGuard)
+    .overrideGuard(BusinessAccessGuard)
+    .useValue(mockBusinessAccessGuard)
+    .overrideGuard(PermissionGuard)
+    .useValue(mockPermissionGuard)
+    .compile();
 
     controller = module.get<BusinessesController>(BusinessesController);
     businessesService = module.get<BusinessesService>(BusinessesService);

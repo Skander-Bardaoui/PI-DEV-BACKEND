@@ -41,8 +41,20 @@ export class TenantRegistrationService {
 
     // Create subscription with pending_payment status
     const now = new Date();
-    const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 14); // 14-day grace period
+    
+    // Calculate period end based on plan type
+    let periodEnd = new Date(now);
+    
+    if (selectedPlan.slug === 'free') {
+      // Free plan: 7 days trial
+      periodEnd.setDate(periodEnd.getDate() + 7);
+    } else if (billingCycle === BillingCycle.MONTHLY) {
+      // Monthly plan: 30 days
+      periodEnd.setDate(periodEnd.getDate() + 30);
+    } else {
+      // Annual plan: 365 days
+      periodEnd.setDate(periodEnd.getDate() + 365);
+    }
 
     const subscription = this.subscriptionRepo.create({
       tenant_id: tenantId,
@@ -50,9 +62,9 @@ export class TenantRegistrationService {
       status: SubscriptionStatus.PENDING_PAYMENT,
       billing_cycle: billingCycle,
       current_period_start: now,
-      current_period_end: trialEnd,
-      trial_ends_at: trialEnd,
-      next_billing_at: trialEnd,
+      current_period_end: periodEnd,
+      trial_ends_at: selectedPlan.slug === 'free' ? periodEnd : undefined, // Only free plan has trial
+      next_billing_at: periodEnd,
       payment_token: uuidv4(), // Generate payment token
     });
 

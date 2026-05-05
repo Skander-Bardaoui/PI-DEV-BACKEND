@@ -58,11 +58,14 @@ import {
 import { Client } from './entities/client.entity';
 import { Business } from '../businesses/entities/business.entity';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
+import { Tenant } from '../tenants/entities/tenant.entity';
 import { BusinessesModule } from '../businesses/businesses.module';
 import { StockModule } from '../stock/stock.module';
 import { StockMovement } from '../stock/entities/stock-movement.entity';
 import { Product } from '../stock/entities/product.entity';
 import { SalesPermissionGuard } from './guards/sales-permission.guard';
+import { Subscription } from '../platform-admin/entities/subscription.entity';
+import { AiFeatureGuard } from '../platform-admin/guards/ai-feature.guard';
 
 @Module({
   imports: [
@@ -92,8 +95,10 @@ import { SalesPermissionGuard } from './guards/sales-permission.guard';
       Client,
       Business,
       BusinessMember,
+      Tenant,
       StockMovement,
       Product,
+      Subscription,
     ]),
   ],
   providers: [
@@ -119,6 +124,7 @@ import { SalesPermissionGuard } from './guards/sales-permission.guard';
     ClientOnboardingService,
     SalesMLService,
     SalesPermissionGuard,
+    AiFeatureGuard,
   ],
   controllers: [
     QuotesController,

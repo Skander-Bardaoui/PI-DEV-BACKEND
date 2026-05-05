@@ -271,13 +271,13 @@ export class PlatformAuthService {
     res.clearCookie('platform_access_token', {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
+      sameSite: 'none', // Allow cross-site cookies for different domains
     });
 
     res.clearCookie('platform_refresh_token', {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
+      sameSite: 'none', // Allow cross-site cookies for different domains
       path: '/platform/auth/refresh',
     });
   }
@@ -321,14 +321,14 @@ export class PlatformAuthService {
     res.cookie('platform_access_token', accessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
+      sameSite: 'none', // Allow cross-site cookies for different domains
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('platform_refresh_token', refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
+      sameSite: 'none', // Allow cross-site cookies for different domains
       path: '/platform/auth/refresh',
       maxAge: 8 * 60 * 60 * 1000, // 8 hours
     });

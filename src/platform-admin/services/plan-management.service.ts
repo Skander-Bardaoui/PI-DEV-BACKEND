@@ -48,18 +48,18 @@ export class PlanManagementService {
       throw new NotFoundException('Plan not found');
     }
 
-    // Check if slug is being changed and already exists
-    if (dto.slug && dto.slug !== plan.slug) {
-      const existingPlan = await this.planRepo.findOne({
-        where: { slug: dto.slug },
-      });
+    // PLAN EDIT RESTRICTIONS:
+    // Only allow updating: name, price_monthly, price_annual, is_active
+    // Explicitly ignore: features, ai_enabled, trial_days, slug, max_users, max_businesses
+    // These fields are plan-defining and must not be changed via API
+    const allowedUpdates: Partial<Plan> = {};
+    
+    if (dto.name !== undefined) allowedUpdates.name = dto.name;
+    if (dto.price_monthly !== undefined) allowedUpdates.price_monthly = dto.price_monthly;
+    if (dto.price_annual !== undefined) allowedUpdates.price_annual = dto.price_annual;
+    if (dto.is_active !== undefined) allowedUpdates.is_active = dto.is_active;
 
-      if (existingPlan) {
-        throw new BadRequestException('Plan with this slug already exists');
-      }
-    }
-
-    Object.assign(plan, dto);
+    Object.assign(plan, allowedUpdates);
     return await this.planRepo.save(plan);
   }
 

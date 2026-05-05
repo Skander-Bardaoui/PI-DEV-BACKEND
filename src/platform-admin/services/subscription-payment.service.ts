@@ -103,20 +103,7 @@ export class SubscriptionPaymentService {
   }
 
   // Confirm payment and activate subscription
-  async confirmPayment(token: string, paymentIntentId: string) {
-    // Retrieve PaymentIntent from Stripe
-    const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
-
-    // Verify payment succeeded
-    if (paymentIntent.status !== 'succeeded') {
-      throw new BadRequestException('Payment not completed');
-    }
-
-    // Verify token matches
-    if (paymentIntent.metadata.paymentToken !== token) {
-      throw new BadRequestException('Invalid payment token');
-    }
-
+  async confirmPayment(token: string, paymentIntentId?: string, freeActivation?: boolean) {
     // Get subscription
     const subscription = await this.subscriptionRepo.findOne({
       where: { payment_token: token },
@@ -130,6 +117,40 @@ export class SubscriptionPaymentService {
     // Check if already activated
     if (subscription.status === SubscriptionStatus.ACTIVE) {
       return { success: true, message: 'Subscription already activated' };
+    }
+
+    // FREE PLAN ACTIVATION (skip Stripe)
+    if (freeActivation === true || subscription.plan.slug === 'free') {
+      // Verify this is actually a free plan
+      const amount = subscription.billing_cycle === 'monthly'
+        ? subscription.plan.price_monthly
+        : subscription.plan.price_annual;
+
+      if (amount !== 0) {
+        throw new BadRequestException('Free activation is only allowed for free plans');
+      }
+
+      // Activate free trial
+      await this.activateFreeTrialSubscription(subscription);
+      return { success: true, message: 'Free trial activated' };
+    }
+
+    // PAID PLAN ACTIVATION (Stripe required)
+    if (!paymentIntentId) {
+      throw new BadRequestException('Payment intent ID is required for paid plans');
+    }
+
+    // Retrieve PaymentIntent from Stripe
+    const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+
+    // Verify payment succeeded
+    if (paymentIntent.status !== 'succeeded') {
+      throw new BadRequestException('Payment not completed');
+    }
+
+    // Verify token matches
+    if (paymentIntent.metadata.paymentToken !== token) {
+      throw new BadRequestException('Invalid payment token');
     }
 
     // Activate subscription
@@ -187,6 +208,30 @@ export class SubscriptionPaymentService {
     }
 
     await this.paymentRepo.save(paymentData);
+
+    // Send activation email
+    await this.sendActivationEmail(subscription);
+  }
+
+  // Activate free trial subscription (no Stripe, no payment record)
+  private async activateFreeTrialSubscription(subscription: Subscription) {
+    const now = new Date();
+    
+    // Calculate 7-day trial period
+    const trialEnd = new Date(now);
+    trialEnd.setDate(trialEnd.getDate() + 7);
+
+    // Update subscription
+    subscription.status = SubscriptionStatus.ACTIVE;
+    subscription.current_period_start = now;
+    subscription.current_period_end = trialEnd;
+    subscription.trial_ends_at = trialEnd;
+    subscription.payment_method = 'free';
+    subscription.last_payment_at = now;
+    subscription.next_billing_at = undefined; // No next billing for free plan
+    await this.subscriptionRepo.save(subscription);
+
+    // Do NOT create a payment record for free plans
 
     // Send activation email
     await this.sendActivationEmail(subscription);

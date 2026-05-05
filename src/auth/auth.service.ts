@@ -387,7 +387,7 @@ async register(registerDto: RegisterDto, res: Response) {
     res.cookie('access_token', access_token, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax', // 'lax' for localhost development
+      sameSite: 'none', // Allow cross-site cookies for different domains
       maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
     });
     
@@ -395,7 +395,7 @@ async register(registerDto: RegisterDto, res: Response) {
     res.cookie('refresh_token', refresh_token, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax', // 'lax' for localhost development
+      sameSite: 'none', // Allow cross-site cookies for different domains
       path: '/auth/refresh',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
     });

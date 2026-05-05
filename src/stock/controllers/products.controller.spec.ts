@@ -150,6 +150,15 @@ describe('ProductsController', () => {
         type: ProductType.PHYSICAL,
       };
 
+      // Mock business member with permissions
+      mockBusinessMemberRepository.findOne.mockResolvedValue({
+        id: 'member-123',
+        user_id: 'user-123',
+        business_id: businessId,
+        role: Role.BUSINESS_OWNER,
+        permissions: { stock: { create: true } },
+      });
+
       mockUserRepository.findOne.mockResolvedValue({
         id: 'user-123',
         role: Role.BUSINESS_OWNER,
@@ -185,6 +194,15 @@ describe('ProductsController', () => {
         price: 200,
       };
 
+      // Mock business member with permissions
+      mockBusinessMemberRepository.findOne.mockResolvedValue({
+        id: 'member-123',
+        user_id: 'user-123',
+        business_id: businessId,
+        role: Role.BUSINESS_OWNER,
+        permissions: { stock: { update: true } },
+      });
+
       mockUserRepository.findOne.mockResolvedValue({
         id: 'user-123',
         role: Role.BUSINESS_OWNER,
@@ -214,6 +232,15 @@ describe('ProductsController', () => {
         id: productId,
         deleted_at: new Date(),
       };
+
+      // Mock business member with permissions
+      mockBusinessMemberRepository.findOne.mockResolvedValue({
+        id: 'member-123',
+        user_id: 'user-123',
+        business_id: businessId,
+        role: Role.BUSINESS_OWNER,
+        permissions: { stock: { delete: true } },
+      });
 
       mockUserRepository.findOne.mockResolvedValue({
         id: 'user-123',

@@ -666,9 +666,14 @@ export class SalesOrdersService {
       order.id,
     );
 
-    await this.sendEmailWithPortal(order, order.client.email, portalToken);
-
-    return { message: `Email de confirmation envoyé à ${order.client.email}` };
+    try {
+      await this.sendEmailWithPortal(order, order.client.email, portalToken);
+      return { message: `Email de confirmation envoyé à ${order.client.email}` };
+    } catch (error) {
+      console.error('Error sending order confirmation email:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      throw new BadRequestException(`Erreur lors de l'envoi de l'email: ${errorMessage}`);
+    }
   }
 
   private async sendEmailWithPortal(
@@ -681,7 +686,7 @@ export class SalesOrdersService {
     const portalUrl = `${frontendUrl}/client-portal?token=${portalToken}`;
 
     const businessName = order.business?.name || 'Votre Entreprise';
-    const businessEmail = order.business?.email || 'novaentra2026@gmail.com';
+    const businessEmail = order.business?.email || process.env.GMAIL_USER || 'novaentra2026@gmail.com';
     const businessPhone = order.business?.phone || '';
     const businessMF = order.business?.tax_id || '';
 
@@ -921,8 +926,8 @@ export class SalesOrdersService {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'novaentra2026@gmail.com',
-        pass: 'enrqztjhkqbryrar',
+        user: process.env.GMAIL_USER || 'novaentra2026@gmail.com',
+        pass: process.env.GMAIL_PASS || 'enrqztjhkqbryrar',
       },
     });
 
@@ -935,7 +940,7 @@ export class SalesOrdersService {
     ];
 
     await transporter.sendMail({
-      from: `"${businessName}" <novaentra2026@gmail.com>`,
+      from: `"${businessName}" <${process.env.GMAIL_USER || 'novaentra2026@gmail.com'}>`,
       to: recipientEmail,
       subject: `🧾 Commande ${order.orderNumber} — Confirmation requise`,
       html,

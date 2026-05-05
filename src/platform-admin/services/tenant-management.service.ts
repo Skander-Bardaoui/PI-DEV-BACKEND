@@ -573,19 +573,7 @@ export class TenantManagementService {
       .where('tenant_id = :tenantId', { tenantId })
       .execute();
 
-    // Remove owner reference from tenant BEFORE deleting tenant
-    if (ownerId) {
-      console.log(`[Delete] Removing owner reference from tenant...`);
-      await this.tenantRepo
-        .createQueryBuilder()
-        .update(Tenant)
-        .set({ ownerId: undefined })
-        .where('id = :tenantId', { tenantId })
-        .execute();
-      console.log(`[Delete] ✅ Owner reference removed`);
-    }
-
-    // HARD DELETE the tenant itself
+    // CRITICAL FIX: Delete the tenant record FIRST (this removes the FK reference to the owner)
     console.log(`[Delete] Deleting tenant record...`);
     await this.tenantRepo
       .createQueryBuilder()
@@ -595,16 +583,21 @@ export class TenantManagementService {
       .execute();
     console.log(`[Delete] ✅ Tenant record deleted`);
 
-    // NOW delete the owner user (after tenant is deleted)
+    // NOW delete the owner user (after tenant is deleted, so no FK constraint)
     if (ownerId) {
-      console.log(`[Delete] Deleting tenant owner...`);
-      await this.userRepo
-        .createQueryBuilder()
-        .delete()
-        .from(User)
-        .where('id = :ownerId', { ownerId })
-        .execute();
-      console.log(`[Delete] ✅ Tenant owner deleted`);
+      console.log(`[Delete] Deleting tenant owner user (ID: ${ownerId})...`);
+      try {
+        await this.userRepo
+          .createQueryBuilder()
+          .delete()
+          .from(User)
+          .where('id = :ownerId', { ownerId })
+          .execute();
+        console.log(`[Delete] ✅ Tenant owner deleted`);
+      } catch (error) {
+        console.log(`[Delete] ⚠️ Owner user might have been already deleted or doesn't exist`);
+        // Continue - owner might have been deleted as part of business members
+      }
     }
 
     return { 

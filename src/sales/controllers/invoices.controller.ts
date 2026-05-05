@@ -21,6 +21,7 @@ import { CreateInvoiceDto } from '../dto/create-invoice.dto';
 import { UpdateInvoiceDto } from '../dto/update-invoice.dto';
 import { SalesPermissionGuard } from '../guards/sales-permission.guard';
 import { RequireSalesPermission } from '../decorators/sales-permission.decorator';
+import { AiFeatureGuard } from '../../platform-admin/guards/ai-feature.guard';
 
 @Controller('businesses/:businessId/invoices')
 @UseGuards(AuthGuard('jwt'), RolesGuard, SalesPermissionGuard)
@@ -89,6 +90,7 @@ export class InvoicesController {
   }
 
   @Post(':id/generate-email-draft')
+  @UseGuards(AiFeatureGuard)
   @Roles(Role.BUSINESS_OWNER, Role.BUSINESS_ADMIN, Role.ACCOUNTANT)
   async generateEmailDraft(
     @Param('businessId', ParseUUIDPipe) businessId: string,

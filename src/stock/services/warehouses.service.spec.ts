@@ -1,26 +1,32 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { WarehousesService } from './warehouses.service';
 import { Warehouse } from '../entities/warehouse.entity';
 import { Product } from '../entities/product.entity';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('WarehousesService', () => {
   let service: WarehousesService;
   let warehouseRepo: Repository<Warehouse>;
   let productRepo: Repository<Product>;
 
-  const mockWarehouseRepository = {
-    find: jest.fn(),
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    remove: jest.fn(),
+  const mockWarehouse = {
+    id: 'warehouse-1',
+    business_id: 'business-1',
+    code: 'WH001',
+    name: 'Main Warehouse',
+    location: 'Tunis',
+    is_active: true,
   };
 
-  const mockProductRepository = {
-    find: jest.fn(),
+  const mockProduct = {
+    id: 'product-1',
+    business_id: 'business-1',
+    warehouse_id: 'warehouse-1',
+    name: 'Product A',
+    sku: 'SKU001',
+    quantity: 100,
   };
 
   beforeEach(async () => {
@@ -29,205 +35,186 @@ describe('WarehousesService', () => {
         WarehousesService,
         {
           provide: getRepositoryToken(Warehouse),
-          useValue: mockWarehouseRepository,
+          useValue: {
+            find: jest.fn(),
+            findOne: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
+            remove: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(Product),
-          useValue: mockProductRepository,
+          useValue: {
+            find: jest.fn(),
+          },
         },
       ],
     }).compile();
 
     service = module.get<WarehousesService>(WarehousesService);
-    warehouseRepo = module.get<Repository<Warehouse>>(getRepositoryToken(Warehouse));
-    productRepo = module.get<Repository<Product>>(getRepositoryToken(Product));
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+    warehouseRepo = module.get(getRepositoryToken(Warehouse));
+    productRepo = module.get(getRepositoryToken(Product));
   });
 
   describe('findAll', () => {
-    it('should return all warehouses for a business', async () => {
-      const businessId = 'business-123';
-      const mockWarehouses = [
-        { id: 'warehouse-1', name: 'Warehouse 1', code: 'WH1' },
-        { id: 'warehouse-2', name: 'Warehouse 2', code: 'WH2' },
-      ];
+    it('should return all warehouses for business', async () => {
+      jest.spyOn(warehouseRepo, 'find').mockResolvedValue([mockWarehouse] as any);
 
-      mockWarehouseRepository.find.mockResolvedValue(mockWarehouses);
+      const result = await service.findAll('business-1');
 
-      const result = await service.findAll(businessId);
-
+      expect(result).toEqual([mockWarehouse]);
       expect(warehouseRepo.find).toHaveBeenCalledWith({
-        where: { business_id: businessId },
+        where: { business_id: 'business-1' },
         order: { name: 'ASC' },
       });
-      expect(result).toEqual(mockWarehouses);
     });
 
-    it('should filter by is_active', async () => {
-      const businessId = 'business-123';
-      const mockWarehouses = [
-        { id: 'warehouse-1', name: 'Warehouse 1', is_active: true },
-      ];
+    it('should filter by is_active when provided', async () => {
+      jest.spyOn(warehouseRepo, 'find').mockResolvedValue([mockWarehouse] as any);
 
-      mockWarehouseRepository.find.mockResolvedValue(mockWarehouses);
-
-      const result = await service.findAll(businessId, true);
+      await service.findAll('business-1', true);
 
       expect(warehouseRepo.find).toHaveBeenCalledWith({
-        where: { business_id: businessId, is_active: true },
+        where: { business_id: 'business-1', is_active: true },
         order: { name: 'ASC' },
       });
-      expect(result).toEqual(mockWarehouses);
     });
   });
 
   describe('findOne', () => {
-    it('should return a warehouse by id', async () => {
-      const mockWarehouse = {
-        id: 'warehouse-123',
-        business_id: 'business-123',
-        name: 'Test Warehouse',
-      };
+    it('should return warehouse by id', async () => {
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(mockWarehouse as any);
 
-      mockWarehouseRepository.findOne.mockResolvedValue(mockWarehouse);
+      const result = await service.findOne('business-1', 'warehouse-1');
 
-      const result = await service.findOne('business-123', 'warehouse-123');
-
-      expect(warehouseRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'warehouse-123', business_id: 'business-123' },
-      });
       expect(result).toEqual(mockWarehouse);
     });
 
     it('should throw NotFoundException if warehouse not found', async () => {
-      mockWarehouseRepository.findOne.mockResolvedValue(null);
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(null);
 
-      await expect(service.findOne('business-123', 'non-existent')).rejects.toThrow(
+      await expect(service.findOne('business-1', 'warehouse-1')).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
   describe('create', () => {
-    it('should create a warehouse', async () => {
+    it('should create warehouse successfully', async () => {
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(null);
+      jest.spyOn(warehouseRepo, 'create').mockReturnValue(mockWarehouse as any);
+      jest.spyOn(warehouseRepo, 'save').mockResolvedValue(mockWarehouse as any);
+
       const dto = {
-        name: 'New Warehouse',
-        code: 'WH3',
-        address: '123 Main St',
+        code: 'WH001',
+        name: 'Main Warehouse',
+        location: 'Tunis',
+        is_active: true,
       };
 
-      const mockWarehouse = {
-        id: 'warehouse-123',
-        business_id: 'business-123',
-        ...dto,
-      };
+      const result = await service.create('business-1', dto);
 
-      mockWarehouseRepository.findOne.mockResolvedValue(null);
-      mockWarehouseRepository.create.mockReturnValue(mockWarehouse);
-      mockWarehouseRepository.save.mockResolvedValue(mockWarehouse);
-
-      const result = await service.create('business-123', dto);
-
-      expect(warehouseRepo.create).toHaveBeenCalled();
-      expect(warehouseRepo.save).toHaveBeenCalled();
       expect(result).toEqual(mockWarehouse);
+      expect(warehouseRepo.create).toHaveBeenCalledWith({
+        ...dto,
+        business_id: 'business-1',
+      });
     });
 
     it('should throw BadRequestException if code already exists', async () => {
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(mockWarehouse as any);
+
       const dto = {
-        name: 'New Warehouse',
-        code: 'WH1',
+        code: 'WH001',
+        name: 'Another Warehouse',
+        location: 'Sfax',
+        is_active: true,
       };
 
-      mockWarehouseRepository.findOne.mockResolvedValue({
-        id: 'existing-warehouse',
-        code: 'WH1',
-      });
-
-      await expect(service.create('business-123', dto)).rejects.toThrow(BadRequestException);
+      await expect(service.create('business-1', dto)).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('update', () => {
-    it('should update a warehouse', async () => {
-      const dto = {
-        name: 'Updated Warehouse',
-      };
+    it('should update warehouse successfully', async () => {
+      const updated = { ...mockWarehouse, name: 'Updated Warehouse' };
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(mockWarehouse as any);
+      jest.spyOn(warehouseRepo, 'save').mockResolvedValue(updated as any);
 
-      const existingWarehouse = {
-        id: 'warehouse-123',
-        business_id: 'business-123',
-        name: 'Old Warehouse',
-        code: 'WH1',
-      };
+      const dto = { name: 'Updated Warehouse' };
+      const result = await service.update('business-1', 'warehouse-1', dto);
 
-      const updatedWarehouse = {
-        ...existingWarehouse,
-        ...dto,
-      };
-
-      mockWarehouseRepository.findOne.mockResolvedValue(existingWarehouse);
-      mockWarehouseRepository.save.mockResolvedValue(updatedWarehouse);
-
-      const result = await service.update('business-123', 'warehouse-123', dto);
-
-      expect(warehouseRepo.save).toHaveBeenCalled();
       expect(result.name).toBe('Updated Warehouse');
+    });
+
+    it('should throw BadRequestException if new code already exists', async () => {
+      const existing = { ...mockWarehouse, id: 'warehouse-2' };
+      jest.spyOn(warehouseRepo, 'findOne')
+        .mockResolvedValueOnce(mockWarehouse as any)
+        .mockResolvedValueOnce(existing as any);
+
+      const dto = { code: 'WH002' };
+
+      await expect(service.update('business-1', 'warehouse-1', dto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should allow updating same code', async () => {
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(mockWarehouse as any);
+      jest.spyOn(warehouseRepo, 'save').mockResolvedValue(mockWarehouse as any);
+
+      const dto = { code: 'WH001', name: 'Updated Name' };
+      const result = await service.update('business-1', 'warehouse-1', dto);
+
+      expect(result).toBeDefined();
     });
   });
 
   describe('remove', () => {
-    it('should remove a warehouse', async () => {
-      const mockWarehouse = {
-        id: 'warehouse-123',
-        business_id: 'business-123',
-      };
+    it('should remove warehouse successfully', async () => {
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(mockWarehouse as any);
+      jest.spyOn(warehouseRepo, 'remove').mockResolvedValue(mockWarehouse as any);
 
-      mockWarehouseRepository.findOne.mockResolvedValue(mockWarehouse);
-      mockWarehouseRepository.remove.mockResolvedValue(mockWarehouse);
-
-      await service.remove('business-123', 'warehouse-123');
+      await service.remove('business-1', 'warehouse-1');
 
       expect(warehouseRepo.remove).toHaveBeenCalledWith(mockWarehouse);
+    });
+
+    it('should throw NotFoundException if warehouse not found', async () => {
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(null);
+
+      await expect(service.remove('business-1', 'warehouse-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('getWarehouseStock', () => {
-    it('should return products in a warehouse', async () => {
-      const businessId = 'business-123';
-      const warehouseId = 'warehouse-123';
+    it('should return products in warehouse', async () => {
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(mockWarehouse as any);
+      jest.spyOn(productRepo, 'find').mockResolvedValue([mockProduct] as any);
 
-      const mockWarehouse = {
-        id: warehouseId,
-        business_id: businessId,
-      };
+      const result = await service.getWarehouseStock('business-1', 'warehouse-1');
 
-      const mockProducts = [
-        { id: 'product-1', name: 'Product 1', warehouse_id: warehouseId },
-        { id: 'product-2', name: 'Product 2', warehouse_id: warehouseId },
-      ];
-
-      mockWarehouseRepository.findOne.mockResolvedValue(mockWarehouse);
-      mockProductRepository.find.mockResolvedValue(mockProducts);
-
-      const result = await service.getWarehouseStock(businessId, warehouseId);
-
+      expect(result).toEqual([mockProduct]);
       expect(productRepo.find).toHaveBeenCalledWith({
         where: {
-          business_id: businessId,
-          warehouse_id: warehouseId,
+          business_id: 'business-1',
+          warehouse_id: 'warehouse-1',
         },
         relations: ['category'],
         order: { name: 'ASC' },
       });
-      expect(result).toEqual(mockProducts);
+    });
+
+    it('should throw NotFoundException if warehouse not found', async () => {
+      jest.spyOn(warehouseRepo, 'findOne').mockResolvedValue(null);
+
+      await expect(service.getWarehouseStock('business-1', 'warehouse-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
