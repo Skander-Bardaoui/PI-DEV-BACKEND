@@ -22,6 +22,7 @@ import { Roles } from '../auth/decorators/roles.decorators';
 import { Role } from '../users/enums/role.enum';
 import { BusinessMember } from '../businesses/entities/business-member.entity';
 import { Task } from '../tasks/entities/task.entity';
+import { AiFeatureGuard } from '../platform-admin/guards/ai-feature.guard';
 
 @Controller('subtasks')
 @UseGuards(JwtAuthGuard)
@@ -96,6 +97,7 @@ export class SubtasksController {
 
   // Seuls BUSINESS_OWNER et BUSINESS_ADMIN peuvent générer avec AI
   @Post('generate')
+  @UseGuards(AiFeatureGuard)
   async generateSubtasks(@Body() generateDto: GenerateSubtasksDto, @Request() req) {
     console.log('📥 Received generate request:', generateDto);
     

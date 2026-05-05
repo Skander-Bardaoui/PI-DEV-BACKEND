@@ -43,11 +43,19 @@ import { PublicPaymentController } from '../platform-admin/controllers/public-pa
 // Plan Management
 import { PlanManagementController } from '../platform-admin/controllers/plan-management.controller';
 import { PlanManagementService } from '../platform-admin/services/plan-management.service';
+import { PlanSeedService } from '../platform-admin/services/plan-seed.service';
 import { Plan } from '../platform-admin/entities/plan.entity';
+
+// Subscription Expiry
+import { SubscriptionExpiryService } from '../platform-admin/services/subscription-expiry.service';
 
 // Dashboard & Analytics
 import { DashboardController } from '../platform-admin/controllers/dashboard.controller';
 import { DashboardService } from '../platform-admin/services/dashboard.service';
+
+// AI Pricing
+import { AiPricingController } from '../platform-admin/controllers/ai-pricing.controller';
+import { AiPricingService } from '../platform-admin/services/ai-pricing.service';
 
 // Audit Log
 import { AuditLogController } from '../platform-admin/controllers/audit-log.controller';
@@ -118,6 +126,7 @@ import { EmailModule } from '../email/email.module';
     PaymentManagementController,
     PlanManagementController,
     DashboardController,
+    AiPricingController,
     AuditLogController,
     SystemHealthController,
     SupportTicketController,
@@ -133,9 +142,12 @@ import { EmailModule } from '../email/email.module';
     SubscriptionManagementService,
     PaymentManagementService,
     PlanManagementService,
+    PlanSeedService,
+    SubscriptionExpiryService,
     SubscriptionSchedulerService,
     TenantRegistrationService,
     DashboardService,
+    AiPricingService,
     AuditLogService,
     SystemHealthService,
     SupportTicketService,
@@ -146,6 +158,7 @@ import { EmailModule } from '../email/email.module';
     PlatformAuthService,
     TenantRegistrationService,
     AuditLogService,
+    TypeOrmModule, // Export TypeOrmModule so other modules can use Subscription entity for AiFeatureGuard
   ],
 })
 export class PlatformAuthModule {}

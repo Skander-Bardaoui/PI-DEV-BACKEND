@@ -36,6 +36,12 @@ export class Plan {
   @Column({ default: true })
   is_active!: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  ai_enabled!: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  trial_days?: number;
+
   @CreateDateColumn()
   created_at!: Date;
 
