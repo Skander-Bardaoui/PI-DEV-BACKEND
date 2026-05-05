@@ -8,4 +8,4 @@ data:
   DB_PORT: "5432"
   DB_NAME: "sass_platform1"
   NODE_ENV: "production"
-  FRONTEND_URL: "http://192.168.49.2"
+  FRONTEND_URL: "http://192.168.56.10:30080"

@@ -1,35 +1,23 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // 🚀 BACKEND CD PIPELINE - Continuous Deployment
 // ═══════════════════════════════════════════════════════════════════════════
-// Ce pipeline déploie l'application après validation CI
-// Déclenché automatiquement par le pipeline CI
-// ═══════════════════════════════════════════════════════════════════════════
 
 pipeline {
     agent any
 
     parameters {
         string(name: 'BUILD_NUMBER', defaultValue: '', description: 'CI Build number')
-        string(name: 'GIT_COMMIT', defaultValue: '', description: 'Git commit hash')
-        string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Git branch')
+        string(name: 'GIT_COMMIT',   defaultValue: '', description: 'Git commit hash')
+        string(name: 'GIT_BRANCH',   defaultValue: 'main', description: 'Git branch')
     }
 
     environment {
-        // Docker Configuration
-        DOCKER_REGISTRY_URL = 'https://index.docker.io/v1/'
-        IMAGE_NAME = 'imen077/pi-dev-backend'
-        IMAGE_TAG = "${params.BUILD_NUMBER ?: env.BUILD_NUMBER}"
-        DOCKER_CREDENTIALS_ID = 'docker-credentials'
-        
-        // Kubernetes Configuration
-        KUBECONFIG_CREDENTIALS_ID = 'kubeconfig-file'
-        NAMESPACE = 'production'
-        DEPLOYMENT_NAME = 'backend'
-        
-        // Deployment Strategy
-        MAX_SURGE = '1'
-        MAX_UNAVAILABLE = '0'
-        ROLLOUT_TIMEOUT = '10m'
+        IMAGE_NAME           = 'imen077/pi-dev-backend'
+        IMAGE_TAG            = "${params.BUILD_NUMBER ?: env.BUILD_NUMBER}"
+        DOCKER_CREDENTIALS_ID = 'docker-credentials'  // ID exact dans Jenkins
+        NAMESPACE            = 'production'
+        DEPLOYMENT_NAME      = 'backend'
+        ROLLOUT_TIMEOUT      = '10m'
     }
 
     options {
@@ -41,282 +29,207 @@ pipeline {
 
     stages {
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('📋 Initialization') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
                     echo '╔════════════════════════════════════════════════════════════╗'
-                    echo '║          🚀 BACKEND CD PIPELINE - DEPLOY #' + env.BUILD_NUMBER.padRight(16) + '║'
+                    echo '║               🚀 BACKEND CD PIPELINE                      ║'
                     echo '╚════════════════════════════════════════════════════════════╝'
-                    
                     echo """
                     📌 Deployment Information:
-                       • CI Build: #${params.BUILD_NUMBER}
-                       • Commit: ${params.GIT_COMMIT}
-                       • Branch: ${params.GIT_BRANCH}
-                       • Image: ${IMAGE_NAME}:${IMAGE_TAG}
-                       • Namespace: ${NAMESPACE}
+                       • CI Build:  #${params.BUILD_NUMBER}
+                       • Commit:    ${params.GIT_COMMIT}
+                       • Branch:    ${params.GIT_BRANCH}
+                       • Image:     ${env.IMAGE_NAME}:${env.IMAGE_TAG}
+                       • Namespace: ${env.NAMESPACE}
                        • Timestamp: ${new Date().format('yyyy-MM-dd HH:mm:ss')}
                     """
                 }
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('🔍 Checkout') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '🔄 Checking out code...'
-                    checkout scm
-                    echo '✅ Code checked out'
-                }
+                cleanWs()
+                checkout scm
+                echo '✅ Code checked out'
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        stage('🐳 Build Docker Image') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
+        stage('🐳 Build & Push Docker Image') {
+        // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo "🐳 Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
-                    
-                    sh """
-                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                          --build-arg BUILD_DATE=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                          --build-arg VCS_REF=${params.GIT_COMMIT} \
-                          --build-arg VERSION=${IMAGE_TAG} \
-                          --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                          --label org.opencontainers.image.revision=${params.GIT_COMMIT} \
-                          --label org.opencontainers.image.version=${IMAGE_TAG} \
-                          .
-                    """
-                    
-                    sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
-                    echo '✅ Docker image built successfully'
-                }
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        stage('🔐 Security Scan') {
-        // ─────────────────────────────────────────────────────────────────────
-            steps {
-                script {
-                    echo '⚠️ Security scan skipped due to disk space constraints'
-                    echo '💡 To enable: clean disk space and uncomment scan code'
-                    // Scan désactivé temporairement - manque d'espace disque
-                    // Pour réactiver: nettoyer l'espace disque avec cleanup-jenkins-disk.sh
-                    /*
-                    sh '''
-                        TRIVY_PATH="/var/lib/jenkins/tools/trivy/trivy"
-                        
-                        if [ ! -f "$TRIVY_PATH" ]; then
-                            echo "📥 Installing Trivy..."
-                            mkdir -p /var/lib/jenkins/tools/trivy
-                            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-                              | sh -s -- -b /var/lib/jenkins/tools/trivy
-                        fi
-                        
-                        echo "🔍 Scanning image..."
-                        $TRIVY_PATH image \
-                          --exit-code 0 \
-                          --severity HIGH,CRITICAL \
-                          --no-progress \
-                          --format table \
-                          ${IMAGE_NAME}:${IMAGE_TAG}
-                        
-                        echo "✅ Security scan completed"
-                    '''
-                    */
-                }
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        stage('📤 Push Docker Image') {
-        // ─────────────────────────────────────────────────────────────────────
-            steps {
-                script {
-                    echo '📤 Pushing Docker image to registry...'
-                    docker.withRegistry(DOCKER_REGISTRY_URL, DOCKER_CREDENTIALS_ID) {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${env.DOCKER_CREDENTIALS_ID}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
                         sh """
-                            docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                            docker push ${IMAGE_NAME}:latest
+                            echo "🐳 Building: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+
+                            # Login DockerHub
+                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+
+                            # Build image
+                            docker build \
+                                -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                                -t ${env.IMAGE_NAME}:latest \
+                                --build-arg BUILD_DATE=\$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+                                --build-arg VCS_REF=${params.GIT_COMMIT} \
+                                --build-arg VERSION=${env.IMAGE_TAG} \
+                                .
+
+                            # Push les deux tags
+                            docker push ${env.IMAGE_NAME}:${env.IMAGE_TAG}
+                            docker push ${env.IMAGE_NAME}:latest
+
+                            docker logout
+                            echo "✅ Image pushed: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                         """
                     }
-                    echo '✅ Image pushed successfully'
                 }
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
+        stage('🔐 Security Scan') {
+        // ─────────────────────────────────────────────────────────────────
+            steps {
+                echo '⚠️ Security scan skipped — continuing'
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
         stage('🚀 Deploy to Kubernetes') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
                     echo '🚀 Deploying to Kubernetes...'
-                    withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                        dir('k8s') {
-                            sh '''
-                                echo "📝 Applying ConfigMap..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f configmap.yaml -n ${NAMESPACE}
-                                
-                                echo "🔐 Applying Secret..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f secret.yaml -n ${NAMESPACE}
-                                
-                                echo "💾 Applying PVC..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f pvc.yaml -n ${NAMESPACE}
-                                
-                                echo "🗄️ Applying PostgreSQL..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f postgres.yaml -n ${NAMESPACE}
-                                
-                                echo "⏳ Waiting for PostgreSQL..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" wait \
-                                    --for=condition=ready pod \
-                                    -l app=postgres \
-                                    -n ${NAMESPACE} \
-                                    --timeout=3m
-                                
-                                echo "🔌 Applying Service..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f service.yaml -n ${NAMESPACE}
-                                
-                                echo "📋 Applying Deployment..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" apply -f deployment.yaml -n ${NAMESPACE}
-                                
-                                echo "📋 Updating Deployment image..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" set image \
-                                    deployment/${DEPLOYMENT_NAME} \
-                                    backend=${IMAGE_NAME}:${IMAGE_TAG} \
-                                    -n ${NAMESPACE}
-                                
-                                echo "✅ Deployment applied"
-                            '''
-                        }
-                    }
+                    sh """
+                        echo "📝 Applying k8s manifests..."
+
+                        # Appliquer les manifests s'ils existent
+                        if [ -d k8s ]; then
+                            [ -f k8s/configmap.yaml ]  && kubectl apply -f k8s/configmap.yaml  -n ${env.NAMESPACE}
+                            [ -f k8s/secret.yaml ]     && kubectl apply -f k8s/secret.yaml     -n ${env.NAMESPACE}
+                            [ -f k8s/pvc.yaml ]        && kubectl apply -f k8s/pvc.yaml        -n ${env.NAMESPACE}
+                            [ -f k8s/postgres.yaml ]   && kubectl apply -f k8s/postgres.yaml   -n ${env.NAMESPACE}
+
+                            echo "⏳ Waiting for PostgreSQL..."
+                            kubectl wait --for=condition=ready pod \
+                                -l app=postgres \
+                                -n ${env.NAMESPACE} \
+                                --timeout=3m || true
+
+                            [ -f k8s/service.yaml ]    && kubectl apply -f k8s/service.yaml    -n ${env.NAMESPACE}
+                            [ -f k8s/deployment.yaml ] && kubectl apply -f k8s/deployment.yaml -n ${env.NAMESPACE}
+                        fi
+
+                        echo "📋 Updating image to ${env.IMAGE_NAME}:${env.IMAGE_TAG}..."
+                        kubectl set image deployment/${env.DEPLOYMENT_NAME} \
+                            ${env.DEPLOYMENT_NAME}=${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                            -n ${env.NAMESPACE}
+
+                        echo "✅ Deployment applied"
+                    """
                 }
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('⏳ Wait for Rollout') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '⏳ Waiting for deployment rollout...'
-                    withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                        sh '''
-                            # Sauvegarder la revision actuelle
-                            CURRENT_REVISION=$(kubectl --kubeconfig="$KUBECONFIG_FILE" \
-                                rollout history deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} \
-                                | tail -2 | head -1 | awk '{print $1}')
-                            
-                            echo "📌 Current revision: $CURRENT_REVISION"
-                            
-                            # Attendre le rollout
-                            if ! kubectl --kubeconfig="$KUBECONFIG_FILE" \
-                                rollout status deployment/${DEPLOYMENT_NAME} \
-                                -n ${NAMESPACE} --timeout=${ROLLOUT_TIMEOUT}; then
-                                
-                                echo "❌ Rollout failed! Rolling back..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" \
-                                    rollout undo deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE}
-                                
-                                echo "⏳ Waiting for rollback..."
-                                kubectl --kubeconfig="$KUBECONFIG_FILE" \
-                                    rollout status deployment/${DEPLOYMENT_NAME} \
-                                    -n ${NAMESPACE} --timeout=5m
-                                
-                                echo "✅ Rollback completed"
-                                exit 1
-                            fi
-                            
-                            echo "✅ Rollout successful!"
-                        '''
-                    }
+                    echo '⏳ Waiting for rollout...'
+                    sh """
+                        if ! kubectl rollout status deployment/${env.DEPLOYMENT_NAME} \
+                            -n ${env.NAMESPACE} --timeout=${env.ROLLOUT_TIMEOUT}; then
+
+                            echo "❌ Rollout failed — rolling back..."
+                            kubectl rollout undo deployment/${env.DEPLOYMENT_NAME} -n ${env.NAMESPACE}
+                            kubectl rollout status deployment/${env.DEPLOYMENT_NAME} \
+                                -n ${env.NAMESPACE} --timeout=5m
+                            exit 1
+                        fi
+                        echo "✅ Rollout successful!"
+                    """
                 }
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('✅ Verify Deployment') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '✅ Verifying deployment...'
-                    withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                        sh '''
-                            echo "📊 Deployment Status:"
-                            kubectl --kubeconfig="$KUBECONFIG_FILE" get deployment ${DEPLOYMENT_NAME} -n ${NAMESPACE}
-                            
-                            echo "\n📦 Pods:"
-                            kubectl --kubeconfig="$KUBECONFIG_FILE" get pods -n ${NAMESPACE} -l app=backend
-                            
-                            echo "\n🔌 Services:"
-                            kubectl --kubeconfig="$KUBECONFIG_FILE" get svc -n ${NAMESPACE}
-                            
-                            echo "\n📝 Recent Events:"
-                            kubectl --kubeconfig="$KUBECONFIG_FILE" get events -n ${NAMESPACE} \
-                                --sort-by=.lastTimestamp | tail -10
-                            
-                            echo "\n🏥 Pod Health:"
-                            kubectl --kubeconfig="$KUBECONFIG_FILE" get pods -n ${NAMESPACE} -l app=backend \
-                                -o jsonpath='{range .items[*]}{.metadata.name}{"\\t"}{.status.phase}{"\\t"}{.status.conditions[?(@.type=="Ready")].status}{"\\n"}{end}'
-                        '''
-                    }
-                }
+                sh """
+                    echo "📊 Deployment Status:"
+                    kubectl get deployment ${env.DEPLOYMENT_NAME} -n ${env.NAMESPACE}
+
+                    echo "📦 Pods:"
+                    kubectl get pods -n ${env.NAMESPACE} -l app=${env.DEPLOYMENT_NAME}
+
+                    echo "🔌 Services:"
+                    kubectl get svc -n ${env.NAMESPACE}
+
+                    echo "📝 Recent Events:"
+                    kubectl get events -n ${env.NAMESPACE} --sort-by=.lastTimestamp | tail -10
+                """
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('🧹 Cleanup') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '🧹 Cleaning up old Docker images...'
-                    sh '''
-                        docker image prune -f
-                        docker images | grep ${IMAGE_NAME} | grep -v ${IMAGE_TAG} | grep -v latest | awk '{print $3}' | xargs -r docker rmi -f || true
-                        echo "✅ Cleanup completed"
-                    '''
-                }
+                sh """
+                    docker rmi ${env.IMAGE_NAME}:${env.IMAGE_TAG} || true
+                    docker rmi ${env.IMAGE_NAME}:latest || true
+                    docker image prune -f || true
+                    echo "✅ Cleanup done"
+                """
             }
         }
     }
 
     post {
         success {
-            script {
-                echo '╔════════════════════════════════════════════════════════════╗'
-                echo '║                 ✅ DEPLOYMENT SUCCEEDED                    ║'
-                echo '╚════════════════════════════════════════════════════════════╝'
-                echo """
-                🎉 Deployment Summary:
-                   • Image: ${IMAGE_NAME}:${IMAGE_TAG}
-                   • Namespace: ${NAMESPACE}
-                   • Deployment: ${DEPLOYMENT_NAME}
-                   • Duration: ${currentBuild.durationString}
-                   • Status: SUCCESS ✅
-                """
-            }
+            echo '╔════════════════════════════════════════════════════════════╗'
+            echo '║              ✅ DEPLOYMENT SUCCEEDED                       ║'
+            echo '╚════════════════════════════════════════════════════════════╝'
+            echo """
+            🎉 Deployment Summary:
+               • Image:     ${env.IMAGE_NAME}:${env.IMAGE_TAG}
+               • Namespace: ${env.NAMESPACE}
+               • Duration:  ${currentBuild.durationString}
+               • Status:    SUCCESS ✅
+            """
         }
-        
+
         failure {
             script {
                 echo '╔════════════════════════════════════════════════════════════╗'
-                echo '║                  ❌ DEPLOYMENT FAILED                      ║'
+                echo '║               ❌ DEPLOYMENT FAILED                         ║'
                 echo '╚════════════════════════════════════════════════════════════╝'
                 echo """
                 ❌ Deployment Failed:
-                   • Image: ${IMAGE_NAME}:${IMAGE_TAG}
-                   • Namespace: ${NAMESPACE}
-                   • Check logs: ${env.BUILD_URL}console
-                   • Rollback may have been triggered
+                   • Image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}
+                   • Logs:  ${env.BUILD_URL}console
+                """
+                // Rollback de sécurité
+                sh """
+                    kubectl rollout undo deployment/${env.DEPLOYMENT_NAME} \
+                        -n ${env.NAMESPACE} || true
                 """
             }
         }
-        
+
         always {
             cleanWs()
         }

@@ -12,7 +12,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 @WebSocketGateway({
   namespace: '/messages',
   cors: {
-    origin: ['http://localhost:5173', process.env.FRONTEND_URL].filter(Boolean),
+    origin: ['http://localhost:5173', 'http://192.168.56.10:30080', process.env.FRONTEND_URL].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST'],
   },

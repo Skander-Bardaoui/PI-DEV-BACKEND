@@ -53,7 +53,7 @@ async function bootstrap() {
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
     setHeaders: (res) => {
-      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+      res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://192.168.56.10:30080');
       res.setHeader('Access-Control-Allow-Methods', 'GET');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     },
@@ -93,6 +93,7 @@ async function bootstrap() {
   // 🔐 Security: CORS - Restrict to specific origin
   const allowedOrigins = [
     'http://localhost:5173',
+    'http://192.168.56.10:30080',
     process.env.FRONTEND_URL,
   ].filter(Boolean);
 
@@ -114,8 +115,8 @@ async function bootstrap() {
     maxAge: 3600, // Cache preflight requests for 1 hour
   });
 
-  await app.listen(3001);
-  console.log('Backend running on http://localhost:3001');
+  await app.listen(3001, '0.0.0.0');
+  console.log('Backend running on http://0.0.0.0:3001');
 }
 
 bootstrap();

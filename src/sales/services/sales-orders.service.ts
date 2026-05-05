@@ -677,7 +677,7 @@ export class SalesOrdersService {
     portalToken: string,
   ): Promise<void> {
     const nodemailer = require('nodemailer');
-    const frontendUrl = 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://192.168.56.10:30080';
     const portalUrl = `${frontendUrl}/client-portal?token=${portalToken}`;
 
     const businessName = order.business?.name || 'Votre Entreprise';
