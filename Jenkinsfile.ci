@@ -21,7 +21,8 @@ pipeline {
         timeout(time: 30, unit: 'MINUTES')
         timestamps()
         disableConcurrentBuilds()
-        skipDefaultCheckout()
+        // ✅ FIX: removed skipDefaultCheckout() — laisser Jenkins faire le checkout automatiquement
+        // avant d'entrer dans le pipeline, ce qui évite le problème du répertoire @script corrompu
     }
 
     stages {
@@ -35,7 +36,8 @@ pipeline {
                     echo '║            🔬 BACKEND CI PIPELINE                       ║'
                     echo '╚══════════════════════════════════════════════════════════╝'
 
-                    checkout scm
+                    // ✅ FIX: checkout scm supprimé — le checkout par défaut est déjà fait
+                    // avant d'entrer dans ce stage grâce à la suppression de skipDefaultCheckout()
 
                     env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     env.GIT_BRANCH       = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
@@ -142,10 +144,9 @@ pipeline {
         // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    // Récupère le chemin du scanner installé via Jenkins Tools
                     def scannerHome = tool 'SonarScanner'
 
-                    withSonarQubeEnv('SonarQube') {  // nom exact de ta config Jenkins
+                    withSonarQubeEnv('SonarQube') {
                         sh """
                             echo "🔬 Running SonarQube analysis..."
                             echo "📍 Scanner path: ${scannerHome}"
