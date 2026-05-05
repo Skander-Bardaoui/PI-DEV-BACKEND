@@ -13,7 +13,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE     = 'imen077/pi-dev-backend'
-        DOCKER_CREDS     = 'dockerhub-credentials'   // ID du credential Jenkins
+        DOCKER_CREDS     = 'dockerhub-credentials'
         K8S_NAMESPACE    = 'production'
         K8S_DEPLOYMENT   = 'backend'
         IMAGE_TAG        = "${params.BUILD_NUMBER ?: env.BUILD_NUMBER}"
@@ -24,6 +24,7 @@ pipeline {
         timeout(time: 45, unit: 'MINUTES')
         timestamps()
         disableConcurrentBuilds()
+        skipDefaultCheckout(true)   // ✅ FIX
     }
 
     stages {
@@ -53,7 +54,8 @@ pipeline {
         stage('🔍 Checkout') {
         // ─────────────────────────────────────────────────────────────────
             steps {
-                checkout scm
+                cleanWs()        // ✅ FIX
+                checkout scm     // ✅ FIX
                 echo '✅ Code checked out'
             }
         }
