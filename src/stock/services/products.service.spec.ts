@@ -145,6 +145,15 @@ describe('ProductsService', () => {
         ...dto,
       };
 
+      // Mock business member with permissions
+      mockMemberRepository.findOne.mockResolvedValue({
+        id: 'member-123',
+        user_id: 'user-123',
+        business_id: 'business-123',
+        role: 'BUSINESS_OWNER',
+        permissions: { stock: { create: true } },
+      });
+
       mockUserRepository.findOne.mockResolvedValue({
         id: 'user-123',
         role: 'BUSINESS_OWNER',
@@ -183,6 +192,16 @@ describe('ProductsService', () => {
       };
 
       mockProductRepository.findOne.mockResolvedValue(existingProduct);
+      
+      // Mock business member with permissions
+      mockMemberRepository.findOne.mockResolvedValue({
+        id: 'member-123',
+        user_id: 'user-123',
+        business_id: 'business-123',
+        role: 'BUSINESS_OWNER',
+        permissions: { stock: { update: true } },
+      });
+      
       mockUserRepository.findOne.mockResolvedValue({
         id: 'user-123',
         role: 'BUSINESS_OWNER',
