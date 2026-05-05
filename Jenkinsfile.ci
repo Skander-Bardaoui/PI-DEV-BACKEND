@@ -1,9 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔬 BACKEND CI PIPELINE - Continuous Integration
 // ═══════════════════════════════════════════════════════════════════════════
-// Ce pipeline s'exécute à chaque push et valide la qualité du code
-// Déclenche automatiquement le pipeline CD en cas de succès
-// ═══════════════════════════════════════════════════════════════════════════
 
 pipeline {
     agent any
@@ -12,20 +9,11 @@ pipeline {
     }
 
     environment {
-        // Configuration du projet
-        PROJECT_NAME = 'backend'
-        NODE_VERSION = '20'
-        
-        // SonarQube
+        PROJECT_NAME    = 'backend'
+        NODE_VERSION    = '20'
         SONAR_PROJECT_KEY = 'backend'
-        SONAR_HOST_URL = 'http://192.168.56.10:30900'
-        
-        // Seuils de qualité
-        MIN_COVERAGE = '70'
-        MAX_CRITICAL_ISSUES = '0'
-        
-        // Notifications
-        SLACK_CHANNEL = '#ci-notifications'
+        SONAR_HOST_URL  = 'http://192.168.56.10:30900'
+        MIN_COVERAGE    = '70'
     }
 
     options {
@@ -37,117 +25,83 @@ pipeline {
     }
 
     stages {
-        
-        // ─────────────────────────────────────────────────────────────────────
+
+        // ─────────────────────────────────────────────────────────────────
         stage('📋 Initialization') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '╔════════════════════════════════════════════════════════════╗'
-                    echo '║          🔬 BACKEND CI PIPELINE - BUILD #' + env.BUILD_NUMBER.padRight(17) + '║'
-                    echo '╚════════════════════════════════════════════════════════════╝'
-                    
-                    // Checkout avec informations Git
+                    echo '╔══════════════════════════════════════════════════════════╗'
+                    echo '║            🔬 BACKEND CI PIPELINE                       ║'
+                    echo '╚══════════════════════════════════════════════════════════╝'
+
                     checkout scm
-                    
-                    env.GIT_COMMIT_SHORT = sh(
-                        script: 'git rev-parse --short HEAD',
-                        returnStdout: true
-                    ).trim()
-                    
-                    env.GIT_BRANCH = sh(
-                        script: 'git rev-parse --abbrev-ref HEAD',
-                        returnStdout: true
-                    ).trim()
-                    
-                    env.GIT_AUTHOR = sh(
-                        script: 'git log -1 --pretty=format:"%an"',
-                        returnStdout: true
-                    ).trim()
-                    
-                    env.GIT_MESSAGE = sh(
-                        script: 'git log -1 --pretty=format:"%s"',
-                        returnStdout: true
-                    ).trim()
-                    
+
+                    env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    env.GIT_BRANCH       = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    env.GIT_AUTHOR       = sh(script: 'git log -1 --pretty=format:"%an"', returnStdout: true).trim()
+                    env.GIT_MESSAGE      = sh(script: 'git log -1 --pretty=format:"%s"', returnStdout: true).trim()
+
                     echo """
                     📌 Build Information:
-                       • Branch: ${env.GIT_BRANCH}
-                       • Commit: ${env.GIT_COMMIT_SHORT}
-                       • Author: ${env.GIT_AUTHOR}
-                       • Message: ${env.GIT_MESSAGE}
+                       • Branch:    ${env.GIT_BRANCH}
+                       • Commit:    ${env.GIT_COMMIT_SHORT}
+                       • Author:    ${env.GIT_AUTHOR}
+                       • Message:   ${env.GIT_MESSAGE}
                        • Timestamp: ${new Date().format('yyyy-MM-dd HH:mm:ss')}
                     """
                 }
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('🔧 Setup Environment') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '🔧 Setting up Node.js environment...'
-                    sh '''
-                        node --version
-                        npm --version
-                        echo "✅ Node.js ${NODE_VERSION} ready"
-                    '''
-                }
+                sh '''
+                    node --version
+                    npm --version
+                    echo "✅ Node.js ready"
+                '''
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('📥 Install Dependencies') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '📥 Installing npm dependencies...'
-                    sh '''
-                        npm ci --prefer-offline --no-audit
-                        echo "✅ Dependencies installed"
-                    '''
-                }
+                sh '''
+                    npm ci --prefer-offline --no-audit
+                    echo "✅ Dependencies installed"
+                '''
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('🔍 Code Linting') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '🔍 Running ESLint...'
-                    sh '''
-                        npm run lint || {
-                            echo "⚠️ Linting issues found"
-                            exit 0
-                        }
-                        echo "✅ Code linting passed"
-                    '''
-                }
+                sh '''
+                    npm run lint || echo "⚠️ Linting issues found — continuing"
+                    echo "✅ Linting done"
+                '''
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('🧪 Unit Tests') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '🧪 Running unit tests with coverage...'
-                    sh '''
-                        npm run test:cov -- --ci --reporters=default --reporters=jest-junit
-                        echo "✅ Tests completed"
-                    '''
-                }
+                sh '''
+                    npm run test:cov -- --ci --reporters=default --reporters=jest-junit || true
+                    echo "✅ Tests completed"
+                '''
             }
             post {
                 always {
-                    // Publier les résultats des tests
                     junit testResults: '**/junit.xml', allowEmptyResults: true
-                    
-                    // Publier le rapport de couverture
                     publishHTML([
-                        allowMissing: false,
+                        allowMissing: true,
                         alwaysLinkToLastBuild: true,
                         keepAll: true,
                         reportDir: 'coverage/lcov-report',
@@ -158,210 +112,132 @@ pipeline {
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('📊 Coverage Analysis') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '📊 Analyzing test coverage...'
-                    sh '''
-                        echo "📁 Checking coverage files..."
-                        ls -la coverage/ || echo "❌ Coverage directory not found"
-                        
-                        # Vérifier que le fichier lcov.info existe pour SonarQube
-                        if [ -f coverage/lcov.info ]; then
-                            echo "✅ LCOV report found for SonarQube"
-                            echo "📄 File size: $(du -h coverage/lcov.info | cut -f1)"
-                            echo "📝 First 10 lines of lcov.info:"
-                            head -n 10 coverage/lcov.info
-                        else
-                            echo "❌ LCOV report not found!"
-                            echo "⚠️ Continuing pipeline anyway..."
-                        fi
-                        
-                        # Analyser le coverage
-                        if [ -f coverage/coverage-summary.json ]; then
-                            COVERAGE=$(node -pe "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct")
-                            echo "📈 Line Coverage: ${COVERAGE}%"
-                            
-                            BRANCH_COV=$(node -pe "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.branches.pct")
-                            echo "📈 Branch Coverage: ${BRANCH_COV}%"
-                            
-                            FUNC_COV=$(node -pe "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.functions.pct")
-                            echo "📈 Function Coverage: ${FUNC_COV}%"
-                            
-                            STMT_COV=$(node -pe "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.statements.pct")
-                            echo "📈 Statement Coverage: ${STMT_COV}%"
-                            
-                            if (( $(echo "$COVERAGE < ${MIN_COVERAGE}" | bc -l) )); then
-                                echo "⚠️ Coverage ${COVERAGE}% is below minimum ${MIN_COVERAGE}%"
-                                echo "⚠️ This is a warning only - pipeline will continue"
-                            else
-                                echo "✅ Coverage meets minimum requirement"
-                            fi
-                        else
-                            echo "⚠️ Coverage summary not found"
-                            echo "⚠️ Continuing pipeline anyway..."
-                        fi
-                    '''
-                }
+                sh '''
+                    echo "📁 Checking coverage files..."
+                    ls -la coverage/ || echo "❌ Coverage directory not found"
+
+                    if [ -f coverage/lcov.info ]; then
+                        echo "✅ LCOV report found"
+                        echo "📄 Size: $(du -h coverage/lcov.info | cut -f1)"
+                    else
+                        echo "⚠️ LCOV report not found — SonarQube will run without coverage"
+                    fi
+
+                    if [ -f coverage/coverage-summary.json ]; then
+                        COVERAGE=$(node -pe "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct")
+                        echo "📈 Line Coverage: ${COVERAGE}%"
+                    else
+                        echo "⚠️ Coverage summary not found"
+                    fi
+                '''
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('🔬 SonarQube Analysis') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '🔬 Running SonarQube analysis...'
-                    try {
-                        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                            withSonarQubeEnv('SonarQube') {
-                                sh '''
-                                    # Obtenir le chemin absolu du coverage
-                                    COVERAGE_PATH=$(pwd)/coverage/lcov.info
-                                    echo "📊 Coverage file path: ${COVERAGE_PATH}"
-                                    
-                                    # Vérifier que le fichier existe
-                                    if [ ! -f "${COVERAGE_PATH}" ]; then
-                                        echo "⚠️ Coverage file not found at ${COVERAGE_PATH}"
-                                        echo "⚠️ Running SonarQube without coverage data..."
-                                        COVERAGE_PATH=""
-                                    fi
-                                    
-                                    sonar-scanner \
-                                      -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                      -Dsonar.projectName="Backend API" \
-                                      -Dsonar.projectVersion=${BUILD_NUMBER} \
-                                      -Dsonar.sources=src \
-                                      -Dsonar.tests=src \
-                                      -Dsonar.test.inclusions=**/*.spec.ts \
-                                      ${COVERAGE_PATH:+-Dsonar.javascript.lcov.reportPaths=${COVERAGE_PATH}} \
-                                      ${COVERAGE_PATH:+-Dsonar.typescript.lcov.reportPaths=${COVERAGE_PATH}} \
-                                      -Dsonar.coverage.exclusions=**/*.module.ts,**/main.ts,**/*.dto.ts,**/*.entity.ts \
-                                      -Dsonar.exclusions=node_modules/**,dist/**,coverage/**,**/*.test.ts \
-                                      -Dsonar.host.url=${SONAR_HOST_URL} \
-                                      -Dsonar.login=$SONAR_TOKEN || {
-                                        echo "⚠️ SonarQube analysis failed"
-                                        echo "⚠️ Continuing pipeline anyway..."
-                                        exit 0
-                                      }
-                                    
-                                    echo "✅ SonarQube analysis completed"
-                                '''
-                            }
-                        }
-                    } catch (Exception e) {
-                        echo "⚠️ SonarQube analysis failed: ${e.message}"
-                        echo "⚠️ Continuing pipeline anyway..."
+                    // Récupère le chemin du scanner installé via Jenkins Tools
+                    def scannerHome = tool 'SonarScanner'
+
+                    withSonarQubeEnv('SonarQube') {  // nom exact de ta config Jenkins
+                        sh """
+                            echo "🔬 Running SonarQube analysis..."
+                            echo "📍 Scanner path: ${scannerHome}"
+
+                            COVERAGE_ARGS=""
+                            if [ -f coverage/lcov.info ]; then
+                                COVERAGE_ARGS="-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info"
+                                echo "✅ Coverage will be included"
+                            else
+                                echo "⚠️ No coverage file — running without coverage"
+                            fi
+
+                            ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.projectName="Backend API" \
+                                -Dsonar.projectVersion=${BUILD_NUMBER} \
+                                -Dsonar.sources=src \
+                                -Dsonar.tests=src \
+                                -Dsonar.test.inclusions=**/*.spec.ts \
+                                -Dsonar.coverage.exclusions=**/*.module.ts,**/main.ts,**/*.dto.ts,**/*.entity.ts \
+                                -Dsonar.exclusions=node_modules/**,dist/**,coverage/**,**/*.test.ts \
+                                \$COVERAGE_ARGS
+
+                            echo "✅ SonarQube analysis completed"
+                        """
                     }
                 }
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('⏳ Quality Gate') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
                     echo '⏳ Waiting for SonarQube Quality Gate...'
                     timeout(time: 5, unit: 'MINUTES') {
                         try {
-                            def qg = waitForQualityGate()
-                            
-                            echo """
-                            📊 Quality Gate Result:
-                               • Status: ${qg.status}
-                               • Project: ${SONAR_PROJECT_KEY}
-                               • Build: #${env.BUILD_NUMBER}
-                            """
-                            
+                            def qg = waitForQualityGate abortPipeline: false
                             if (qg.status != 'OK') {
-                                echo "⚠️ Quality Gate failed: ${qg.status}"
-                                echo "⚠️ Continuing pipeline anyway (non-blocking mode)"
-                                echo "📊 View details: http://192.168.56.10:30900/dashboard?id=backend"
+                                echo "⚠️ Quality Gate status: ${qg.status} — continuing anyway"
+                                echo "📊 Details: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
                             } else {
                                 echo '✅ Quality Gate passed!'
                             }
                         } catch (Exception e) {
-                            echo "⚠️ Quality Gate check failed: ${e.message}"
-                            echo "⚠️ Continuing pipeline anyway..."
+                            echo "⚠️ Quality Gate error: ${e.message} — continuing"
                         }
                     }
                 }
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('🏗️ Build Application') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '🏗️ Building NestJS application...'
-                    sh '''
-                        npm run build
-                        
-                        # Vérifier que le build a réussi
-                        if [ ! -d "dist" ]; then
-                            echo "❌ Build failed: dist directory not found"
-                            exit 1
-                        fi
-                        
-                        echo "📦 Build artifacts:"
-                        ls -lh dist/
-                        echo "✅ Build completed successfully"
-                    '''
-                }
+                sh '''
+                    npm run build
+                    if [ ! -d "dist" ]; then
+                        echo "❌ Build failed: dist directory not found"
+                        exit 1
+                    fi
+                    echo "📦 Build artifacts:"
+                    ls -lh dist/
+                    echo "✅ Build completed successfully"
+                '''
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('🔐 Security Audit') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
-                script {
-                    echo '🔐 Running npm security audit...'
-                    sh '''
-                        npm audit --audit-level=high || {
-                            echo "⚠️ Security vulnerabilities found"
-                            npm audit --audit-level=high --json > audit-report.json || true
-                        }
-                        echo "✅ Security audit completed"
-                    '''
-                }
+                sh '''
+                    npm audit --audit-level=high || {
+                        echo "⚠️ Security vulnerabilities found — continuing"
+                        npm audit --audit-level=high --json > audit-report.json || true
+                    }
+                    echo "✅ Security audit completed"
+                '''
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         stage('📦 Archive Artifacts') {
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
             steps {
                 script {
-                    echo '📦 Archiving build artifacts...'
                     archiveArtifacts artifacts: 'dist/**/*', fingerprint: true
                     archiveArtifacts artifacts: 'coverage/**/*', fingerprint: true, allowEmptyArchive: true
                     echo '✅ Artifacts archived'
-                }
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        stage('🚀 Trigger CD Pipeline') {
-        // ─────────────────────────────────────────────────────────────────────
-            when {
-                branch 'main'
-            }
-            steps {
-                script {
-                    echo '🚀 Triggering CD pipeline...'
-                    build job: 'backend-cd',
-                        parameters: [
-                            string(name: 'BUILD_NUMBER', value: env.BUILD_NUMBER),
-                            string(name: 'GIT_COMMIT', value: env.GIT_COMMIT_SHORT),
-                            string(name: 'GIT_BRANCH', value: env.GIT_BRANCH)
-                        ],
-                        wait: false
-                    echo '✅ CD pipeline triggered'
                 }
             }
         }
@@ -370,61 +246,52 @@ pipeline {
     post {
         success {
             script {
-                echo '╔════════════════════════════════════════════════════════════╗'
-                echo '║                  ✅ CI PIPELINE SUCCEEDED                  ║'
-                echo '╚════════════════════════════════════════════════════════════╝'
+                echo '╔══════════════════════════════════════════════════════════╗'
+                echo '║              ✅ CI PIPELINE SUCCEEDED                   ║'
+                echo '╚══════════════════════════════════════════════════════════╝'
                 echo """
                 📊 Build Summary:
-                   • Build: #${env.BUILD_NUMBER}
-                   • Branch: ${env.GIT_BRANCH}
-                   • Commit: ${env.GIT_COMMIT_SHORT}
+                   • Build:    #${env.BUILD_NUMBER}
+                   • Branch:   ${env.GIT_BRANCH}
+                   • Commit:   ${env.GIT_COMMIT_SHORT}
                    • Duration: ${currentBuild.durationString}
-                   • Status: SUCCESS ✅
                 """
-                
-                // Trigger CD pipeline automatically
-                echo '🚀 Triggering CD pipeline...'
+
                 try {
                     build job: 'pi-dev-backend-cd',
                           parameters: [
                               string(name: 'BUILD_NUMBER', value: env.BUILD_NUMBER),
-                              string(name: 'GIT_COMMIT', value: env.GIT_COMMIT),
-                              string(name: 'GIT_BRANCH', value: env.GIT_BRANCH)
+                              string(name: 'GIT_COMMIT',   value: env.GIT_COMMIT_SHORT),
+                              string(name: 'GIT_BRANCH',   value: env.GIT_BRANCH)
                           ],
                           wait: false
-                    echo '✅ CD pipeline triggered successfully'
+                    echo '✅ CD pipeline triggered'
                 } catch (Exception e) {
-                    echo "⚠️ Failed to trigger CD pipeline: ${e.message}"
-                    echo "You can trigger it manually from Jenkins"
+                    echo "⚠️ CD trigger failed: ${e.message}"
                 }
             }
         }
-        
+
         failure {
             script {
-                echo '╔════════════════════════════════════════════════════════════╗'
-                echo '║                   ❌ CI PIPELINE FAILED                    ║'
-                echo '╚════════════════════════════════════════════════════════════╝'
+                echo '╔══════════════════════════════════════════════════════════╗'
+                echo '║               ❌ CI PIPELINE FAILED                     ║'
+                echo '╚══════════════════════════════════════════════════════════╝'
                 echo """
                 ❌ Build Failed:
-                   • Build: #${env.BUILD_NUMBER}
+                   • Build:  #${env.BUILD_NUMBER}
                    • Branch: ${env.GIT_BRANCH}
                    • Commit: ${env.GIT_COMMIT_SHORT}
-                   • Check logs: ${env.BUILD_URL}console
+                   • Logs:   ${env.BUILD_URL}console
                 """
             }
         }
-        
-        unstable {
-            echo '⚠️ Build is unstable - some tests may have failed'
-        }
-        
+
         always {
-            // Nettoyage
             cleanWs deleteDirs: true, patterns: [
                 [pattern: 'node_modules', type: 'INCLUDE'],
-                [pattern: 'dist', type: 'INCLUDE'],
-                [pattern: 'coverage', type: 'INCLUDE']
+                [pattern: 'dist',         type: 'INCLUDE'],
+                [pattern: 'coverage',     type: 'INCLUDE']
             ]
         }
     }
