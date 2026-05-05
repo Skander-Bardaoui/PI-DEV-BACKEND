@@ -13,7 +13,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE     = 'imen077/pi-dev-backend'
-        DOCKER_CREDS     = 'dockerhub-credentials'
+        DOCKER_CREDS     = 'docker-credentials'
         K8S_NAMESPACE    = 'production'
         K8S_DEPLOYMENT   = 'backend'
         IMAGE_TAG        = "${params.BUILD_NUMBER ?: env.BUILD_NUMBER}"
