@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: imen077/backend:latest
+        image: imen077/pi-dev-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 3001
