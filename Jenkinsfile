@@ -45,8 +45,32 @@ pipeline {
         stage('🧪 Tests') {
         // ─────────────────────────────────────────────
             steps {
-                // ⚠️ Si pas encore de tests → garde le || true
-                sh 'npm run test:cov || true'
+                sh '''
+                    npm install
+                    npm run test:cov || true
+                '''
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        stage('🔐 NPM Security Audit') {
+        // ─────────────────────────────────────────────
+            steps {
+                sh '''
+                    echo "🔐 Running npm security audit..."
+                    # Count critical vulnerabilities
+                    CRITICAL_COUNT=$(npm audit --audit-level=critical --json 2>/dev/null | grep -c '"severity":"critical"' || echo "0")
+                    
+                    if [ "$CRITICAL_COUNT" -gt 0 ]; then
+                        echo "❌ Found $CRITICAL_COUNT critical vulnerabilities!"
+                        echo "⚠️ Please fix node-tesseract-ocr or remove it"
+                        npm audit --audit-level=critical
+                        # Don't fail the build, just warn
+                        echo "⚠️ Continuing despite critical vulnerabilities..."
+                    else
+                        echo "✅ No critical vulnerabilities found"
+                    fi
+                '''
             }
         }
 

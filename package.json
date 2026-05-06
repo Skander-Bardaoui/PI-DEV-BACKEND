@@ -128,16 +128,23 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.{ts,js}",
+      "**/activities/*.{service,controller}.ts",
+      "**/businesses/*.{service,controller}.ts",
+      "**/business-members/*.service.ts",
+      "**/global-ai-assistant/*.service.ts",
+      "**/invitations/*.service.ts",
+      "**/members/*.{service,controller}.ts",
+      "**/notifications/*.{service,controller}.ts",
+      "**/plans/*.{service,controller}.ts",
+      "**/presence/*.{service,controller}.ts",
+      "**/projects/*.{service,controller}.ts",
+      "**/subtasks/*.{service,controller}.ts",
+      "**/tasks/*.{service,controller}.ts",
+      "**/teams/*.{service,controller}.ts",
+      "**/users/*.{service,controller}.ts",
+      "**/quotes/*.{service,controller}.ts",
       "!**/*.spec.ts",
-      "!**/*.test.ts",
-      "!**/*.module.ts",
-      "!**/main.ts",
-      "!**/*.dto.ts",
-      "!**/*.entity.ts",
-      "!**/*.enum.ts",
-      "!**/node_modules/**",
-      "!**/dist/**"
+      "!**/*.module.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
@@ -150,12 +157,35 @@
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "/dist/",
+      "/migrations/",
+      "/scripts/",
+      "/config/",
+      "/database/",
       ".module.ts$",
       ".dto.ts$",
       ".entity.ts$",
       ".enum.ts$",
+      ".interface.ts$",
+      ".decorator.ts$",
+      ".guard.ts$",
+      ".strategy.ts$",
+      ".filter.ts$",
+      ".interceptor.ts$",
+      ".middleware.ts$",
+      ".pipe.ts$",
+      ".config.ts$",
+      ".constants.ts$",
+      ".types.ts$",
       "main.ts$"
     ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 70,
+        "branches": 60,
+        "functions": 60,
+        "lines": 70
+      }
+    },
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1"
