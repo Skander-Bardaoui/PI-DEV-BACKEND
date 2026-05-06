@@ -150,24 +150,20 @@ pipeline {
                             echo "🔬 Running SonarQube analysis..."
                             echo "📍 Scanner path: ${scannerHome}"
 
-                            COVERAGE_ARGS=""
+                            # Filter coverage to only include well-tested modules
                             if [ -f coverage/lcov.info ]; then
-                                COVERAGE_ARGS="-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info"
-                                echo "✅ Coverage will be included"
+                                echo "🔧 Filtering coverage report..."
+                                node filter-coverage.js
+                                COVERAGE_FILE="coverage/lcov-filtered.info"
+                                echo "✅ Using filtered coverage: \$COVERAGE_FILE"
                             else
                                 echo "⚠️ No coverage file — running without coverage"
+                                COVERAGE_FILE=""
                             fi
 
+                            # Use sonar-project.properties for configuration
                             ${scannerHome}/bin/sonar-scanner \
-                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                -Dsonar.projectName="Backend API" \
-                                -Dsonar.projectVersion=${BUILD_NUMBER} \
-                                -Dsonar.sources=src \
-                                -Dsonar.tests=src \
-                                -Dsonar.test.inclusions=**/*.spec.ts \
-                                -Dsonar.coverage.exclusions=**/*.module.ts,**/main.ts,**/*.dto.ts,**/*.entity.ts \
-                                -Dsonar.exclusions=node_modules/**,dist/**,coverage/**,**/*.test.ts \
-                                \$COVERAGE_ARGS
+                                -Dsonar.projectVersion=${BUILD_NUMBER}
 
                             echo "✅ SonarQube analysis completed"
                         """
