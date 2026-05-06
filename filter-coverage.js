@@ -45,10 +45,13 @@ for (const line of lines) {
     currentBlock = [line];
     currentFile = line.substring(3); // Remove "SF:"
     
+    // Normalize path separators for cross-platform compatibility
+    const normalizedPath = currentFile.replace(/\\/g, '/');
+    
     // Check if this file should be included
     includeCurrentFile = includedModules.some(module => 
-      currentFile.includes(`/src/${module}/`) || 
-      currentFile.includes(`\\src\\${module}\\`)
+      normalizedPath.includes(`/src/${module}/`) || 
+      normalizedPath.includes(`src/${module}/`)
     );
   } else if (line === 'end_of_record') {
     currentBlock.push(line);
