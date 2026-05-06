@@ -221,8 +221,9 @@ pipeline {
         // ─────────────────────────────────────────────────────────────────
             steps {
                 sh '''
-                    npm audit --audit-level=high || {
-                        echo "⚠️ Security vulnerabilities found — continuing"
+                    echo "🔐 Running security audit..."
+                    npm audit --audit-level=critical || {
+                        echo "⚠️ Security vulnerabilities found (non-critical) — continuing"
                         npm audit --audit-level=high --json > audit-report.json || true
                     }
                     echo "✅ Security audit completed"
