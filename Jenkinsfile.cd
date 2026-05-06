@@ -71,26 +71,36 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         sh """
+                            set -e  # Exit on any error
                             echo "🐳 Building: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
 
                             # Login DockerHub
+                            echo "🔐 Logging into Docker Hub..."
                             echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                            echo "✅ Docker login successful"
 
                             # Build image
+                            echo "🏗️ Building Docker image..."
                             docker build \
                                 -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
                                 -t ${env.IMAGE_NAME}:latest \
                                 --build-arg BUILD_DATE=\$(date -u +%Y-%m-%dT%H:%M:%SZ) \
                                 --build-arg VCS_REF=${params.GIT_COMMIT} \
                                 --build-arg VERSION=${env.IMAGE_TAG} \
-                                .
+                                . || { echo "❌ Docker build failed"; exit 1; }
+                            echo "✅ Docker build successful"
 
                             # Push les deux tags
-                            docker push ${env.IMAGE_NAME}:${env.IMAGE_TAG}
-                            docker push ${env.IMAGE_NAME}:latest
+                            echo "📤 Pushing image with tag ${env.IMAGE_TAG}..."
+                            docker push ${env.IMAGE_NAME}:${env.IMAGE_TAG} || { echo "❌ Push failed for tag ${env.IMAGE_TAG}"; exit 1; }
+                            echo "✅ Pushed ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+
+                            echo "📤 Pushing image with tag latest..."
+                            docker push ${env.IMAGE_NAME}:latest || { echo "❌ Push failed for tag latest"; exit 1; }
+                            echo "✅ Pushed ${env.IMAGE_NAME}:latest"
 
                             docker logout
-                            echo "✅ Image pushed: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                            echo "✅ All images pushed successfully"
                         """
                     }
                 }
