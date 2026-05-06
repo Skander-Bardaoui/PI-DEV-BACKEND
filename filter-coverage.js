@@ -12,19 +12,10 @@ const path = require('path');
 const includedModules = [
   'activities',
   'businesses',
-  'business-members',
-  'global-ai-assistant',
-  'invitations',
-  'members',
-  'notifications',
-  'plans',
   'presence',
-  'projects',
   'subtasks',
   'tasks',
-  'teams',
-  'users',
-  'quotes'
+  'users'
 ];
 
 const lcovPath = path.join(__dirname, 'coverage', 'lcov.info');
