@@ -89,6 +89,36 @@ pipeline {
         }
 
         // ─────────────────────────────────────────────────────────────────
+        stage('🔒 Semgrep SAST') {
+        // ─────────────────────────────────────────────────────────────────
+            steps {
+                withCredentials([string(credentialsId: 'semgrep-token', variable: 'SEMGREP_APP_TOKEN')]) {
+                    sh '''
+                        echo "🔒 Semgrep — scan et envoi vers Semgrep AppSec Platform..."
+
+                        docker run --rm \
+                          --user "$(id -u):$(id -g)" \
+                          -e HOME=/tmp \
+                          -e SEMGREP_APP_TOKEN \
+                          -e SEMGREP_SEND_METRICS=off \
+                          -v "$WORKSPACE:/src" \
+                          -w /src \
+                          semgrep/semgrep:latest \
+                          semgrep ci \
+                            --json-output=semgrep-report.json
+
+                        echo "✅ Résultats envoyés — voir Semgrep AppSec Platform > Findings"
+                    '''
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'semgrep-report.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
         stage('🧪 Unit Tests') {
         // ─────────────────────────────────────────────────────────────────
             steps {

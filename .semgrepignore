@@ -1,0 +1,19 @@
+# Chemins exclus du scan Semgrep (syntaxe .gitignore)
+node_modules/
+dist/
+build/
+coverage/
+.jenkins/
+.kiro/
+*.min.js
+*.min.css
+*.map
+*.d.ts
+package-lock.json
+yarn.lock
+
+# Tests
+test/
+**/__tests__/
+*.spec.ts
+*.test.ts

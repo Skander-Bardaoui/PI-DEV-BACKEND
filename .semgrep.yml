@@ -1,0 +1,48 @@
+# Règles Semgrep personnalisées — Backend NestJS
+# Utilisées en complément de p/security-audit, p/owasp-top-ten et p/secrets.
+rules:
+  - id: nestjs-jwt-hardcoded-secret
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      Secret JWT codé en dur (ou avec une valeur de repli en clair). Utilisez
+      uniquement une variable d'environnement injectée via ConfigService, sans
+      fallback littéral.
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      owasp: "A02:2021 - Cryptographic Failures"
+    patterns:
+      - pattern-either:
+          - pattern: 'JwtModule.register({..., secret: "$SECRET", ...})'
+          - pattern: 'JwtModule.register({..., secret: $ENV || "$SECRET", ...})'
+
+  - id: nestjs-jwt-ignore-expiration
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      La vérification d'expiration JWT est désactivée. Un token volé resterait
+      valide indéfiniment — retirez ignoreExpiration: true.
+    metadata:
+      category: security
+      cwe: "CWE-613: Insufficient Session Expiration"
+      owasp: "A07:2021 - Identification and Authentication Failures"
+    patterns:
+      - pattern-either:
+          - pattern: '$JWT.verify($TOKEN, {..., ignoreExpiration: true, ...})'
+          - pattern: '$JWT.verify($TOKEN, $SECRET, {..., ignoreExpiration: true, ...})'
+
+  - id: typeorm-query-template-interpolation
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      Requête SQL construite par interpolation de template. Risque d'injection
+      SQL — utilisez des paramètres positionnels ($1, $2, ...).
+    metadata:
+      category: security
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 - Injection"
+    patterns:
+      - pattern-either:
+          - pattern: '$DB.query(`...${$X}...`, ...)'
+          - pattern: '$DB.query(`...${$X}...`)'
