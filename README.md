@@ -1,250 +1,70 @@
-# PI-DEV Backend API
+<p align="center">
+  <img src="docs/banner.svg" width="100%" alt="NovaEntra Backend banner" />
+</p>
 
-Enterprise-grade ERP backend built with NestJS, TypeScript, and PostgreSQL. This API powers a comprehensive business management system with modules for sales, purchases, inventory, collaboration, and more.
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&pause=1200&color=4338CA&center=true&vCenter=true&width=760&lines=Enterprise+ERP%2C+one+API;NestJS+%2B+PostgreSQL;Multi-tenant+by+design" alt="Typing tagline" />
+</p>
 
-## 🚀 Features
+<p align="center">
+  <img src="https://img.shields.io/github/languages/top/Skander-Bardaoui/PI-DEV-BACKEND?style=flat-square&color=4338CA" alt="" />
+  <img src="https://img.shields.io/github/stars/Skander-Bardaoui/PI-DEV-BACKEND?style=flat-square&color=4338CA" alt="" />
+  <img src="https://img.shields.io/github/last-commit/Skander-Bardaoui/PI-DEV-BACKEND?style=flat-square&color=6366F1" alt="" />
+  <img src="https://img.shields.io/badge/status-Active-4338CA?style=flat-square" alt="" />
+</p>
 
-### Core Modules
-- **Authentication & Authorization** - JWT-based auth with role-based access control
-- **Multi-tenancy** - Business/tenant isolation with secure data segregation
-- **Sales Management** - Invoices, quotes, sales orders, delivery notes, recurring invoices
-- **Purchase Management** - Supplier management, purchase orders, goods receipts, 3-way matching
-- **Inventory & Stock** - Warehouse management, stock movements, product tracking
-- **Treasury & Payments** - Account management, payments, transfers, transactions
-- **Collaboration** - Tasks, subtasks, comments, notifications, team management
-- **Client Portal** - Secure client access with token-based authentication
-- **Supplier Portal** - Supplier onboarding and order management
+## Overview
 
-### AI-Powered Features
-- **OCR Processing** - Automatic invoice/document data extraction
-- **AI Email Generation** - Smart email drafting for invoices and quotes
-- **3-Way Matching AI** - Intelligent PO/GR/Invoice reconciliation
-- **Supplier Scoring** - AI-based supplier performance analysis
-- **Subtask Generation** - Automatic task breakdown using AI
+The API behind the ERP platform: NestJS and PostgreSQL with JWT authentication, role-based access control, tenant isolation, sales and purchase workflows, inventory, treasury, reporting and AI-assisted features. Built to be containerised and deployed with Jenkins and Kubernetes.
 
-### Technical Features
-- WebSocket support for real-time updates
-- Email notifications with customizable templates
-- PDF generation for documents
-- File upload handling
-- Database migrations
-- Comprehensive error handling
-- Request validation with DTOs
-- API documentation ready
+## Highlights
 
-## 📋 Prerequisites
+- JWT authentication, RBAC and business-level tenant isolation
+- Quotes, invoices, sales orders, delivery notes and recurring invoices
+- Suppliers, purchase orders, goods receipts and three-way matching
+- Inventory movements, warehouse management and product tracking
+- Treasury, payments, reporting and scheduled jobs
+- Docker, Jenkins pipelines and Kubernetes manifests included
 
-- Node.js >= 18.x
-- PostgreSQL >= 14.x
-- npm or yarn
-- Gmail account (for email features)
+## Tech stack
 
-## 🛠️ Installation
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=nestjs,ts,nodejs,postgres,docker,kubernetes,jenkins,git&theme=dark&perline=8" alt="Tech stack" />
+</p>
 
-1. Clone the repository
-```bash
-git clone <repository-url>
-cd PI-DEV-BACKEND
-```
+## Getting started
 
-2. Install dependencies
+**Prerequisites:** Node.js 20+, PostgreSQL and a configured .env file.
+
 ```bash
 npm install
-```
-
-3. Configure environment variables
-```bash
 cp .env.example .env
-```
-
-Edit `.env` with your configuration:
-```env
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-DB_NAME=pi_dev_db
-
-# JWT
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRES_IN=7d
-REFRESH_TOKEN_SECRET=your_refresh_token_secret
-REFRESH_TOKEN_EXPIRES_IN=30d
-
-# Email (Gmail)
-GMAIL_USER=your_email@gmail.com
-GMAIL_PASS=your_app_password
-
-# Frontend URL
-FRONTEND_URL=http://localhost:5173
-
-# AI Services (Optional)
-GROQ_API_KEY=your_groq_api_key
-OPENAI_API_KEY=your_openai_api_key
-
-# Server
-PORT=3001
-```
-
-4. Run database migrations
-```bash
+# configure DB_* and JWT secrets
 npm run migration:run
-```
-
-## 🚀 Running the Application
-
-### Development Mode
-```bash
 npm run start:dev
 ```
-Server runs on `http://localhost:3001`
 
-### Production Mode
-```bash
-npm run build
-npm run start:prod
+## Project structure
+
+```text
+src/         modules, controllers, services and entities
+migrations/  TypeORM migrations
+test/        unit and e2e tests
+k8s/         deployment manifests
 ```
 
-### Watch Mode
-```bash
-npm run start
-```
+## Documentation
 
-## 🧪 Testing
-
-```bash
-# Unit tests
-npm run test
-
-# E2E tests
-npm run test:e2e
-
-# Test coverage
-npm run test:cov
-```
-
-## 📁 Project Structure
-
-```
-src/
-├── auth/              # Authentication & authorization
-├── businesses/        # Business/tenant management
-├── users/            # User management
-├── clients/          # Client management
-├── sales/            # Sales module (invoices, quotes, orders)
-├── Purchases/        # Purchase module (suppliers, POs, receipts)
-├── stock/            # Inventory & warehouse management
-├── payments/         # Treasury & payment management
-├── collaboration/    # Tasks, comments, notifications
-├── messages/         # Real-time messaging
-├── subtasks/         # Task breakdown management
-├── email/            # Email service
-├── common/           # Shared utilities
-└── migrations/       # Database migrations
-```
-
-## 🔑 Key API Endpoints
-
-### Authentication
-- `POST /auth/register` - User registration
-- `POST /auth/login` - User login
-- `POST /auth/refresh` - Refresh access token
-- `GET /auth/profile` - Get user profile
-
-### Sales
-- `GET /sales/invoices` - List invoices
-- `POST /sales/invoices` - Create invoice
-- `POST /sales/invoices/:id/send` - Send invoice by email
-- `GET /sales/quotes` - List quotes
-- `POST /sales/quotes` - Create quote
-
-### Purchases
-- `GET /purchases/suppliers` - List suppliers
-- `POST /purchases/supplier-pos` - Create purchase order
-- `POST /purchases/goods-receipts` - Create goods receipt
-- `POST /purchases/three-way-matching` - Perform 3-way matching
-
-### Collaboration
-- `GET /tasks` - List tasks
-- `POST /tasks` - Create task
-- `POST /subtasks/generate` - AI-generate subtasks
-
-## 🐳 Docker Deployment
-
-```bash
-# Build image
-docker build -t pi-dev-backend .
-
-# Run container
-docker run -p 3001:3001 --env-file .env pi-dev-backend
-```
-
-## ☸️ Kubernetes Deployment
-
-```bash
-# Apply configurations
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/secret.yaml
-kubectl apply -f k8s/pvc.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-```
-
-## 📚 Documentation
-
-Additional documentation available in `/docs`:
-- `AI_SUBTASK_GENERATION.md` - AI subtask generation guide
-- `RAPPROCHEMENT_3_VOIES_IA.md` - 3-way matching documentation
-- `COLLABORATION_COMPLETE.md` - Collaboration features
-- `WAREHOUSE_FEATURE.md` - Warehouse management
-- And more...
-
-## 🔧 Database Migrations
-
-```bash
-# Generate migration
-npm run migration:generate -- src/migrations/MigrationName
-
-# Run migrations
-npm run migration:run
-
-# Revert migration
-npm run migration:revert
-```
-
-## 🌐 Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DB_HOST` | PostgreSQL host | Yes |
-| `DB_PORT` | PostgreSQL port | Yes |
-| `DB_USERNAME` | Database username | Yes |
-| `DB_PASSWORD` | Database password | Yes |
-| `DB_NAME` | Database name | Yes |
-| `JWT_SECRET` | JWT secret key | Yes |
-| `GMAIL_USER` | Gmail account for emails | Yes |
-| `GMAIL_PASS` | Gmail app password | Yes |
-| `FRONTEND_URL` | Frontend application URL | Yes |
-| `GROQ_API_KEY` | Groq AI API key | No |
-| `OPENAI_API_KEY` | OpenAI API key | No |
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is proprietary and confidential.
-
-## 👥 Support
-
-For support and questions, contact the development team.
+- [Original project documentation](docs/README_ORIGINAL.md)
 
 ---
 
-Built with ❤️ using [NestJS](https://nestjs.com/)
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:4338CA,100:0A0A0C&height=110&section=footer" alt="footer" width="100%" />
+</p>
+
+<p align="center">
+  Built by <a href="https://github.com/Skander-Bardaoui"><b>Skander Bardaoui</b></a> ·
+  <a href="https://skander-bardaoui.netlify.app/">Portfolio</a> ·
+  <a href="https://github.com/Skander-Bardaoui?tab=repositories">All repositories</a>
+</p>
